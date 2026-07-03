@@ -1,0 +1,55 @@
+name: CampusSphere CI
+
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+    branches: [ main, master, dev ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install Root Dependencies
+        run: npm ci
+
+      # In real deployment we can run npm ci for server and client too.
+      # But since they might not be initialized with package-lock.json yet, we can use npm install or run local lint/test setup.
+      # Once the lockfiles exist, npm ci is preferred. Let's do npm install.
+      - name: Install Server Dependencies
+        run: |
+          cd server
+          npm install
+
+      - name: Install Client Dependencies
+        run: |
+          cd client
+          npm install
+
+      - name: Lint Code
+        run: |
+          npm run lint --prefix server
+          npm run lint --prefix client
+
+      - name: Run Backend Tests
+        run: |
+          npm run test --prefix server
+        env:
+          PORT: 5000
+          MONGODB_URI: mongodb://localhost:27017/test
+          JWT_SECRET: supersecretjwtkeyforlocaltestsonly
+          JWT_REFRESH_SECRET: supersecretrefreshjwtkeyforlocaltestsonly
+          NODE_ENV: test
