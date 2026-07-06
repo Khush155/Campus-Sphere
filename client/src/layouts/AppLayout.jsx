@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -17,6 +17,7 @@ import {
   Menu,
   MenuItem,
   Tooltip,
+  Chip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -29,19 +30,45 @@ import {
   Brightness4 as Brightness4Icon,
   Brightness7 as Brightness7Icon,
   Logout as LogoutIcon,
+  Palette as PaletteIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
+import { useAuth } from '../contexts/AuthContext';
+import CommandPalette from '../components/common/CommandPalette';
 
 const drawerWidth = 240;
 
 export const AppLayout = () => {
-  const { mode, toggleTheme } = useThemeContext();
+  const { mode, toggleTheme, colorPreset, setColorPreset } = useThemeContext();
+  const { user, logout } = useAuth();
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [presetAnchorEl, setPresetAnchorEl] = useState(null);
+  const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCmdPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handlePresetMenuOpen = (event) => {
+    setPresetAnchorEl(event.currentTarget);
+  };
+
+  const handlePresetMenuClose = () => {
+    setPresetAnchorEl(null);
+  };
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -55,20 +82,35 @@ export const AppLayout = () => {
     setAnchorEl(null);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     handleProfileMenuClose();
-    localStorage.removeItem('accessToken');
+    await logout();
     navigate('/login');
   };
 
-  const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-    { text: 'Students', icon: <PeopleIcon />, path: '/students' },
-    { text: 'Faculty', icon: <SchoolIcon />, path: '/faculty' },
-    { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance' },
-    { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees' },
-    { text: 'Notices', icon: <NotificationsIcon />, path: '/notices' },
-  ];
+  const menuItems = user?.role === 'SUPER_ADMIN'
+    ? [
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
+        { text: 'College Setup', icon: <SchoolIcon />, path: '/admin/college-setup/departments' },
+        { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users' },
+      ]
+    : [
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
+        { text: 'Students', icon: <PeopleIcon />, path: '/students', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD'] },
+        { text: 'Faculty', icon: <SchoolIcon />, path: '/faculty', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD'] },
+        { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
+        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'STUDENT'] },
+        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
+      ];
+
+  const visibleMenuItems = user?.role === 'SUPER_ADMIN'
+    ? menuItems
+    : menuItems.filter(item => item.roles.includes(user?.role));
+
+  const getInitials = (name) => {
+    if (!name) return 'CS';
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  };
 
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -89,7 +131,7 @@ export const AppLayout = () => {
       </Toolbar>
       <Divider />
       <List sx={{ px: 2, py: 2, flexGrow: 1 }}>
-        {menuItems.map((item) => {
+        {visibleMenuItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
@@ -171,6 +213,95 @@ export const AppLayout = () => {
           </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {/* Command Palette trigger */}
+            <Tooltip title="Command Palette (Ctrl+K)">
+              <IconButton onClick={() => setCmdPaletteOpen(true)} color="inherit" sx={{ color: 'text.secondary' }}>
+                <SearchIcon />
+              </IconButton>
+            </Tooltip>
+
+            {/* Palette Switcher Button */}
+            <Tooltip title="Choose theme color">
+              <IconButton onClick={handlePresetMenuOpen} color="inherit" sx={{ color: 'text.secondary' }}>
+                <PaletteIcon />
+              </IconButton>
+            </Tooltip>
+
+            <Menu
+              anchorEl={presetAnchorEl}
+              open={Boolean(presetAnchorEl)}
+              onClose={handlePresetMenuClose}
+              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+              PaperProps={{
+                sx: {
+                  mt: 1.5,
+                  borderRadius: 2,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                  p: 1,
+                },
+              }}
+            >
+              <Typography variant="caption" sx={{ px: 2, py: 1, display: 'block', fontWeight: 700, color: 'text.secondary' }}>
+                THEME COLOR
+              </Typography>
+              <MenuItem
+                onClick={() => {
+                  setColorPreset('indigo');
+                  handlePresetMenuClose();
+                }}
+                selected={colorPreset === 'indigo'}
+                sx={{ borderRadius: 1, mb: 0.5 }}
+              >
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#4f46e5', mr: 1.5 }} />
+                Indigo Blue
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setColorPreset('emerald');
+                  handlePresetMenuClose();
+                }}
+                selected={colorPreset === 'emerald'}
+                sx={{ borderRadius: 1, mb: 0.5 }}
+              >
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#059669', mr: 1.5 }} />
+                Emerald Green
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setColorPreset('rose');
+                  handlePresetMenuClose();
+                }}
+                selected={colorPreset === 'rose'}
+                sx={{ borderRadius: 1, mb: 0.5 }}
+              >
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#db2777', mr: 1.5 }} />
+                Rose Pink
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setColorPreset('amber');
+                  handlePresetMenuClose();
+                }}
+                selected={colorPreset === 'amber'}
+                sx={{ borderRadius: 1, mb: 0.5 }}
+              >
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#d97706', mr: 1.5 }} />
+                Amber Sunset
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setColorPreset('violet');
+                  handlePresetMenuClose();
+                }}
+                selected={colorPreset === 'violet'}
+                sx={{ borderRadius: 1 }}
+              >
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#7c3aed', mr: 1.5 }} />
+                Royal Violet
+              </MenuItem>
+            </Menu>
+
             {/* Theme Toggle Button */}
             <Tooltip title="Toggle light/dark theme">
               <IconButton onClick={toggleTheme} color="inherit" sx={{ color: 'text.secondary' }}>
@@ -190,7 +321,7 @@ export const AppLayout = () => {
                     fontWeight: 600,
                   }}
                 >
-                  AD
+                  {getInitials(user?.name)}
                 </Avatar>
               </IconButton>
             </Tooltip>
@@ -210,6 +341,21 @@ export const AppLayout = () => {
                 },
               }}
             >
+              <Box sx={{ px: 2, py: 1.5, minWidth: 160 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                  {user?.name || 'User Profile'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, wordBreak: 'break-all' }}>
+                  {user?.email || 'user@college.edu'}
+                </Typography>
+                <Chip
+                  label={user?.role?.replace('_', ' ') || 'GUEST'}
+                  size="small"
+                  color="primary"
+                  sx={{ fontSize: '0.65rem', height: 20, fontWeight: 700 }}
+                />
+              </Box>
+              <Divider />
               <MenuItem onClick={handleProfileMenuClose}>Profile</MenuItem>
               <MenuItem onClick={handleProfileMenuClose}>Settings</MenuItem>
               <Divider />
@@ -260,6 +406,8 @@ export const AppLayout = () => {
 
       {/* Main Content Area */}
       <Box
+        key={location.pathname}
+        className="fade-entrance"
         component="main"
         sx={{
           flexGrow: 1,
@@ -271,6 +419,8 @@ export const AppLayout = () => {
       >
         <Outlet />
       </Box>
+
+      <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
     </Box>
   );
 };

@@ -19,7 +19,7 @@ const limitHandler = (req, res, next, options) => {
  */
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'test' ? 10000 : 100, // Limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again after 15 minutes',
   statusCode: 429,
   handler: limitHandler,
@@ -32,7 +32,7 @@ const apiLimiter = rateLimit({
  */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs (e.g. login attempts)
+  max: process.env.NODE_ENV === 'test' ? 10000 : 5, // Limit each IP to 5 requests per windowMs (e.g. login attempts)
   message: 'Too many authentication attempts. Please try again after 15 minutes',
   statusCode: 429,
   handler: limitHandler,

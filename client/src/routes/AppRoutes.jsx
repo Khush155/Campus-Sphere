@@ -2,15 +2,72 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from '../layouts/AppLayout';
 import Home from '../pages/Home';
-import Login from '../pages/Login';
-import { Typography, Paper } from '@mui/material';
+import LoginPage from '../pages/auth/LoginPage';
+import { useAuth } from '../contexts/AuthContext';
+import { Typography, Paper, CircularProgress, Box } from '@mui/material';
+import RoleRoute from './RoleRoute';
+import AdminDashboard from '../pages/admin/AdminDashboard';
+import SetupHub from '../pages/admin/CollegeSetup/SetupHub';
+import UserRoster from '../pages/admin/UserManagement/UserRoster';
+import SetupWizard from '../pages/admin/SetupWizard';
+import { useDepartmentsQuery } from '../queries/collegeQueries';
 
-// Standard Protected Route check
+// Guard for authenticated sections
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('accessToken');
-  if (!token) {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default' }}>
+        <CircularProgress size={50} />
+      </Box>
+    );
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+
+  return children;
+};
+
+// Guard to enforce setup wizard on empty database
+const AdminSetupGuard = ({ children }) => {
+  const { data: depts, isLoading } = useDepartmentsQuery();
+  const skipped = localStorage.getItem('skip_setup_wizard') === 'true';
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default' }}>
+        <CircularProgress size={50} />
+      </Box>
+    );
+  }
+
+  // If there are zero departments and the user has not skipped, redirect to Setup Wizard
+  if ((!depts || depts.length === 0) && !skipped) {
+    return <Navigate to="/admin/setup-wizard" replace />;
+  }
+
+  return children;
+};
+
+// Guard for guest-only sections (like login page)
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default' }}>
+        <CircularProgress size={50} />
+      </Box>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
   return children;
 };
 
@@ -26,11 +83,19 @@ const PlaceholderView = ({ title }) => (
   </Paper>
 );
 
+const HomeRedirect = () => {
+  const { user } = useAuth();
+  if (user?.role === 'SUPER_ADMIN') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+  return <Home />;
+};
+
 export const AppRoutes = () => {
   return (
     <Routes>
       {/* Public Routes */}
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
 
       {/* Protected Layout Routes */}
       <Route
@@ -41,7 +106,54 @@ export const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Home />} />
+        <Route index element={<HomeRedirect />} />
+        
+        {/* Super Admin Workspace Routes */}
+        <Route
+          path="admin/dashboard"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <AdminDashboard />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="admin/setup-wizard"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <SetupWizard />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="admin/college-setup"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <Navigate to="/admin/college-setup/departments" replace />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="admin/college-setup/:tab"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <SetupHub />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="admin/users"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <UserRoster />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
         <Route path="students" element={<PlaceholderView title="Students" />} />
         <Route path="faculty" element={<PlaceholderView title="Faculty" />} />
         <Route path="attendance" element={<PlaceholderView title="Attendance" />} />

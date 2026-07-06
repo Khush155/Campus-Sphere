@@ -7,6 +7,8 @@ import theme from '../theme/theme';
 const ThemeContext = createContext({
   mode: 'light',
   toggleTheme: () => {},
+  colorPreset: 'indigo',
+  setColorPreset: () => {},
 });
 
 export const useThemeContext = () => useContext(ThemeContext);
@@ -17,18 +19,27 @@ export const CustomThemeProvider = ({ children }) => {
     return savedMode || 'light';
   });
 
+  const [colorPreset, setColorPreset] = useState(() => {
+    const savedPreset = localStorage.getItem('theme-preset');
+    return savedPreset || 'indigo';
+  });
+
   useEffect(() => {
     localStorage.setItem('theme-mode', mode);
   }, [mode]);
+
+  useEffect(() => {
+    localStorage.setItem('theme-preset', colorPreset);
+  }, [colorPreset]);
 
   const toggleTheme = () => {
     setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
   };
 
-  const activeTheme = theme(mode);
+  const activeTheme = theme(mode, colorPreset);
 
   return (
-    <ThemeContext.Provider value={{ mode, toggleTheme }}>
+    <ThemeContext.Provider value={{ mode, toggleTheme, colorPreset, setColorPreset }}>
       <MuiThemeProvider theme={activeTheme}>
         <CssBaseline />
         {children}
@@ -36,3 +47,4 @@ export const CustomThemeProvider = ({ children }) => {
     </ThemeContext.Provider>
   );
 };
+

@@ -110,8 +110,10 @@ app.get('/', (req, res) => {
   res.redirect('/api-docs');
 });
 
-// Import and register routing files (placed here for Phase 1 base routing setup)
-// Example: app.use('/api/v1/auth', require('./routes/authRoutes'));
+// Import and register routing files
+app.use('/api/v1/auth', require('./routes/authRoutes'));
+app.use('/api/v1/college', require('./routes/collegeRoutes'));
+app.use('/api/v1/users', require('./routes/userRoutes'));
 
 // Catch-all for unhandled routes
 app.all('*', (req, res, next) => {
