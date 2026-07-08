@@ -13,6 +13,12 @@ const superAdminGuard = [
   roleMiddleware(ROLES.SUPER_ADMIN),
 ];
 
+// Admin and HOD access guard for read operations
+const adminAndHodGuard = [
+  authMiddleware,
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
+];
+
 /**
  * @openapi
  * /api/v1/users:
@@ -24,7 +30,7 @@ const superAdminGuard = [
  *       200:
  *         description: Users list.
  */
-router.get('/', superAdminGuard, asyncHandler(userController.getUsers));
+router.get('/', adminAndHodGuard, asyncHandler(userController.getUsers));
 
 /**
  * @openapi
@@ -52,7 +58,7 @@ router.get('/audit-logs', superAdminGuard, asyncHandler(userController.getAuditL
  */
 router.get('/insights', superAdminGuard, asyncHandler(userController.getInsights));
 
-router.get('/:id', superAdminGuard, asyncHandler(userController.getUser));
+router.get('/:id', adminAndHodGuard, asyncHandler(userController.getUser));
 
 /**
  * @openapi

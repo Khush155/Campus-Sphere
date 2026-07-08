@@ -1,6 +1,9 @@
 const userService = require('../services/userService');
 const { updateUserSchema } = require('../validators/userValidator');
 const { successResponse } = require('../utils/apiResponse');
+const AppError = require('../utils/AppError');
+const ERROR_CODES = require('../constants/errorCodes');
+const ROLES = require('../constants/roles');
 
 /**
  * Controller to fetch users list with sorting and filtering options.
@@ -10,11 +13,15 @@ const getUsers = async (req, res, _next) => {
   const limit = parseInt(req.query.limit, 10) || 20;
   const { role, department, status, search } = req.query;
 
+  // Security Rule: HODs can only fetch users in their own department
+  const isHod = req.user.role === ROLES.HOD;
+  const targetDepartmentId = isHod ? req.user.departmentId : department;
+
   const result = await userService.getUsersList({
     page,
     limit,
     role,
-    departmentId: department,
+    departmentId: targetDepartmentId,
     status,
     search,
   });
@@ -67,6 +74,13 @@ const getInsights = async (req, res, _next) => {
 const getUser = async (req, res, _next) => {
   const { id } = req.params;
   const user = await userService.getUserDetails(id);
+
+  if (req.user.role === ROLES.HOD) {
+    if (String(user.departmentId) !== String(req.user.departmentId)) {
+      throw new AppError('Access denied to users outside your department.', 403, ERROR_CODES.FORBIDDEN);
+    }
+  }
+
   return successResponse(res, 200, 'User details fetched successfully', user);
 };
 

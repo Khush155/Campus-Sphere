@@ -90,20 +90,27 @@ export const AppLayout = () => {
 
   const menuItems = user?.role === 'SUPER_ADMIN'
     ? [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
-        { text: 'College Setup', icon: <SchoolIcon />, path: '/admin/college-setup/departments' },
-        { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users' },
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard', roles: ['SUPER_ADMIN'] },
+        { text: 'College Setup', icon: <SchoolIcon />, path: '/admin/college-setup/departments', roles: ['SUPER_ADMIN'] },
+        { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users', roles: ['SUPER_ADMIN'] },
+      ]
+    : user?.role === 'HOD'
+    ? [
+        { text: 'Department Dashboard', icon: <DashboardIcon />, path: '/hod/dashboard', roles: ['HOD'] },
+        { text: 'Faculty Management', icon: <SchoolIcon />, path: '/hod/faculty', roles: ['HOD'] },
+        { text: 'Student Overview', icon: <PeopleIcon />, path: '/hod/students', roles: ['HOD'] },
+        { text: 'Subject Allocation', icon: <DateRangeIcon />, path: '/hod/subjects', roles: ['HOD'] },
       ]
     : [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
-        { text: 'Students', icon: <PeopleIcon />, path: '/students', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD'] },
-        { text: 'Faculty', icon: <SchoolIcon />, path: '/faculty', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD'] },
-        { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
-        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'STUDENT'] },
-        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },
+        { text: 'Students', icon: <PeopleIcon />, path: '/students', roles: ['COLLEGE_ADMIN'] },
+        { text: 'Faculty', icon: <SchoolIcon />, path: '/faculty', roles: ['COLLEGE_ADMIN'] },
+        { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },
+        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['COLLEGE_ADMIN', 'STUDENT'] },
+        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },
       ];
 
-  const visibleMenuItems = user?.role === 'SUPER_ADMIN'
+  const visibleMenuItems = (user?.role === 'SUPER_ADMIN' || user?.role === 'HOD')
     ? menuItems
     : menuItems.filter(item => item.roles.includes(user?.role));
 

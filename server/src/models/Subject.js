@@ -45,6 +45,11 @@ const subjectSchema = new mongoose.Schema(
       min: [1, 'Semester must be at least 1'],
       max: [12, 'Semester cannot exceed 12'],
     },
+    facultyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
   },
   {
     timestamps: true,

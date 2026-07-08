@@ -97,6 +97,12 @@ const createSubjectSchema = z.object({
     .int('Semester must be a whole number')
     .min(1, 'Semester must be at least 1')
     .max(12, 'Semester cannot exceed 12'),
+  facultyId: z
+    .string()
+    .regex(objectIdRegex, 'Invalid faculty ID format')
+    .optional()
+    .or(z.literal(''))
+    .or(z.null()),
 });
 
 const updateSubjectSchema = createSubjectSchema.partial();

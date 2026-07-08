@@ -11,6 +11,10 @@ import SetupHub from '../pages/admin/CollegeSetup/SetupHub';
 import UserRoster from '../pages/admin/UserManagement/UserRoster';
 import SetupWizard from '../pages/admin/SetupWizard';
 import { useDepartmentsQuery } from '../queries/collegeQueries';
+import HodDashboard from '../pages/hod/HodDashboard';
+import FacultyManagement from '../pages/hod/FacultyManagement';
+import StudentOverview from '../pages/hod/StudentOverview';
+import SubjectAllocation from '../pages/hod/SubjectAllocation';
 
 // Guard for authenticated sections
 const ProtectedRoute = ({ children }) => {
@@ -88,6 +92,9 @@ const HomeRedirect = () => {
   if (user?.role === 'SUPER_ADMIN') {
     return <Navigate to="/admin/dashboard" replace />;
   }
+  if (user?.role === 'HOD') {
+    return <Navigate to="/hod/dashboard" replace />;
+  }
   return <Home />;
 };
 
@@ -150,6 +157,40 @@ export const AppRoutes = () => {
               <AdminSetupGuard>
                 <UserRoster />
               </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        {/* HOD Workspace Routes */}
+        <Route
+          path="hod/dashboard"
+          element={
+            <RoleRoute allowedRoles={['HOD']}>
+              <HodDashboard />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="hod/faculty"
+          element={
+            <RoleRoute allowedRoles={['HOD']}>
+              <FacultyManagement />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="hod/students"
+          element={
+            <RoleRoute allowedRoles={['HOD']}>
+              <StudentOverview />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="hod/subjects"
+          element={
+            <RoleRoute allowedRoles={['HOD']}>
+              <SubjectAllocation />
             </RoleRoute>
           }
         />
