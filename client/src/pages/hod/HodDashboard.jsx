@@ -1,7 +1,7 @@
 /* eslint-disable */
 import React from 'react';
 import {
-  Box, Typography, Paper, Grid, CircularProgress, useTheme, Button, Avatar, IconButton, Divider,
+  Box, Typography, Paper, Grid, CircularProgress, useTheme, Button, Avatar, IconButton,
 } from '@mui/material';
 import { useUsersQuery } from '../../queries/userQueries';
 import { useSubjectsQuery } from '../../queries/collegeQueries';
@@ -173,7 +173,7 @@ const HodDashboard = () => {
             icon={<MenuBook />}
             title="Faculty Assignment"
             desc="Assign subjects to teachers"
-            onClick={() => navigate('/hod/assignment')}
+            onClick={() => navigate('/hod/faculty-assignment')}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>

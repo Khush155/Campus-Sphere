@@ -17,6 +17,10 @@ const getUsers = async (req, res, _next) => {
   const isHod = req.user.role === ROLES.HOD;
   const targetDepartmentId = isHod ? req.user.departmentId : department;
 
+  // Security Rule: HODs can only fetch users in their own department
+  const isHod = req.user.role === ROLES.HOD;
+  const targetDepartmentId = isHod ? req.user.departmentId : department;
+
   const result = await userService.getUsersList({
     page,
     limit,

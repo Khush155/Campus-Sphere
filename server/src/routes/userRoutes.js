@@ -33,7 +33,6 @@ const adminAndHodGuard = [
  *         description: Users list.
  */
 router.get('/', adminAndHodGuard, asyncHandler(userController.getUsers));
-
 router.post('/import-students', adminAndHodGuard, upload.single('file'), asyncHandler(userController.importStudents));
 
 /**

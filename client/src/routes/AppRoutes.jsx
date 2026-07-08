@@ -225,7 +225,6 @@ export const AppRoutes = () => {
             </RoleRoute>
           }
         />
-
         <Route
           path="admin/academic-calendar"
           element={

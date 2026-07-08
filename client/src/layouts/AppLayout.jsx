@@ -191,7 +191,6 @@ export const AppLayout = () => {
         { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['COLLEGE_ADMIN'] },
         { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['COLLEGE_ADMIN'] },
       ];
-
   const visibleMenuItems = (user?.role === 'SUPER_ADMIN' || user?.role === 'HOD' || user?.role === 'STUDENT' || user?.role === 'FACULTY')
     ? menuItems
     : menuItems.filter(item => item.roles.includes(user?.role));
