@@ -39,8 +39,12 @@ const userSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['ACTIVE', 'INACTIVE'],
+      enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'],
       default: 'ACTIVE',
+    },
+    institutionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Institution',
     },
     departmentId: {
       type: mongoose.Schema.Types.ObjectId,

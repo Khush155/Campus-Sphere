@@ -3,6 +3,10 @@ const { updateUserSchema } = require('../validators/userValidator');
 const { successResponse } = require('../utils/apiResponse');
 const AppError = require('../utils/AppError');
 
+const User = require('../models/User');
+const FacultyAssignment = require('../models/FacultyAssignment');
+const Department = require('../models/Department');
+
 /**
  * Controller to fetch users list with sorting and filtering options.
  */
@@ -120,6 +124,34 @@ const exportUsers = async (req, res, _next) => {
   return res.status(200).send(csvString);
 };
 
+/**
+ * Controller to get faculty with their assigned workloads
+ */
+const getFaculty = async (req, res, _next) => {
+  const faculty = await User.find({ role: { $in: ['FACULTY', 'HOD'] } }).populate('departmentId', 'name').lean();
+  
+  const assignments = await FacultyAssignment.find({
+    facultyId: { $in: faculty.map(f => f._id) }
+  }).populate('subjectId', 'name credits type').lean();
+
+  const enrichedFaculty = faculty.map(f => {
+    const fAssignments = assignments.filter(a => a.facultyId.toString() === f._id.toString());
+    const workload = fAssignments.reduce((acc, a) => acc + (a.subjectId?.credits || 0), 0);
+    return {
+      id: f._id,
+      name: `${f.firstName} ${f.lastName}`,
+      email: f.email,
+      department: f.departmentId ? f.departmentId.name : 'Unassigned',
+      role: f.role,
+      workload,
+      status: f.status,
+      subjects: fAssignments.map(a => a.subjectId?.name).filter(Boolean)
+    };
+  });
+
+  return successResponse(res, 200, 'Faculty fetched successfully', enrichedFaculty);
+};
+
 module.exports = {
   getUsers,
   getUser,
@@ -130,4 +162,5 @@ module.exports = {
   bulkImportStudents,
   bulkImportJson,
   exportUsers,
+  getFaculty,
 };

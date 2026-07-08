@@ -20,6 +20,8 @@ const viewerGuard = [
   roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
 ];
 
+router.get('/faculty', viewerGuard, asyncHandler(userController.getFaculty));
+
 /**
  * @openapi
  * /api/v1/users:

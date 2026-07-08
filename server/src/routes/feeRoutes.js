@@ -7,10 +7,10 @@ const ROLES = require('../constants/roles');
 
 const router = express.Router();
 
-// Super Admin access guard
-const superAdminGuard = [
+// Admin access guard (Super Admin & College Admin)
+const financeAdminGuard = [
   authMiddleware,
-  roleMiddleware(ROLES.SUPER_ADMIN),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN),
 ];
 
 /**
@@ -34,7 +34,7 @@ const superAdminGuard = [
  *       200:
  *         description: List of fee structures.
  */
-router.get('/structures', superAdminGuard, asyncHandler(feeController.getFeeStructures));
+router.get('/structures', financeAdminGuard, asyncHandler(feeController.getFeeStructures));
 
 /**
  * @openapi
@@ -47,7 +47,7 @@ router.get('/structures', superAdminGuard, asyncHandler(feeController.getFeeStru
  *       201:
  *         description: Fee structure created.
  */
-router.post('/structures', superAdminGuard, asyncHandler(feeController.createFeeStructure));
+router.post('/structures', financeAdminGuard, asyncHandler(feeController.createFeeStructure));
 
 /**
  * @openapi
@@ -60,7 +60,7 @@ router.post('/structures', superAdminGuard, asyncHandler(feeController.createFee
  *       200:
  *         description: Student payment history.
  */
-router.get('/student/:studentId', superAdminGuard, asyncHandler(feeController.getStudentFees));
+router.get('/student/:studentId', financeAdminGuard, asyncHandler(feeController.getStudentFees));
 
 /**
  * @openapi
@@ -75,7 +75,7 @@ router.get('/student/:studentId', superAdminGuard, asyncHandler(feeController.ge
  *       409:
  *         description: Duplicate transactionReference rejected.
  */
-router.post('/payments', superAdminGuard, asyncHandler(feeController.recordPayment));
+router.post('/payments', financeAdminGuard, asyncHandler(feeController.recordPayment));
 
 /**
  * @openapi
@@ -93,6 +93,6 @@ router.post('/payments', superAdminGuard, asyncHandler(feeController.recordPayme
  *               type: string
  *               format: binary
  */
-router.get('/payments/:paymentId/receipt', superAdminGuard, asyncHandler(feeController.downloadReceipt));
+router.get('/payments/:paymentId/receipt', financeAdminGuard, asyncHandler(feeController.downloadReceipt));
 
 module.exports = router;

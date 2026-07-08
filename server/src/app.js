@@ -117,6 +117,10 @@ app.use('/api/v1/users', require('./routes/userRoutes'));
 app.use('/api/v1/fees', require('./routes/feeRoutes'));
 app.use('/api/v1/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/v1/faculty-assignments', require('./routes/facultyAssignmentRoutes'));
+app.use('/api/v1/academics', require('./routes/academicRoutes'));
+app.use('/api/v1/approvals', require('./routes/approvalRoutes'));
+app.use('/api/v1/announcements', require('./routes/announcementRoutes'));
+
 
 // Catch-all for unhandled routes
 app.all('*', (req, res, next) => {

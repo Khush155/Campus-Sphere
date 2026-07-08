@@ -9,20 +9,41 @@ const ROLES = require('../constants/roles');
 // Apply JWT authentication to all routes in this file
 router.use(authMiddleware);
 
-// Only HOD and SUPER_ADMIN can view HOD dashboard stats
-const hodGuard = roleMiddleware(ROLES.HOD, ROLES.SUPER_ADMIN);
+// Role-based Access Guards
+const hodGuard = [
+  authMiddleware,
+  roleMiddleware(ROLES.HOD, ROLES.SUPER_ADMIN),
+];
+
+const collegeAdminGuard = [
+  authMiddleware,
+  roleMiddleware(ROLES.COLLEGE_ADMIN, ROLES.SUPER_ADMIN),
+];
 
 /**
  * @openapi
  * /api/v1/dashboard/hod:
  *   get:
- *     summary: Get dashboard metrics for Head of Department
+ *     summary: Get dashboard statistics for HOD
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Dashboard stats retrieved successfully
+ *         description: Dashboard statistics retrieved successfully
  */
 router.get('/hod', hodGuard, asyncHandler(dashboardController.getHodStats));
+
+/**
+ * @openapi
+ * /api/v1/dashboard/college-admin:
+ *   get:
+ *     summary: Get dashboard statistics for College Admin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dashboard statistics retrieved successfully
+ */
+router.get('/college-admin', collegeAdminGuard, asyncHandler(dashboardController.getCollegeAdminStats));
 
 module.exports = router;

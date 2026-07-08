@@ -18,6 +18,7 @@ import {
   MenuItem,
   Tooltip,
   Chip,
+  Collapse,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -32,6 +33,21 @@ import {
   Logout as LogoutIcon,
   Palette as PaletteIcon,
   Search as SearchIcon,
+  ExpandLess,
+  ExpandMore,
+  AccountBalance as InstitutionIcon,
+  Business as DepartmentIcon,
+  MenuBook as AcademicsIcon,
+  HowToReg as AdmissionsIcon,
+  BarChart as ReportsIcon,
+  Campaign as AnnouncementsIcon,
+  FactCheck as ApprovalsIcon,
+  Settings as SettingsIcon,
+  Public as GlobalIcon,
+  CardMembership as LicenseIcon,
+  Security as SecurityIcon,
+  TrendingUp as AnalyticsIcon,
+  ListAlt as AuditIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
@@ -50,6 +66,14 @@ export const AppLayout = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [presetAnchorEl, setPresetAnchorEl] = useState(null);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+  const [openMenus, setOpenMenus] = useState({});
+
+  const handleToggleSubMenu = (menuText) => {
+    setOpenMenus((prev) => ({
+      ...prev,
+      [menuText]: !prev[menuText],
+    }));
+  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -88,24 +112,82 @@ export const AppLayout = () => {
     navigate('/login');
   };
 
-  const menuItems = user?.role === 'SUPER_ADMIN'
-    ? [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
-        { text: 'College Setup', icon: <SchoolIcon />, path: '/admin/college-setup/departments' },
-        { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users' },
-      ]
-    : [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
-        { text: 'Students', icon: <PeopleIcon />, path: '/students', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD'] },
-        { text: 'Faculty', icon: <SchoolIcon />, path: '/faculty', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD'] },
-        { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
-        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'STUDENT'] },
-        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
-      ];
+  const superAdminMenu = [
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/superadmin/dashboard' },
+    { text: 'Institutions', icon: <InstitutionIcon />, path: '/superadmin/institutions' },
+    { text: 'College Admins', icon: <PeopleIcon />, path: '/superadmin/college-admins' },
+    { text: 'Academic Templates', icon: <AcademicsIcon />, path: '/superadmin/templates' },
+    { text: 'Global Users', icon: <GlobalIcon />, path: '/superadmin/global-users' },
+    { text: 'Subscriptions', icon: <LicenseIcon />, path: '/superadmin/subscriptions' },
+    { text: 'Role Management', icon: <SecurityIcon />, path: '/superadmin/roles' },
+    { text: 'Platform Analytics', icon: <AnalyticsIcon />, path: '/superadmin/analytics' },
+    { text: 'Audit Logs', icon: <AuditIcon />, path: '/superadmin/audit-logs' },
+    { text: 'Broadcast Center', icon: <AnnouncementsIcon />, path: '/superadmin/broadcasts' },
+    { text: 'System Settings', icon: <SettingsIcon />, path: '/superadmin/settings' },
+  ];
 
-  const visibleMenuItems = user?.role === 'SUPER_ADMIN'
-    ? menuItems
-    : menuItems.filter(item => item.roles.includes(user?.role));
+  const collegeAdminMenu = [
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
+    { text: 'Institution', icon: <InstitutionIcon />, path: '/admin/institution' },
+    { text: 'Departments', icon: <DepartmentIcon />, path: '/admin/college-setup/departments' },
+    {
+      text: 'Users',
+      icon: <PeopleIcon />,
+      children: [
+        { text: 'Students', path: '/admin/students' },
+        { text: 'Faculty', path: '/admin/users' },
+        { text: 'Roles', path: '/admin/roles' },
+      ]
+    },
+    {
+      text: 'Academics',
+      icon: <AcademicsIcon />,
+      children: [
+        { text: 'Courses', path: '/admin/courses' },
+        { text: 'Subjects', path: '/admin/subjects' },
+        { text: 'Calendar', path: '/admin/calendar' },
+      ]
+    },
+    { text: 'Admissions', icon: <AdmissionsIcon />, path: '/admin/admissions' },
+    { text: 'Finance', icon: <ReceiptLongIcon />, path: '/admin/fees' },
+    { text: 'Reports', icon: <ReportsIcon />, path: '/admin/reports' },
+    { text: 'Announcements', icon: <AnnouncementsIcon />, path: '/admin/announcements' },
+    { text: 'Approvals', icon: <ApprovalsIcon />, path: '/admin/approvals' },
+    { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
+  ];
+
+  const hodMenu = [
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/hod/dashboard' },
+    { text: 'Faculty', icon: <SchoolIcon />, path: '/hod/faculty' },
+    { text: 'Students', icon: <PeopleIcon />, path: '/hod/students' },
+    { text: 'Subjects', icon: <AcademicsIcon />, path: '/hod/subjects' },
+    { text: 'Timetable', icon: <DateRangeIcon />, path: '/hod/timetable' },
+    { text: 'Attendance', icon: <AuditIcon />, path: '/hod/attendance' },
+    { text: 'Results', icon: <AnalyticsIcon />, path: '/hod/results' },
+    { text: 'Assignments', icon: <ReportsIcon />, path: '/hod/assignments' },
+    { text: 'Analytics', icon: <AnalyticsIcon />, path: '/hod/analytics' },
+    { text: 'Announcements', icon: <AnnouncementsIcon />, path: '/hod/announcements' },
+    { text: 'Reports', icon: <ReportsIcon />, path: '/hod/reports' },
+    { text: 'Settings', icon: <SettingsIcon />, path: '/hod/settings' },
+  ];
+
+  const defaultMenu = [
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['FACULTY', 'STUDENT'] },
+    { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['FACULTY', 'STUDENT'] },
+    { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['STUDENT'] },
+    { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['FACULTY', 'STUDENT'] },
+  ];
+
+  let visibleMenuItems = [];
+  if (user?.role === 'SUPER_ADMIN') {
+    visibleMenuItems = superAdminMenu;
+  } else if (user?.role === 'COLLEGE_ADMIN') {
+    visibleMenuItems = collegeAdminMenu;
+  } else if (user?.role === 'HOD') {
+    visibleMenuItems = hodMenu;
+  } else {
+    visibleMenuItems = defaultMenu.filter(item => item.roles.includes(user?.role));
+  }
 
   const getInitials = (name) => {
     if (!name) return 'CS';
@@ -132,22 +214,31 @@ export const AppLayout = () => {
       <Divider />
       <List sx={{ px: 2, py: 2, flexGrow: 1 }}>
         {visibleMenuItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
+          const hasChildren = !!item.children;
+          const isActive = !hasChildren && location.pathname === item.path;
+          const isOpen = openMenus[item.text] || false;
+
+          const renderItemButton = (item, isSubItem = false) => {
+            const isSubActive = location.pathname === item.path;
+            return (
               <ListItemButton
                 onClick={() => {
-                  navigate(item.path);
-                  setMobileOpen(false);
+                  if (item.children) {
+                    handleToggleSubMenu(item.text);
+                  } else {
+                    navigate(item.path);
+                    setMobileOpen(false);
+                  }
                 }}
                 sx={{
                   borderRadius: 2,
-                  backgroundColor: isActive
+                  pl: isSubItem ? 4 : 2,
+                  backgroundColor: isSubActive || (isActive && !isSubItem)
                     ? theme.palette.mode === 'light'
                       ? 'rgba(79, 70, 229, 0.08)'
                       : 'rgba(99, 102, 241, 0.15)'
                     : 'transparent',
-                  color: isActive ? theme.palette.primary.main : theme.palette.text.secondary,
+                  color: isSubActive || (isActive && !isSubItem) ? theme.palette.primary.main : theme.palette.text.secondary,
                   '&:hover': {
                     backgroundColor: theme.palette.mode === 'light'
                       ? 'rgba(79, 70, 229, 0.04)'
@@ -155,23 +246,45 @@ export const AppLayout = () => {
                   },
                 }}
               >
-                <ListItemIcon
-                  sx={{
-                    color: isActive ? theme.palette.primary.main : theme.palette.text.secondary,
-                    minWidth: 40,
-                  }}
-                >
-                  {item.icon}
-                </ListItemIcon>
+                {item.icon && (
+                  <ListItemIcon
+                    sx={{
+                      color: isSubActive || (isActive && !isSubItem) ? theme.palette.primary.main : theme.palette.text.secondary,
+                      minWidth: 40,
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                )}
                 <ListItemText
                   primary={item.text}
                   primaryTypographyProps={{
-                    fontWeight: isActive ? 600 : 500,
-                    fontSize: '0.95rem',
+                    fontWeight: isSubActive || (isActive && !isSubItem) ? 700 : 500,
+                    fontSize: isSubItem ? '0.9rem' : '1rem'
                   }}
                 />
+                {item.children && (isOpen ? <ExpandLess /> : <ExpandMore />)}
               </ListItemButton>
-            </ListItem>
+            );
+          };
+
+          return (
+            <React.Fragment key={item.text}>
+              <ListItem disablePadding sx={{ mb: 1 }}>
+                {renderItemButton(item)}
+              </ListItem>
+              {hasChildren && (
+                <Collapse in={isOpen} timeout="auto" unmountOnExit>
+                  <List component="div" disablePadding>
+                    {item.children.map((child) => (
+                      <ListItem key={child.text} disablePadding sx={{ mb: 0.5 }}>
+                        {renderItemButton(child, true)}
+                      </ListItem>
+                    ))}
+                  </List>
+                </Collapse>
+              )}
+            </React.Fragment>
           );
         })}
       </List>
@@ -209,7 +322,10 @@ export const AppLayout = () => {
           </IconButton>
 
           <Typography variant="h6" color="text.primary" sx={{ fontWeight: 700 }}>
-            {menuItems.find((item) => item.path === location.pathname)?.text || 'CampusSphere'}
+            {(() => {
+              const flatItems = visibleMenuItems.flatMap(item => item.children ? item.children : item);
+              return flatItems.find(item => item.path === location.pathname)?.text || 'CampusSphere';
+            })()}
           </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

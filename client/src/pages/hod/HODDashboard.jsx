@@ -1,212 +1,202 @@
-import React, { useState } from 'react';
-import {
-  Box,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  CircularProgress,
-  Tabs,
-  Tab,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Button,
-  LinearProgress,
-  Divider,
+import React from 'react';
+import { 
+  Box, Typography, Grid, Card, CardContent, Button, useTheme, Avatar, Chip, Divider, List, ListItem, ListItemText, ListItemIcon 
 } from '@mui/material';
-import {
-  People as PeopleIcon,
-  School as SchoolIcon,
-  Book as BookIcon,
-  Warning as WarningIcon,
-  CheckCircle as CheckCircleIcon,
-  Campaign as CampaignIcon,
-  AssignmentTurnedIn as AssignmentTurnedInIcon,
+import { 
+  People as PeopleIcon, 
+  School as FacultyIcon, 
+  MenuBook as SubjectIcon,
+  EventAvailable as AttendanceIcon,
+  TrendingUp as PassIcon,
+  SwapHoriz as ReassignIcon,
+  Warning as AlertIcon,
+  Event as EventIcon
 } from '@mui/icons-material';
-import { useHodDashboardStatsQuery } from '../../queries/dashboardQueries';
-import { useAuth } from '../../contexts/AuthContext';
-import AssignmentHub from './FacultyAssignment/AssignmentHub';
 
-export const HODDashboard = () => {
-  const { user } = useAuth();
-  const { data: stats, isLoading, isError } = useHodDashboardStatsQuery();
-  const [tabIndex, setTabIndex] = useState(0);
+const HODDashboard = () => {
+  const theme = useTheme();
 
-  if (isLoading) {
-    return (
-      <Box sx={{ display: 'flex', minHeight: '60vh', alignItems: 'center', justifyContent: 'center' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (isError || !stats) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Typography color="error">Failed to load department statistics.</Typography>
-      </Box>
-    );
-  }
-
-  const { department, metrics } = stats;
-
-  const metricCards = [
-    { title: 'Total Students', value: metrics.totalStudents, icon: <PeopleIcon sx={{ fontSize: 40 }} />, color: '#4f46e5' },
-    { title: 'Faculty Members', value: metrics.totalFaculty, icon: <SchoolIcon sx={{ fontSize: 40 }} />, color: '#06b6d4' },
-    { title: 'Department Subjects', value: metrics.totalSubjects, icon: <BookIcon sx={{ fontSize: 40 }} />, color: '#10b981' },
+  // Layer 2: KPIs
+  const kpis = [
+    { title: 'Students', value: '1,450', icon: <PeopleIcon sx={{ fontSize: 32 }} />, color: theme.palette.primary.main, bg: 'rgba(79, 70, 229, 0.1)' },
+    { title: 'Faculty', value: '58', icon: <FacultyIcon sx={{ fontSize: 32 }} />, color: theme.palette.secondary.main, bg: 'rgba(236, 72, 153, 0.1)' },
+    { title: 'Subjects', value: '84', icon: <SubjectIcon sx={{ fontSize: 32 }} />, color: theme.palette.info.main, bg: 'rgba(14, 165, 233, 0.1)' },
+    { title: 'Attendance', value: '87%', icon: <AttendanceIcon sx={{ fontSize: 32 }} />, color: theme.palette.success.main, bg: 'rgba(16, 185, 129, 0.1)' },
+    { title: 'Pass Rate', value: '92%', icon: <PassIcon sx={{ fontSize: 32 }} />, color: theme.palette.warning.main, bg: 'rgba(245, 158, 11, 0.1)' }
   ];
 
-  const handleTabChange = (event, newValue) => {
-    setTabIndex(newValue);
-  };
+  // Layer 3: Faculty Workload
+  const workload = [
+    { name: 'Dr. Sharma', credits: 18, status: 'Overloaded' },
+    { name: 'Prof. Singh', credits: 15, status: 'Optimal' },
+    { name: 'Prof. Verma', credits: 12, status: 'Optimal' },
+  ];
+
+  // Layer 4: Student Alerts
+  const alerts = [
+    { name: 'Rahul', detail: 'Attendance 62%', severity: 'high' },
+    { name: 'Aman', detail: 'CGPA 5.2', severity: 'medium' },
+    { name: 'Priya', detail: 'Failed 2 Subjects', severity: 'high' },
+  ];
+
+  // Layer 5: Upcoming Events
+  const events = [
+    { title: 'Semester Exam', date: 'Next Week' },
+    { title: 'Faculty Meeting', date: 'Tomorrow, 10 AM' },
+    { title: 'Project Evaluation', date: 'Friday, 2 PM' },
+  ];
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: 'text.primary' }}>
-          Welcome back, {user?.name || 'HOD'}
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Overview for {department.name} ({department.code})
-        </Typography>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', p: { xs: 2, md: 3 } }}>
+      {/* Layer 1: Header */}
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
+            Computer Science Department
+          </Typography>
+          <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 600 }}>
+            Good Morning, Dr. Sharma
+          </Typography>
+        </Box>
+        <Chip 
+          label="Academic Year: 2026–27" 
+          sx={{ fontWeight: 700, borderRadius: 2, bgcolor: theme.custom?.surface?.card || '#fff', border: `1px solid ${theme.custom?.border?.subtle || '#e0e0e0'}` }} 
+        />
       </Box>
 
-      {/* Metrics */}
+      {/* Layer 2: KPIs */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        {metricCards.map((stat, index) => (
-          <Grid item xs={12} sm={6} md={4} key={index}>
-            <Card
-              sx={{
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                p: 2,
-                borderRadius: 4,
-                boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-              }}
-            >
-              <Box sx={{ p: 2, borderRadius: 3, bgcolor: `${stat.color}15`, color: stat.color, mr: 3 }}>
-                {stat.icon}
-              </Box>
-              <Box>
-                <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
-                  {stat.value}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  {stat.title}
-                </Typography>
-              </Box>
+        {kpis.map((kpi, index) => (
+          <Grid item xs={12} sm={6} md={2.4} key={index}>
+            <Card sx={{ 
+              borderRadius: 4, 
+              bgcolor: theme.custom?.surface?.card || '#fff',
+              boxShadow: theme.custom?.elevation?.card || 1,
+              border: `1px solid ${theme.custom?.border?.subtle || '#e0e0e0'}`,
+              transition: 'transform 0.2s',
+              '&:hover': { transform: 'translateY(-4px)' }
+            }}>
+              <CardContent sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ p: 1.5, borderRadius: 3, bgcolor: kpi.bg, color: kpi.color, display: 'flex' }}>
+                  {kpi.icon}
+                </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    {kpi.title}
+                  </Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 800 }}>
+                    {kpi.value}
+                  </Typography>
+                </Box>
+              </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={tabIndex} onChange={handleTabChange} aria-label="hod dashboard tabs">
-          <Tab label="Dashboard Overview" sx={{ fontWeight: 600, textTransform: 'none', fontSize: '1rem' }} />
-          <Tab label="Faculty Assignments" sx={{ fontWeight: 600, textTransform: 'none', fontSize: '1rem' }} />
-        </Tabs>
-      </Box>
-
-      {tabIndex === 0 && (
-        <Grid container spacing={3}>
-          {/* Left Column */}
-          <Grid item xs={12} md={8}>
-            <Card sx={{ p: 3, mb: 3, borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                Faculty Workload (Active Credits)
-              </Typography>
-              {stats.facultyWorkloads?.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">No faculty assignments found.</Typography>
-              ) : (
-                <List>
-                  {stats.facultyWorkloads?.map((faculty) => (
-                    <ListItem key={faculty.id} sx={{ px: 0, flexDirection: 'column', alignItems: 'flex-start' }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', mb: 1 }}>
-                        <Typography variant="body1" sx={{ fontWeight: 600 }}>{faculty.name}</Typography>
-                        <Typography variant="body2" color={faculty.credits > 16 ? 'error.main' : 'text.secondary'}>
-                          {faculty.credits} credits {faculty.credits > 16 && '(Overloaded)'}
-                        </Typography>
-                      </Box>
-                      <LinearProgress 
-                        variant="determinate" 
-                        value={Math.min((faculty.credits / 20) * 100, 100)} 
-                        color={faculty.credits > 16 ? 'error' : 'primary'}
-                        sx={{ width: '100%', height: 8, borderRadius: 4 }}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              )}
-            </Card>
-
-            <Card sx={{ p: 3, borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                Department Activity Feed
-              </Typography>
-              <List>
-                {stats.recentActivities?.map((activity) => (
-                  <React.Fragment key={activity.id}>
-                    <ListItem alignItems="flex-start" sx={{ px: 0 }}>
-                      <ListItemIcon>
-                        <CheckCircleIcon color="success" />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                            {activity.title}
-                          </Typography>
-                        }
-                        secondary={new Date(activity.date).toLocaleDateString()}
-                      />
-                    </ListItem>
-                    <Divider component="li" />
-                  </React.Fragment>
-                ))}
-              </List>
-            </Card>
-          </Grid>
-
-          {/* Right Column */}
-          <Grid item xs={12} md={4}>
-            <Card sx={{ p: 3, mb: 3, borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                Quick Actions
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Button variant="contained" startIcon={<CampaignIcon />} sx={{ justifyContent: 'flex-start', py: 1.5, borderRadius: 2 }}>
-                  Broadcast Notice
-                </Button>
-                <Button variant="outlined" startIcon={<AssignmentTurnedInIcon />} sx={{ justifyContent: 'flex-start', py: 1.5, borderRadius: 2 }}>
-                  Review Leaves (3 Pending)
-                </Button>
+      <Grid container spacing={4}>
+        {/* Layer 3: Faculty Workload */}
+        <Grid item xs={12} md={4}>
+          <Card sx={{ 
+            borderRadius: 4, 
+            bgcolor: theme.custom?.surface?.card || '#fff',
+            boxShadow: theme.custom?.elevation?.card || 1,
+            border: `1px solid ${theme.custom?.border?.subtle || '#e0e0e0'}`,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <CardContent sx={{ p: 3, flexGrow: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <FacultyIcon color="primary" /> Faculty Workload
+                </Typography>
               </Box>
-            </Card>
-
-            <Card sx={{ p: 3, borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.03)', bgcolor: 'error.main', color: 'error.contrastText' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <WarningIcon /> Student Alerts
-              </Typography>
-              <List>
-                {stats.studentAlerts?.map((alert) => (
-                  <ListItem key={alert.id} sx={{ px: 0, py: 0.5 }}>
-                    <ListItemText primary={alert.message} primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
+              <List disablePadding>
+                {workload.map((faculty, idx) => (
+                  <ListItem key={idx} disablePadding sx={{ mb: 2 }}>
+                    <ListItemText 
+                      primary={faculty.name} 
+                      primaryTypographyProps={{ fontWeight: 600 }}
+                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{faculty.credits} Credits</Typography>
+                      <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: faculty.status === 'Overloaded' ? 'error.main' : 'success.main' }} />
+                    </Box>
                   </ListItem>
                 ))}
               </List>
-              <Button size="small" variant="contained" color="inherit" sx={{ mt: 2, color: 'error.main', bgcolor: 'white', '&:hover': { bgcolor: 'grey.100' } }}>
-                View All Defaulters
+            </CardContent>
+            <Box sx={{ p: 2, borderTop: `1px solid ${theme.custom?.border?.subtle || '#e0e0e0'}` }}>
+              <Button fullWidth variant="outlined" startIcon={<ReassignIcon />} sx={{ borderRadius: 2, fontWeight: 700 }}>
+                Reassign Subjects
               </Button>
-            </Card>
-          </Grid>
+            </Box>
+          </Card>
         </Grid>
-      )}
-      
-      {tabIndex === 1 && (
-        <AssignmentHub departmentId={department.id} />
-      )}
+
+        {/* Layer 4: Student Alerts */}
+        <Grid item xs={12} md={4}>
+          <Card sx={{ 
+            borderRadius: 4, 
+            bgcolor: theme.custom?.surface?.card || '#fff',
+            boxShadow: theme.custom?.elevation?.card || 1,
+            border: `1px solid ${theme.custom?.border?.subtle || '#e0e0e0'}`,
+            height: '100%'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AlertIcon color="error" /> Students at Risk
+              </Typography>
+              <List disablePadding>
+                {alerts.map((alert, idx) => (
+                  <ListItem key={idx} disablePadding sx={{ mb: 2 }}>
+                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(239, 68, 68, 0.1)', color: 'error.main', mr: 2 }}>
+                      <Avatar sx={{ width: 32, height: 32, bgcolor: 'transparent', color: 'inherit', fontWeight: 800 }}>
+                        {alert.name[0]}
+                      </Avatar>
+                    </Box>
+                    <ListItemText 
+                      primary={alert.name} 
+                      secondary={alert.detail}
+                      primaryTypographyProps={{ fontWeight: 700 }}
+                      secondaryTypographyProps={{ fontWeight: 600, color: alert.severity === 'high' ? 'error.main' : 'warning.main' }}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Layer 5: Upcoming Events */}
+        <Grid item xs={12} md={4}>
+          <Card sx={{ 
+            borderRadius: 4, 
+            bgcolor: theme.custom?.surface?.card || '#fff',
+            boxShadow: theme.custom?.elevation?.card || 1,
+            border: `1px solid ${theme.custom?.border?.subtle || '#e0e0e0'}`,
+            height: '100%'
+          }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <EventIcon color="info" /> Upcoming
+              </Typography>
+              <List disablePadding>
+                {events.map((event, idx) => (
+                  <ListItem key={idx} disablePadding sx={{ mb: 3, position: 'relative' }}>
+                    <Box sx={{ width: 4, height: '100%', bgcolor: 'info.main', position: 'absolute', left: 0, borderRadius: 2 }} />
+                    <Box sx={{ pl: 3 }}>
+                      <Typography variant="body1" sx={{ fontWeight: 700 }}>{event.title}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>{event.date}</Typography>
+                    </Box>
+                  </ListItem>
+                ))}
+              </List>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
     </Box>
   );
 };
