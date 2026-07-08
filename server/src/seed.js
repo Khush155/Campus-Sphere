@@ -99,7 +99,49 @@ const seedDatabase = async () => {
     });
 
     console.log(`✅ Subjects created: ${dsSubject.code}, ${osSubject.code}`);
+    // 7. Seed Role-specific Test Users
+    console.log('👤 Seeding role-specific test users...');
+    const testUsers = [
+      {
+        name: 'College Administrator',
+        email: 'college_admin@campussphere.edu',
+        password: 'admin123',
+        role: ROLES.COLLEGE_ADMIN,
+      },
+      {
+        name: 'Head of CSE',
+        email: 'hod_cse@campussphere.edu',
+        password: 'admin123',
+        role: ROLES.HOD,
+        departmentId: dept._id,
+      },
+      {
+        name: 'Prof. Alan Turing',
+        email: 'faculty@campussphere.edu',
+        password: 'admin123',
+        role: ROLES.FACULTY,
+        departmentId: dept._id,
+      },
+      {
+        name: 'John Doe',
+        email: 'student@campussphere.edu',
+        password: 'admin123',
+        role: ROLES.STUDENT,
+        departmentId: dept._id,
+        courseId: course._id,
+        branchId: branch._id,
+        enrollmentNumber: 'CS2026001',
+        semester: 1,
+      },
+    ];
+
+    for (const u of testUsers) {
+      await User.create(u);
+      console.log(`✅ Created ${u.role}: email: ${u.email}, password: admin123`);
+    }
+
     console.log('🎉 Database seeding complete!');
+
   } catch (error) {
     console.error('❌ Seeding failed with error:', error);
   } finally {

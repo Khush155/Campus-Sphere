@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const { parse } = require('csv-parse/sync');
+const { stringify } = require('csv-stringify/sync');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const Department = require('../models/Department');
@@ -9,6 +11,7 @@ const { logAuditEvent } = require('../utils/auditLogger');
 const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
 const logger = require('../utils/logger');
+const { studentImportRowSchema } = require('../validators/userValidator');
 
 /**
  * Fetch a paginated, filtered, and searchable list of users.
@@ -360,6 +363,234 @@ const getUserDetails = async (userId) => {
   };
 };
 
+/**
+ * Bulk import users from a CSV buffer.
+ * If dryRun=true, it parses and validates but doesn't insert, returning detailed row information.
+ */
+const bulkImportStudents = async (csvBuffer, adminId, dryRun = false) => {
+  // 1. Parse CSV into raw row objects
+  let rows;
+  try {
+    rows = parse(csvBuffer, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+    });
+  } catch (parseError) {
+    throw new AppError(`CSV parsing failed: ${parseError.message}`, 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
+  if (!rows || rows.length === 0) {
+    throw new AppError('The uploaded CSV file is empty or has no data rows.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
+  return processAndInsertUsers(rows, adminId, dryRun);
+};
+
+/**
+ * Bulk import users from a pre-validated JSON array.
+ */
+const bulkImportJson = async (jsonRows, adminId) => {
+  if (!Array.isArray(jsonRows) || jsonRows.length === 0) {
+    throw new AppError('Payload must be a non-empty array of user objects.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+  return processAndInsertUsers(jsonRows, adminId, false);
+};
+
+/**
+ * Core logic for resolving references, validating, and inserting users.
+ */
+const processAndInsertUsers = async (rows, adminId, dryRun) => {
+  // 2. Pre-load reference lookup maps (codes → ObjectIds) to avoid N+1 queries
+  const [departments, courses, branches] = await Promise.all([
+    Department.find({}, 'code _id'),
+    Course.find({}, 'code _id'),
+    Branch.find({}, 'code courseId _id'),
+  ]);
+
+  const deptMap = Object.fromEntries(departments.map((d) => [d.code.toUpperCase(), d._id]));
+  const courseMap = Object.fromEntries(courses.map((c) => [c.code.toUpperCase(), c._id]));
+  // Branch codes are unique per course, so key: `${courseCode}::${branchCode}`
+  const branchMap = {};
+  branches.forEach((b) => {
+    const course = courses.find((c) => String(c._id) === String(b.courseId));
+    if (course) {
+      branchMap[`${course.code.toUpperCase()}::${b.code.toUpperCase()}`] = b._id;
+    }
+  });
+
+  // 3. Validate + resolve each row
+  const validUsers = [];
+  const errors = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const rowNum = i + 2; // Row 1 = header, data starts at row 2
+    const raw = rows[i];
+
+    // Zod validation
+    const parseResult = studentImportRowSchema.safeParse(raw);
+    if (!parseResult.success) {
+      errors.push({
+        row: rowNum,
+        email: raw.email || '—',
+        errors: parseResult.error.errors.map((e) => e.message),
+      });
+      continue;
+    }
+
+    const data = parseResult.data;
+
+    // Resolve departmentCode → ObjectId
+    let departmentId = null;
+    if (data.departmentCode) {
+      departmentId = deptMap[data.departmentCode.toUpperCase()];
+      if (!departmentId) {
+        errors.push({ row: rowNum, email: data.email, errors: [`Department code "${data.departmentCode}" not found`] });
+        continue;
+      }
+    }
+
+    // Resolve courseCode → ObjectId
+    let courseId = null;
+    if (data.courseCode) {
+      courseId = courseMap[data.courseCode.toUpperCase()];
+      if (!courseId) {
+        errors.push({ row: rowNum, email: data.email, errors: [`Course code "${data.courseCode}" not found`] });
+        continue;
+      }
+    }
+
+    // Resolve branchCode → ObjectId (requires courseCode as context)
+    let branchId = null;
+    if (data.branchCode) {
+      if (!data.courseCode) {
+        errors.push({ row: rowNum, email: data.email, errors: ['courseCode is required when branchCode is specified'] });
+        continue;
+      }
+      const branchKey = `${data.courseCode.toUpperCase()}::${data.branchCode.toUpperCase()}`;
+      branchId = branchMap[branchKey];
+      if (!branchId) {
+        errors.push({ row: rowNum, email: data.email, errors: [`Branch code "${data.branchCode}" not found under course "${data.courseCode}"`] });
+        continue;
+      }
+    }
+
+    // Check for duplicate email (pre-flight, efficient set check after insertMany)
+    validUsers.push({
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      role: data.role,
+      departmentId: departmentId || undefined,
+      courseId: courseId || undefined,
+      branchId: branchId || undefined,
+      semester: data.semester || undefined,
+      status: 'ACTIVE',
+    });
+  }
+
+  // If dryRun, return the validation report without saving
+  if (dryRun) {
+    const dryRunReport = rows.map((raw, idx) => {
+      const rowNum = idx + 2;
+      const rowErrors = errors.filter(e => e.row === rowNum).flatMap(e => e.errors);
+      return {
+        row: rowNum,
+        isValid: rowErrors.length === 0,
+        data: raw,
+        errors: rowErrors,
+      };
+    });
+
+    return {
+      isDryRun: true,
+      totalRows: rows.length,
+      validCount: dryRunReport.filter(r => r.isValid).length,
+      errorCount: dryRunReport.filter(r => !r.isValid).length,
+      report: dryRunReport,
+    };
+  }
+
+  // 4. Insert valid rows; use ordered:false so one failure doesn't block others
+  let imported = 0;
+  const insertErrors = [];
+
+  if (validUsers.length > 0) {
+    // We insert one at a time to capture per-row duplicate key errors cleanly
+    for (const userData of validUsers) {
+      try {
+        await User.create(userData);
+        imported++;
+      } catch (err) {
+        // MongoDB duplicate key error code 11000
+        if (err.code === 11000) {
+          insertErrors.push({
+            row: '—',
+            email: userData.email,
+            errors: [`Email "${userData.email}" already exists in the system`],
+          });
+        } else {
+          insertErrors.push({
+            row: '—',
+            email: userData.email,
+            errors: [`Database error: ${err.message}`],
+          });
+        }
+      }
+    }
+  }
+
+  const allErrors = [...errors, ...insertErrors];
+
+  // 5. Write a single audit log for the bulk operation
+  await logAuditEvent({
+    actorId: adminId,
+    action: 'BULK_USER_IMPORT',
+    targetModel: 'User',
+    after: { imported, skipped: allErrors.length, totalRows: rows.length },
+  });
+
+  logger.info(`[Bulk Import] Admin ${adminId}: ${imported} imported, ${allErrors.length} skipped out of ${rows.length} rows`);
+
+  return {
+    imported,
+    skipped: allErrors.length,
+    totalRows: rows.length,
+    errors: allErrors,
+  };
+};
+
+/**
+ * Export users matching filters to a CSV string.
+ */
+const exportUsersToCSV = async (filters = {}) => {
+  const query = buildUserFilterQuery(filters);
+  const users = await User.find(query)
+    .populate('departmentId', 'name code')
+    .populate('courseId', 'name code')
+    .populate('branchId', 'name code')
+    .sort({ createdAt: -1 });
+
+  const csvData = users.map(u => ({
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    status: u.status,
+    department: u.departmentId ? u.departmentId.name : '',
+    course: u.courseId ? u.courseId.name : '',
+    branch: u.branchId ? u.branchId.name : '',
+    semester: u.semester || '',
+    createdAt: u.createdAt.toISOString(),
+  }));
+
+  const csvString = stringify(csvData, {
+    header: true,
+    columns: ['name', 'email', 'role', 'status', 'department', 'course', 'branch', 'semester', 'createdAt']
+  });
+
+  return csvString;
+};
+
 module.exports = {
   getUsersList,
   getUserDetails,
@@ -367,4 +598,7 @@ module.exports = {
   deleteUserAccount,
   getAuditLogsList,
   getInstitutionalInsights,
+  bulkImportStudents,
+  bulkImportJson,
+  exportUsersToCSV,
 };

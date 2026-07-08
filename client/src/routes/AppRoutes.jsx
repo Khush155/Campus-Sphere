@@ -10,6 +10,10 @@ import AdminDashboard from '../pages/admin/AdminDashboard';
 import SetupHub from '../pages/admin/CollegeSetup/SetupHub';
 import UserRoster from '../pages/admin/UserManagement/UserRoster';
 import SetupWizard from '../pages/admin/SetupWizard';
+import StudentRoster from '../pages/admin/StudentManagement/StudentRoster';
+import FeeHub from '../pages/admin/FeeManagement/FeeHub';
+import HODDashboard from '../pages/hod/HODDashboard';
+import AssignmentHub from '../pages/hod/FacultyAssignment/AssignmentHub';
 import { useDepartmentsQuery } from '../queries/collegeQueries';
 
 // Guard for authenticated sections
@@ -154,10 +158,49 @@ export const AppRoutes = () => {
           }
         />
 
-        <Route path="students" element={<PlaceholderView title="Students" />} />
+        <Route
+          path="admin/students"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD']}>
+              <AdminSetupGuard>
+                <StudentRoster />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="admin/fees"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <FeeHub />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+        
+        {/* HOD Routes */}
+        <Route
+          path="hod/dashboard"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD']}>
+              <HODDashboard />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="hod/assignments"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD']}>
+              <AssignmentHub />
+            </RoleRoute>
+          }
+        />
+
+        <Route path="students" element={<Navigate to="/admin/students" replace />} />
         <Route path="faculty" element={<PlaceholderView title="Faculty" />} />
         <Route path="attendance" element={<PlaceholderView title="Attendance" />} />
-        <Route path="fees" element={<PlaceholderView title="Fees" />} />
+        <Route path="fees" element={<Navigate to="/admin/fees" replace />} />
         <Route path="notices" element={<PlaceholderView title="Notice Board" />} />
       </Route>
 

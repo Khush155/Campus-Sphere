@@ -1,6 +1,7 @@
 const userService = require('../services/userService');
 const { updateUserSchema } = require('../validators/userValidator');
 const { successResponse } = require('../utils/apiResponse');
+const AppError = require('../utils/AppError');
 
 /**
  * Controller to fetch users list with sorting and filtering options.
@@ -70,6 +71,55 @@ const getUser = async (req, res, _next) => {
   return successResponse(res, 200, 'User details fetched successfully', user);
 };
 
+/**
+ * Controller to handle bulk CSV student import.
+ */
+const bulkImportStudents = async (req, res, _next) => {
+  if (!req.file) {
+    throw new AppError('No CSV file uploaded. Please attach a .csv file under the "file" field.', 400, 'MISSING_FILE');
+  }
+
+  const isDryRun = req.query.dryRun === 'true';
+  const result = await userService.bulkImportStudents(req.file.buffer, req.user.id, isDryRun);
+
+  if (isDryRun) {
+    return successResponse(res, 200, 'Dry run completed', result);
+  }
+
+  return successResponse(
+    res,
+    200,
+    `Import complete: ${result.imported} imported, ${result.skipped} skipped out of ${result.totalRows} rows.`,
+    result
+  );
+};
+
+/**
+ * Controller to handle JSON array bulk import.
+ */
+const bulkImportJson = async (req, res, _next) => {
+  const result = await userService.bulkImportJson(req.body, req.user.id);
+  
+  return successResponse(
+    res,
+    200,
+    `JSON Import complete: ${result.imported} imported, ${result.skipped} skipped.`,
+    result
+  );
+};
+
+/**
+ * Controller to export filtered users as a CSV stream.
+ */
+const exportUsers = async (req, res, _next) => {
+  const csvString = await userService.exportUsersToCSV(req.query);
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="students_export.csv"');
+  
+  return res.status(200).send(csvString);
+};
+
 module.exports = {
   getUsers,
   getUser,
@@ -77,4 +127,7 @@ module.exports = {
   deleteUser,
   getAuditLogs,
   getInsights,
+  bulkImportStudents,
+  bulkImportJson,
+  exportUsers,
 };
