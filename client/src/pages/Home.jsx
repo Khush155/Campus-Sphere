@@ -20,8 +20,16 @@ import {
   AttachMoney as AttachMoneyIcon,
   Campaign as CampaignIcon,
 } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
+import HODDashboard from './hod/HODDashboard';
 
 export const Home = () => {
+  const { user } = useAuth();
+
+  if (user?.role === 'HOD') {
+    return <HODDashboard />;
+  }
+
   const stats = [
     { title: 'Total Students', value: '1,248', icon: <PeopleIcon sx={{ fontSize: 40 }} />, color: '#4f46e5' },
     { title: 'Faculty Members', value: '84', icon: <SchoolIcon sx={{ fontSize: 40 }} />, color: '#06b6d4' },
