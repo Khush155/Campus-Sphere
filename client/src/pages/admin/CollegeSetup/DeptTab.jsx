@@ -131,8 +131,17 @@ export const DeptTab = ({ setOnAddClick }) => {
   // Find dynamic HOD name mapped in the directory list
   const getDeptHodName = (deptId) => {
     if (!hodsData?.data) return 'No HOD Assigned';
-    const match = hodsData.data.find((h) => String(h.departmentId) === String(deptId));
-    return match ? match.name : 'No HOD Assigned';
+    const matches = hodsData.data.filter(
+      (h) => String(h.departmentId) === String(deptId) && h.status === 'ACTIVE'
+    );
+    if (matches.length === 0) return 'No HOD Assigned';
+    return matches
+      .map((h) => {
+        if (h.shift === 'MORNING') return `${h.name} (Morning)`;
+        if (h.shift === 'EVENING') return `${h.name} (Evening)`;
+        return h.name;
+      })
+      .join(', ');
   };
 
   return (

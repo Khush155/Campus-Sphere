@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
@@ -30,6 +30,17 @@ const registerFormSchema = z.object({
   courseId: z.string().optional().or(z.null()).or(z.literal('')),
   branchId: z.string().optional().or(z.null()).or(z.literal('')),
   semester: z.number().optional().or(z.null()),
+  shift: z.string().optional().or(z.null()).or(z.literal('')),
+}).superRefine((data, ctx) => {
+  if (data.role === 'HOD') {
+    if (!data.shift || !['GENERAL', 'MORNING', 'EVENING'].includes(data.shift)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Shift is required for HOD role and must be GENERAL, MORNING, or EVENING',
+        path: ['shift'],
+      });
+    }
+  }
 });
 
 export const UserRegister = ({ open, onClose }) => {
@@ -50,6 +61,7 @@ export const UserRegister = ({ open, onClose }) => {
     setValue,
     watch,
     reset,
+    control,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(registerFormSchema),
@@ -62,12 +74,14 @@ export const UserRegister = ({ open, onClose }) => {
       courseId: '',
       branchId: '',
       semester: 1,
+      shift: '',
     },
   });
 
   const selectedRole = watch('role');
   const selectedDept = watch('departmentId');
   const selectedCourse = watch('courseId');
+  const selectedShift = watch('shift');
 
   // Clear fields when role changes
   useEffect(() => {
@@ -76,6 +90,7 @@ export const UserRegister = ({ open, onClose }) => {
       setValue('courseId', '');
       setValue('branchId', '');
       setValue('semester', 1);
+      setValue('shift', '');
       setHodWarning('');
     }
   }, [selectedRole, setValue]);
@@ -83,23 +98,38 @@ export const UserRegister = ({ open, onClose }) => {
   // HOD check warning
   useEffect(() => {
     if (selectedRole === 'HOD' && selectedDept && hodsData?.data) {
-      const activeHod = hodsData.data.find(
-        (h) => String(h.departmentId) === String(selectedDept) && h.status === 'ACTIVE'
-      );
-      if (activeHod) {
-        // Find matching department details to display code
-        const deptObj = depts?.find((d) => String(d._id) === String(selectedDept));
-        const deptCode = deptObj ? deptObj.code : 'this department';
-        setHodWarning(
-          `${deptCode} already has an HOD: ${activeHod.name}. Assigning a new one will require reassigning the existing HOD.`
+      const shift = selectedShift || 'GENERAL';
+      const deptObj = depts?.find((d) => String(d._id) === String(selectedDept));
+      const deptName = deptObj ? deptObj.name : 'this department';
+
+      if (shift === 'GENERAL') {
+        const existing = hodsData.data.find(
+          (h) => String(h.departmentId) === String(selectedDept) && h.status === 'ACTIVE'
         );
+        if (existing) {
+          setHodWarning(
+            `${deptName} already has an active HOD: ${existing.name} (${existing.shift || 'GENERAL'}). Assigning a General HOD will conflict.`
+          );
+        } else {
+          setHodWarning('');
+        }
       } else {
-        setHodWarning('');
+        const conflicting = hodsData.data.find(
+          (h) => String(h.departmentId) === String(selectedDept) && h.status === 'ACTIVE' && (h.shift === 'GENERAL' || h.shift === shift)
+        );
+        if (conflicting) {
+          const reason = conflicting.shift === 'GENERAL'
+            ? `${deptName} currently has a General HOD (${conflicting.name}). Reassign or convert them to shift-specific before adding a ${shift} HOD.`
+            : `${deptName} already has a ${shift}-shift HOD: ${conflicting.name}.`;
+          setHodWarning(reason);
+        } else {
+          setHodWarning('');
+        }
       }
     } else {
       setHodWarning('');
     }
-  }, [selectedRole, selectedDept, hodsData, depts]);
+  }, [selectedRole, selectedDept, selectedShift, hodsData, depts]);
 
   // Filter branches cascading select based on course selection
   const filteredBranches = branches?.filter(
@@ -125,7 +155,6 @@ export const UserRegister = ({ open, onClose }) => {
 
   const onSubmit = async (data) => {
     try {
-      // Map form fields to register schema format
       const payload = {
         role: data.role,
         name: data.name,
@@ -135,6 +164,7 @@ export const UserRegister = ({ open, onClose }) => {
         courseId: data.courseId || null,
         branchId: data.branchId || null,
         semester: data.role === 'STUDENT' ? (data.semester || 1) : null,
+        shift: data.role === 'HOD' ? data.shift : null,
       };
 
       await registerUser.mutateAsync(payload);
@@ -149,6 +179,7 @@ export const UserRegister = ({ open, onClose }) => {
         courseId: '',
         branchId: '',
         semester: 1,
+        shift: '',
       });
       setHodWarning('');
       onClose();
@@ -287,6 +318,34 @@ export const UserRegister = ({ open, onClose }) => {
                       </MenuItem>
                     ))}
                   </TextField>
+                </Box>
+              )}
+
+              {/* HOD Specific Scope Select */}
+              {selectedRole === 'HOD' && (
+                <Box>
+                  <Typography component="label" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                    HOD Scope
+                  </Typography>
+                  <Controller
+                    name="shift"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        select
+                        fullWidth
+                        size="small"
+                        error={!!errors.shift}
+                        helperText={errors.shift?.message}
+                      >
+                        <MenuItem value="">Choose HOD Scope...</MenuItem>
+                        <MenuItem value="GENERAL">General (single HOD for the whole department)</MenuItem>
+                        <MenuItem value="MORNING">Morning Shift (Day Scholars)</MenuItem>
+                        <MenuItem value="EVENING">Evening Shift (Hostellers)</MenuItem>
+                      </TextField>
+                    )}
+                  />
                 </Box>
               )}
 

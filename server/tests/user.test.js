@@ -97,20 +97,114 @@ describe('User Administration API tests', () => {
       departmentId: testDept._id,
     });
 
-    // Make faculty1 HOD
-    await request(app)
+    // Make faculty1 HOD (General)
+    const successRes1 = await request(app)
       .put(`/api/v1/users/${faculty1._id}`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ role: ROLES.HOD });
+      .send({ role: ROLES.HOD, shift: 'GENERAL' });
+    expect(successRes1.status).toBe(200);
 
-    // Try to make faculty2 HOD in same department
+    // Try to make faculty2 HOD in same department (General)
     const failRes = await request(app)
       .put(`/api/v1/users/${faculty2._id}`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ role: ROLES.HOD });
+      .send({ role: ROLES.HOD, shift: 'GENERAL' });
 
-    expect(failRes.status).toBe(400);
+    expect(failRes.status).toBe(409);
     expect(failRes.body.errorCode).toBe('HOD_ALREADY_ASSIGNED');
+  });
+
+  it('should test HOD shift-split and conflict edge cases', async () => {
+    // Create new temporary department
+    const dept = await Department.create({
+      name: 'Shift Specific Dept',
+      code: 'SSD',
+      description: 'SSD Dept',
+    });
+
+    const userGen = await User.create({
+      name: 'General HOD User',
+      email: 'gen_hod@campussphere.edu',
+      password: 'password123',
+      role: ROLES.FACULTY,
+      departmentId: dept._id,
+    });
+
+    const userMorn = await User.create({
+      name: 'Morning HOD User',
+      email: 'morning_hod@campussphere.edu',
+      password: 'password123',
+      role: ROLES.FACULTY,
+      departmentId: dept._id,
+    });
+
+    const userEve = await User.create({
+      name: 'Evening HOD User',
+      email: 'evening_hod@campussphere.edu',
+      password: 'password123',
+      role: ROLES.FACULTY,
+      departmentId: dept._id,
+    });
+
+    const userMorn2 = await User.create({
+      name: 'Morning HOD User 2',
+      email: 'morning_hod2@campussphere.edu',
+      password: 'password123',
+      role: ROLES.FACULTY,
+      departmentId: dept._id,
+    });
+
+    // 1. Assign GENERAL HOD to a department with no existing HOD -> succeeds
+    const res1 = await request(app)
+      .put(`/api/v1/users/${userGen._id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ role: ROLES.HOD, shift: 'GENERAL' });
+    expect(res1.status).toBe(200);
+
+    // 2. Try to assign MORNING HOD to department with GENERAL HOD -> rejected with convert to shift-specific message
+    const res2 = await request(app)
+      .put(`/api/v1/users/${userMorn._id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ role: ROLES.HOD, shift: 'MORNING' });
+    expect(res2.status).toBe(409);
+    expect(res2.body.message).toContain('convert them to shift-specific before');
+
+    // 3. Demote GENERAL HOD so department has no active HOD -> succeeds
+    const resDemote = await request(app)
+      .put(`/api/v1/users/${userGen._id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ role: ROLES.FACULTY });
+    expect(resDemote.status).toBe(200);
+
+    // 4. Assign MORNING HOD to department with no active HOD -> succeeds
+    const res3 = await request(app)
+      .put(`/api/v1/users/${userMorn._id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ role: ROLES.HOD, shift: 'MORNING' });
+    expect(res3.status).toBe(200);
+
+    // 5. Assign EVENING HOD to the same department -> succeeds
+    const res4 = await request(app)
+      .put(`/api/v1/users/${userEve._id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ role: ROLES.HOD, shift: 'EVENING' });
+    expect(res4.status).toBe(200);
+
+    // 6. Try to assign second MORNING HOD -> rejected
+    const res5 = await request(app)
+      .put(`/api/v1/users/${userMorn2._id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ role: ROLES.HOD, shift: 'MORNING' });
+    expect(res5.status).toBe(409);
+    expect(res5.body.message).toContain('already has a MORNING-shift HOD');
+
+    // 7. Try to assign a GENERAL HOD when both MORNING and EVENING exist -> rejected
+    const res6 = await request(app)
+      .put(`/api/v1/users/${userGen._id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ role: ROLES.HOD, shift: 'GENERAL' });
+    expect(res6.status).toBe(409);
+    expect(res6.body.message).toContain('already has an active HOD');
   });
 
   it('should require a reason when editing student academic course details', async () => {

@@ -61,6 +61,14 @@ const userSchema = new mongoose.Schema(
       type: Number,
       required: false,
     },
+    shift: {
+      type: String,
+      enum: ['GENERAL', 'MORNING', 'EVENING'],
+      default: undefined,
+      required: function () {
+        return this.role === 'HOD';
+      },
+    },
     refreshTokens: {
       type: [String],
       default: [],

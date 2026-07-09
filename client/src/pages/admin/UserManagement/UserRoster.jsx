@@ -57,6 +57,17 @@ const userEditSchema = z.object({
   branchId: z.string().optional().or(z.null()).or(z.literal('')),
   semester: z.number().optional().or(z.null()),
   reason: z.string().optional(),
+  shift: z.string().optional().or(z.null()).or(z.literal('')),
+}).superRefine((data, ctx) => {
+  if (data.role === 'HOD') {
+    if (!data.shift || !['GENERAL', 'MORNING', 'EVENING'].includes(data.shift)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Shift is required for HOD role and must be GENERAL, MORNING, or EVENING',
+        path: ['shift'],
+      });
+    }
+  }
 });
 
 export const UserRoster = () => {
@@ -434,6 +445,9 @@ export const UserRoster = () => {
                   MAPPING DETAILS
                 </TableCell>
                 <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                  HOD SCOPE
+                </TableCell>
+                <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   STATUS
                 </TableCell>
                 <TableCell align="right" sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
@@ -488,6 +502,13 @@ export const UserRoster = () => {
                       ) : (
                         user.department || 'Global / Administrator'
                       )}
+                    </TableCell>
+                    <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontSize: density === 'compact' ? '0.78rem' : '0.82rem' }}>
+                      {user.role === 'HOD' ? (
+                        user.shift === 'GENERAL' || !user.shift ? 'General' :
+                        user.shift === 'MORNING' ? 'Morning' :
+                        user.shift === 'EVENING' ? 'Evening' : 'General'
+                      ) : '—'}
                     </TableCell>
                     <TableCell sx={{ py: density === 'compact' ? 1 : 1.75 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -685,6 +706,7 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
       branchId: user.branchId || '',
       semester: user.semester || 1,
       reason: '',
+      shift: user.shift || '',
     },
   });
 
@@ -693,26 +715,45 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
   const editCourseValue = watch('courseId');
   const editBranchValue = watch('branchId');
   const editSemesterValue = watch('semester');
+  const editShiftValue = watch('shift');
 
   const [hodWarning, setHodWarning] = useState('');
 
   // Warn if assigning role HOD to a department that already has one
   useEffect(() => {
     if (user && editRoleValue === 'HOD' && editDeptValue && allHods?.data) {
-      const activeHod = allHods.data.find(
-        (h) => String(h.departmentId) === String(editDeptValue) && String(h.id) !== String(user.id) && h.status === 'ACTIVE'
-      );
-      if (activeHod) {
-        setHodWarning(
-          `This department already has an HOD: ${activeHod.name}. Setting this HOD role will demote them.`
+      const shift = editShiftValue || 'GENERAL';
+      const deptObj = depts?.find((d) => String(d._id) === String(editDeptValue));
+      const deptName = deptObj ? deptObj.name : 'this department';
+
+      if (shift === 'GENERAL') {
+        const existing = allHods.data.find(
+          (h) => String(h.departmentId) === String(editDeptValue) && String(h.id) !== String(user.id) && h.status === 'ACTIVE'
         );
+        if (existing) {
+          setHodWarning(
+            `${deptName} already has an active HOD: ${existing.name} (${existing.shift || 'GENERAL'}). Assigning a General HOD will conflict.`
+          );
+        } else {
+          setHodWarning('');
+        }
       } else {
-        setHodWarning('');
+        const conflicting = allHods.data.find(
+          (h) => String(h.departmentId) === String(editDeptValue) && String(h.id) !== String(user.id) && h.status === 'ACTIVE' && (h.shift === 'GENERAL' || h.shift === shift)
+        );
+        if (conflicting) {
+          const reason = conflicting.shift === 'GENERAL'
+            ? `${deptName} currently has a General HOD (${conflicting.name}). Reassign or convert them to shift-specific before adding a ${shift} HOD.`
+            : `${deptName} already has a ${shift}-shift HOD: ${conflicting.name}.`;
+          setHodWarning(reason);
+        } else {
+          setHodWarning('');
+        }
       }
     } else {
       setHodWarning('');
     }
-  }, [editRoleValue, editDeptValue, allHods, user]);
+  }, [editRoleValue, editDeptValue, editShiftValue, allHods, user, depts]);
 
   // Progressive cascading selects filters for course lengths bounds
   const getActiveCourseSemesters = useCallback(() => {
@@ -759,6 +800,7 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
         courseId: data.courseId || null,
         branchId: data.branchId || null,
         semester: data.role === 'STUDENT' ? (data.semester || 1) : null,
+        shift: data.role === 'HOD' ? data.shift : null,
       };
 
       if (isStudentAcademicChanged()) {
@@ -881,6 +923,33 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
                         {d.name}
                       </MenuItem>
                     ))}
+                  </TextField>
+                )}
+              />
+            </Box>
+          )}
+
+          {editRoleValue === 'HOD' && (
+            <Box>
+              <Typography component="label" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                HOD Scope
+              </Typography>
+              <Controller
+                name="shift"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    select
+                    fullWidth
+                    size="small"
+                    error={!!errors.shift}
+                    helperText={errors.shift?.message}
+                  >
+                    <MenuItem value="">Choose HOD Scope...</MenuItem>
+                    <MenuItem value="GENERAL">General (single HOD for the whole department)</MenuItem>
+                    <MenuItem value="MORNING">Morning Shift (Day Scholars)</MenuItem>
+                    <MenuItem value="EVENING">Evening Shift (Hostellers)</MenuItem>
                   </TextField>
                 )}
               />

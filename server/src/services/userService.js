@@ -11,6 +11,44 @@ const ERROR_CODES = require('../constants/errorCodes');
 const logger = require('../utils/logger');
 
 /**
+ * Checks for HOD assignment conflicts within a department.
+ * A department can have either one GENERAL HOD, or up to two shift HODs (one MORNING, one EVENING).
+ */
+const checkHodConflict = async (departmentId, shift, excludeUserId = null) => {
+  const query = {
+    departmentId,
+    role: 'HOD',
+    status: 'ACTIVE',
+    ...(excludeUserId && { _id: { $ne: excludeUserId } }),
+  };
+
+  const dept = await Department.findById(departmentId);
+  const departmentName = dept ? dept.name : 'Department';
+
+  if (shift === 'GENERAL') {
+    const anyExisting = await User.findOne(query);
+    if (anyExisting) {
+      throw new AppError(
+        `${departmentName} already has an active HOD (${anyExisting.name}, ${anyExisting.shift || 'GENERAL'}). Remove or reassign them before adding a General HOD.`,
+        409,
+        ERROR_CODES.HOD_ALREADY_ASSIGNED
+      );
+    }
+  } else {
+    const conflicting = await User.findOne({
+      ...query,
+      shift: { $in: ['GENERAL', shift] },
+    });
+    if (conflicting) {
+      const reason = conflicting.shift === 'GENERAL'
+        ? `${departmentName} currently has a General HOD (${conflicting.name}). Reassign or convert them to shift-specific before adding a ${shift} HOD.`
+        : `${departmentName} already has a ${shift}-shift HOD: ${conflicting.name}.`;
+      throw new AppError(reason, 409, ERROR_CODES.HOD_ALREADY_ASSIGNED);
+    }
+  }
+};
+
+/**
  * Fetch a paginated, filtered, and searchable list of users.
  */
 const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, search }) => {
@@ -70,6 +108,7 @@ const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, 
       branchId: u.branchId ? u.branchId._id : null,
       semester: u.semester || null,
       status: u.status,
+      shift: u.shift || null,
       createdAt: u.createdAt,
     })),
     meta: {
@@ -92,30 +131,18 @@ const updateUserDetails = async (userId, updateData, adminUserId) => {
 
   const before = user.toObject();
 
-  // 1. Assigning HOD Role: check department bounds
   const newRole = updateData.role || user.role;
   const targetDept = updateData.departmentId !== undefined ? updateData.departmentId : user.departmentId;
 
-  if (newRole === 'HOD' && (updateData.role === 'HOD' || updateData.departmentId !== undefined)) {
+  if (newRole === 'HOD' && (updateData.role === 'HOD' || updateData.departmentId !== undefined || updateData.shift !== undefined)) {
     if (!targetDept) {
       throw new AppError('An HOD must be assigned to a department.', 400, ERROR_CODES.VALIDATION_ERROR);
     }
-    
-    // Check if another active HOD is already assigned
-    const existingHod = await User.findOne({
-      departmentId: targetDept,
-      role: 'HOD',
-      status: 'ACTIVE',
-      _id: { $ne: user._id },
-    });
-
-    if (existingHod) {
-      throw new AppError(
-        'This department already has an active HOD. Please demote the existing HOD first.',
-        400,
-        'HOD_ALREADY_ASSIGNED'
-      );
+    const targetShift = updateData.shift !== undefined ? updateData.shift : user.shift;
+    if (!targetShift) {
+      throw new AppError('An HOD must be assigned a shift scope.', 400, ERROR_CODES.VALIDATION_ERROR);
     }
+    await checkHodConflict(targetDept, targetShift, user._id);
   }
 
   // 2. Changing Student branch/semester
@@ -157,9 +184,25 @@ const updateUserDetails = async (userId, updateData, adminUserId) => {
   if (updateData.semester !== undefined) {
     user.semester = newRole === 'STUDENT' ? (updateData.semester || 1) : null;
   }
+  if (updateData.shift !== undefined) {
+    user.shift = newRole === 'HOD' ? updateData.shift : null;
+  } else if (updateData.role !== undefined && updateData.role !== 'HOD') {
+    user.shift = null;
+  }
 
   await user.save();
   const after = user.toObject();
+
+  if (before.shift !== after.shift) {
+    await logAuditEvent({
+      actorId: adminUserId,
+      action: 'SHIFT_CHANGE',
+      targetId: user._id,
+      targetModel: 'User',
+      before: { shift: before.shift },
+      after: { shift: after.shift },
+    });
+  }
 
   // 4. Audit Log Writing
   if (before.role !== after.role) {
@@ -356,6 +399,7 @@ const getUserDetails = async (userId) => {
     branchId: u.branchId ? u.branchId._id : null,
     semester: u.semester || null,
     status: u.status,
+    shift: u.shift || null,
     createdAt: u.createdAt,
   };
 };
@@ -367,4 +411,5 @@ module.exports = {
   deleteUserAccount,
   getAuditLogsList,
   getInstitutionalInsights,
+  checkHodConflict,
 };
