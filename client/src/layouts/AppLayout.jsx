@@ -93,6 +93,7 @@ export const AppLayout = () => {
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
         { text: 'College Setup', icon: <SchoolIcon />, path: '/admin/college-setup/departments' },
         { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users' },
+        { text: 'Notice Board', icon: <NotificationsIcon />, path: '/admin/notices' },
       ]
     : [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
@@ -100,7 +101,8 @@ export const AppLayout = () => {
         { text: 'Faculty', icon: <SchoolIcon />, path: '/faculty', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD'] },
         { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
         { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'STUDENT'] },
-        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
+        { text: 'Notices', icon: <NotificationsIcon />, path: '/admin/notices', roles: ['COLLEGE_ADMIN'] },
+        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['HOD', 'FACULTY', 'STUDENT'] },
       ];
 
   const visibleMenuItems = user?.role === 'SUPER_ADMIN'

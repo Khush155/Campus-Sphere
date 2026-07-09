@@ -114,6 +114,7 @@ app.get('/', (req, res) => {
 app.use('/api/v1/auth', require('./routes/authRoutes'));
 app.use('/api/v1/college', require('./routes/collegeRoutes'));
 app.use('/api/v1/users', require('./routes/userRoutes'));
+app.use('/api/v1/notices', require('./routes/noticeRoutes'));
 
 // Catch-all for unhandled routes
 app.all('*', (req, res, next) => {

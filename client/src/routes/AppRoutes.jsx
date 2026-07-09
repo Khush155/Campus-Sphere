@@ -11,6 +11,7 @@ import SetupHub from '../pages/admin/CollegeSetup/SetupHub';
 import UserRoster from '../pages/admin/UserManagement/UserRoster';
 import SetupWizard from '../pages/admin/SetupWizard';
 import { useDepartmentsQuery } from '../queries/collegeQueries';
+import NoticeBoard from '../pages/admin/NoticeBoard/NoticeBoard';
 
 // Guard for authenticated sections
 const ProtectedRoute = ({ children }) => {
@@ -149,6 +150,17 @@ export const AppRoutes = () => {
             <RoleRoute allowedRoles={['SUPER_ADMIN']}>
               <AdminSetupGuard>
                 <UserRoster />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/notices"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AdminSetupGuard>
+                <NoticeBoard />
               </AdminSetupGuard>
             </RoleRoute>
           }
