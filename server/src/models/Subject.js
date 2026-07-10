@@ -15,6 +15,11 @@ const subjectSchema = new mongoose.Schema(
       uppercase: true,
       maxlength: [15, 'Subject code cannot exceed 15 characters'],
     },
+    departmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Department',
+      required: [true, 'Subject must belong to a department'],
+    },
     credits: {
       type: Number,
       required: [true, 'Subject credits are required'],
@@ -33,11 +38,6 @@ const subjectSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Branch',
       required: [true, 'Branch reference is required'],
-    },
-    departmentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Department',
-      required: [true, 'Department reference is required'],
     },
     semester: {
       type: Number,

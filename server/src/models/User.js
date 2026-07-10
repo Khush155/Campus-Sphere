@@ -126,7 +126,6 @@ userSchema.pre('save', async function (next) {
 
 // Instance method to compare candidate password with hashed password in database
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  // Since password field might not be selected, this method handles comparing
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
@@ -158,8 +157,6 @@ userSchema.methods.generateRefreshToken = function () {
     }
   );
 };
-
-
 
 const User = mongoose.model('User', userSchema);
 
