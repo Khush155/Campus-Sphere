@@ -11,7 +11,7 @@ const ROLES = require('../constants/roles');
 const getUsers = async (req, res, _next) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 20;
-  const { role, department, status, search } = req.query;
+  const { role, department, status, search, course, branch, semester, group } = req.query;
 
   // Security Rule: HODs can only fetch users in their own department
   const isHod = req.user.role === ROLES.HOD;
@@ -24,6 +24,10 @@ const getUsers = async (req, res, _next) => {
     departmentId: targetDepartmentId,
     status,
     search,
+    courseId: course,
+    branchId: branch,
+    semester: semester ? parseInt(semester, 10) : undefined,
+    group: group,
   });
 
   return successResponse(res, 200, 'Users fetched successfully', result.users, result.meta);

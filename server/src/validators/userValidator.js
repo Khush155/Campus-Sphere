@@ -43,6 +43,13 @@ const updateUserSchema = z.object({
     .optional()
     .or(z.null())
     .optional(),
+  group: z
+    .string()
+    .max(20, 'Group cannot exceed 20 characters')
+    .trim()
+    .optional()
+    .or(z.null())
+    .optional(),
   reason: z
     .string()
     .min(3, 'A reasoning of at least 3 characters is required for updating student branches or semesters')

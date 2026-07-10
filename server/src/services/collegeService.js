@@ -2,7 +2,6 @@ const Department = require('../models/Department');
 const Course = require('../models/Course');
 const Branch = require('../models/Branch');
 const Subject = require('../models/Subject');
-const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
 const logger = require('../utils/logger');
@@ -278,7 +277,7 @@ const assertSubjectSemestersValid = async (branchId, semester) => {
 };
 
 const createSubject = async (subjectData) => {
-  const { name, code, credits, type, branchId, departmentId, semester, facultyId } = subjectData;
+  const { name, code, credits, type, branchId, departmentId, semester } = subjectData;
 
   // 1. Verify parent Department exists
   const parentDept = await Department.findById(departmentId);
@@ -289,15 +288,7 @@ const createSubject = async (subjectData) => {
   // 2. Verify parent Branch exists and semester is within limits (user suggestion check!)
   await assertSubjectSemestersValid(branchId, semester);
 
-  // 3. Verify Faculty if provided
-  if (facultyId) {
-    const faculty = await User.findById(facultyId);
-    if (!faculty) {
-      throw new AppError('Faculty reference not found.', 404, ERROR_CODES.NOT_FOUND);
-    }
-  }
-
-  // 4. Verify compound unique constraints (branchId + code)
+  // 3. Verify compound unique constraints (branchId + code)
   const duplicate = await Subject.findOne({ branchId, code: code.toUpperCase() });
   if (duplicate) {
     throw new AppError('Subject code already registered under this branch.', 400, ERROR_CODES.DUPLICATE_ENTRY);
@@ -311,7 +302,6 @@ const createSubject = async (subjectData) => {
     branchId,
     departmentId,
     semester,
-    facultyId: facultyId || null,
   });
   logger.info(`[Subject Created] ID: ${subject._id} - Code: ${subject.code} under Branch: ${branchId}`);
   return subject;
@@ -336,12 +326,12 @@ const getAllSubjects = async (queryOptions = {}) => {
   }
   return await paginate(Subject, filter, {
     ...queryOptions,
-    populate: ['branchId', 'departmentId', { path: 'facultyId', select: 'name email role' }],
+    populate: ['branchId', 'departmentId'],
   });
 };
 
 const getSubjectById = async (id) => {
-  const subject = await Subject.findById(id).populate(['branchId', 'departmentId', { path: 'facultyId', select: 'name email role' }]);
+  const subject = await Subject.findById(id).populate(['branchId', 'departmentId']);
   if (!subject) {
     throw new AppError('Subject not found.', 404, ERROR_CODES.NOT_FOUND);
   }
@@ -369,18 +359,6 @@ const updateSubject = async (id, updateData) => {
   // Verify branch reference and semester limits if changing
   if (updateData.branchId || updateData.semester !== undefined) {
     await assertSubjectSemestersValid(branchId, semester);
-  }
-
-  // Verify faculty reference if changing
-  if (updateData.facultyId !== undefined && updateData.facultyId !== (subject.facultyId?.toString() || null)) {
-    if (updateData.facultyId) {
-      const faculty = await User.findById(updateData.facultyId);
-      if (!faculty) {
-        throw new AppError('Faculty reference not found.', 404, ERROR_CODES.NOT_FOUND);
-      }
-    } else {
-      updateData.facultyId = null;
-    }
   }
 
   // Check duplicate compound unique constraint

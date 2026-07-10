@@ -8,13 +8,13 @@ const HodDashboard = () => {
   const theme = useTheme();
   const { user } = useAuth();
   
-  // Use existing queries, they will be scoped by departmentId on the backend automatically
+  // Queries for Overview (to be moved to DeptOverviewCards in Phase C)
   const { data: facultyData, isLoading: loadingFaculty } = useUsersQuery({ role: 'FACULTY', limit: 1 });
   const { data: studentData, isLoading: loadingStudents } = useUsersQuery({ role: 'STUDENT', limit: 1 });
   const { data: subjectData, isLoading: loadingSubjects } = useSubjectsQuery({ departmentId: user?.departmentId, limit: 1 });
 
   return (
-    <Box>
+    <Box sx={{ p: { xs: 1, sm: 3 } }}>
       <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: theme.palette.ink?.[900] || 'text.primary' }}>
         Department Dashboard
       </Typography>

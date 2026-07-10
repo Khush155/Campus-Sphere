@@ -61,6 +61,11 @@ const userSchema = new mongoose.Schema(
       type: Number,
       required: false,
     },
+    group: {
+      type: String,
+      trim: true,
+      required: false,
+    },
     refreshTokens: {
       type: [String],
       default: [],

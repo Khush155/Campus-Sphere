@@ -32,6 +32,9 @@ import {
   Logout as LogoutIcon,
   Palette as PaletteIcon,
   Search as SearchIcon,
+  AssignmentInd as AssignmentIndIcon,
+  SwapHoriz as SwapHorizIcon,
+  BarChart as BarChartIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
@@ -96,10 +99,12 @@ export const AppLayout = () => {
       ]
     : user?.role === 'HOD'
     ? [
-        { text: 'Department Dashboard', icon: <DashboardIcon />, path: '/hod/dashboard', roles: ['HOD'] },
-        { text: 'Faculty Management', icon: <SchoolIcon />, path: '/hod/faculty', roles: ['HOD'] },
-        { text: 'Student Overview', icon: <PeopleIcon />, path: '/hod/students', roles: ['HOD'] },
-        { text: 'Subject Allocation', icon: <DateRangeIcon />, path: '/hod/subjects', roles: ['HOD'] },
+        { text: 'Overview', icon: <DashboardIcon />, path: '/hod/overview', roles: ['HOD'] },
+        { text: 'Faculty Assignment', icon: <AssignmentIndIcon />, path: '/hod/faculty-assignment', roles: ['HOD'] },
+        { text: 'Cross-Dept Requests', icon: <SwapHorizIcon />, path: '/hod/cross-dept-requests', roles: ['HOD'] },
+        { text: 'Timetable', icon: <DateRangeIcon />, path: '/hod/timetable', roles: ['HOD'] },
+        { text: 'Roster', icon: <PeopleIcon />, path: '/hod/roster', roles: ['HOD'] },
+        { text: 'Reports', icon: <BarChartIcon />, path: '/hod/reports', roles: ['HOD'] },
       ]
     : [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },

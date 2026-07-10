@@ -13,7 +13,7 @@ const logger = require('../utils/logger');
 /**
  * Fetch a paginated, filtered, and searchable list of users.
  */
-const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, search }) => {
+const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, search, courseId, branchId, semester, group }) => {
   const filter = {};
 
   if (role) {
@@ -26,6 +26,22 @@ const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, 
 
   if (status) {
     filter.status = status;
+  }
+
+  if (courseId) {
+    filter.courseId = courseId;
+  }
+
+  if (branchId) {
+    filter.branchId = branchId;
+  }
+
+  if (semester) {
+    filter.semester = semester;
+  }
+
+  if (group) {
+    filter.group = group;
   }
 
   if (search && search.trim().length > 0) {
@@ -69,6 +85,7 @@ const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, 
       branch: u.branchId ? u.branchId.name : null,
       branchId: u.branchId ? u.branchId._id : null,
       semester: u.semester || null,
+      group: u.group || null,
       status: u.status,
       createdAt: u.createdAt,
     })),
@@ -157,6 +174,9 @@ const updateUserDetails = async (userId, updateData, adminUserId) => {
   if (updateData.semester !== undefined) {
     user.semester = newRole === 'STUDENT' ? (updateData.semester || 1) : null;
   }
+  if (updateData.group !== undefined) {
+    user.group = newRole === 'STUDENT' ? (updateData.group || null) : null;
+  }
 
   await user.save();
   const after = user.toObject();
@@ -207,6 +227,7 @@ const updateUserDetails = async (userId, updateData, adminUserId) => {
     courseId: user.courseId,
     branchId: user.branchId,
     semester: user.semester,
+    group: user.group,
     status: user.status,
   };
 };
@@ -355,6 +376,7 @@ const getUserDetails = async (userId) => {
     branch: u.branchId ? u.branchId.name : null,
     branchId: u.branchId ? u.branchId._id : null,
     semester: u.semester || null,
+    group: u.group || null,
     status: u.status,
     createdAt: u.createdAt,
   };

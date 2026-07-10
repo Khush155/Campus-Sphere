@@ -12,9 +12,12 @@ import UserRoster from '../pages/admin/UserManagement/UserRoster';
 import SetupWizard from '../pages/admin/SetupWizard';
 import { useDepartmentsQuery } from '../queries/collegeQueries';
 import HodDashboard from '../pages/hod/HodDashboard';
-import FacultyManagement from '../pages/hod/FacultyManagement';
-import StudentOverview from '../pages/hod/StudentOverview';
-import SubjectAllocation from '../pages/hod/SubjectAllocation';
+import AssignmentHub from '../pages/hod/FacultyAssignment/AssignmentHub';
+import RosterHub from '../pages/hod/Roster/RosterHub';
+import ReportsHub from '../pages/hod/Reports/ReportsHub';
+import TimetableHub from '../pages/hod/Timetable/TimetableHub';
+import RequestHub from '../pages/hod/CrossDeptRequests/RequestHub';
+// HOD pages now loaded via HodDashboard tabs
 
 // Guard for authenticated sections
 const ProtectedRoute = ({ children }) => {
@@ -93,7 +96,7 @@ const HomeRedirect = () => {
     return <Navigate to="/admin/dashboard" replace />;
   }
   if (user?.role === 'HOD') {
-    return <Navigate to="/hod/dashboard" replace />;
+    return <Navigate to="/hod/overview" replace />;
   }
   return <Home />;
 };
@@ -163,7 +166,7 @@ export const AppRoutes = () => {
 
         {/* HOD Workspace Routes */}
         <Route
-          path="hod/dashboard"
+          path="hod/overview"
           element={
             <RoleRoute allowedRoles={['HOD']}>
               <HodDashboard />
@@ -171,26 +174,44 @@ export const AppRoutes = () => {
           }
         />
         <Route
-          path="hod/faculty"
+          path="hod/faculty-assignment"
           element={
             <RoleRoute allowedRoles={['HOD']}>
-              <FacultyManagement />
+              <Box sx={{ p: { xs: 1, sm: 3 } }}>
+                <AssignmentHub />
+              </Box>
             </RoleRoute>
           }
         />
         <Route
-          path="hod/students"
+          path="hod/cross-dept-requests"
           element={
             <RoleRoute allowedRoles={['HOD']}>
-              <StudentOverview />
+              <RequestHub />
             </RoleRoute>
           }
         />
         <Route
-          path="hod/subjects"
+          path="hod/timetable"
           element={
             <RoleRoute allowedRoles={['HOD']}>
-              <SubjectAllocation />
+              <TimetableHub />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="hod/roster"
+          element={
+            <RoleRoute allowedRoles={['HOD']}>
+              <RosterHub />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="hod/reports"
+          element={
+            <RoleRoute allowedRoles={['HOD']}>
+              <ReportsHub />
             </RoleRoute>
           }
         />
