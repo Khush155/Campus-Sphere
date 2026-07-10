@@ -36,6 +36,7 @@ import {
   Save as SubmitIcon,
   RestartAlt as ResetIcon,
   CalendarToday as CalendarIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -271,6 +272,32 @@ export const AttendancePage = () => {
     setIsSubmitted(true);
   };
 
+  const handleExport = (type) => {
+    const filename = `attendance_${selectedSubjectId || 'subject'}_${selectedDate}.${type === 'csv' ? 'csv' : 'txt'}`;
+    const element = document.createElement('a');
+    let content = '';
+
+    if (type === 'csv') {
+      content = 'Roll Number,Student Name,Attendance Status\n';
+      mockStudentsList.forEach((stud) => {
+        content += `${stud.rollNumber},${stud.name},${attendanceRecords[stud.id] || 'PRESENT'}\n`;
+      });
+      element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(content));
+    } else {
+      content = `--- Attendance Report ---\nSubject ID: ${selectedSubjectId}\nDate: ${selectedDate}\n\n`;
+      mockStudentsList.forEach((stud) => {
+        content += `${stud.rollNumber} - ${stud.name}: ${attendanceRecords[stud.id] || 'PRESENT'}\n`;
+      });
+      element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+    }
+
+    element.setAttribute('download', filename);
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
   // ══════════════════════════════════════════════════════════
   // RENDER
   // ══════════════════════════════════════════════════════════
@@ -424,18 +451,46 @@ export const AttendancePage = () => {
                   gap: 2,
                 }}
               >
-                <Button
-                  variant="outlined"
-                  color="inherit"
-                  startIcon={<ResetIcon />}
-                  onClick={handleReset}
-                  sx={{
-                    textTransform: 'none',
-                    fontWeight: 600,
-                  }}
-                >
-                  Reset to Default
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1.5 }}>
+                  <Button
+                    variant="outlined"
+                    color="inherit"
+                    startIcon={<ResetIcon />}
+                    onClick={handleReset}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Reset
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<DownloadIcon />}
+                    onClick={() => handleExport('csv')}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Export CSV
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<DownloadIcon />}
+                    onClick={() => handleExport('pdf')}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Export PDF
+                  </Button>
+                </Box>
 
                 <Button
                   variant="contained"

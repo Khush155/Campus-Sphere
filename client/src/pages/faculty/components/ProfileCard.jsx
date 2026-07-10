@@ -29,6 +29,7 @@ import {
   Divider,
   Stack,
   Chip,
+  Button,
 } from '@mui/material';
 import {
   Email as EmailIcon,
@@ -187,6 +188,17 @@ export const ProfileCard = ({ profile }) => {
             value={formatDate(joiningDate)}
           />
         </Stack>
+        <Divider sx={{ my: 2 }} />
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <Button
+            size="small"
+            color="primary"
+            onClick={() => window.location.href = '/profile'}
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            View Full Profile
+          </Button>
+        </Box>
       </CardContent>
     </Card>
   );

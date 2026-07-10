@@ -17,10 +17,12 @@ import {
   TableRow,
   IconButton,
   Divider,
+  Button,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
   People as StudentIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -87,38 +89,91 @@ export const FacultyStudentListPage = () => {
     setSelectedSectionId(sectionId);
   };
 
+  const handleExport = (type) => {
+    const filename = `student_roster_${selectedSubjectId || 'subject'}_${selectedSectionId || 'section'}.${type === 'csv' ? 'csv' : 'txt'}`;
+    const element = document.createElement('a');
+    let content = '';
+
+    if (type === 'csv') {
+      content = 'Roll Number,Student Name,Email Address,Semester,Section\n';
+      mockStudentsList.forEach((stud) => {
+        content += `${stud.rollNumber},${stud.name},${stud.email},${derivedSemester},${activeSection?.name || 'N/A'}\n`;
+      });
+      element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(content));
+    } else {
+      content = `--- Class Roster Report ---\nSubject ID: ${selectedSubjectId}\nSection: ${activeSection?.name || 'N/A'}\n\n`;
+      mockStudentsList.forEach((stud) => {
+        content += `${stud.rollNumber} - ${stud.name} (${stud.email})\n`;
+      });
+      element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+    }
+
+    element.setAttribute('download', filename);
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
   return (
     <Box sx={{ flexGrow: 1 }}>
       {/* ── Page Header ── */}
       <Box
         sx={{
           display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          gap: 1.5,
+          flexWrap: 'wrap',
+          gap: 2,
           mb: 4,
         }}
       >
-        <IconButton
-          onClick={() => navigate('/faculty')}
-          size="small"
-          sx={{
-            bgcolor: 'action.hover',
-            '&:hover': { bgcolor: 'action.selected' },
-          }}
-        >
-          <BackIcon fontSize="small" />
-        </IconButton>
-        <Box>
-          <Typography
-            variant="h4"
-            sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <IconButton
+            onClick={() => navigate('/faculty')}
+            size="small"
+            sx={{
+              bgcolor: 'action.hover',
+              '&:hover': { bgcolor: 'action.selected' },
+            }}
           >
-            Class Roster
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Lookup names, email ids, and semester details of enrolled students in your classes
-          </Typography>
+            <BackIcon fontSize="small" />
+          </IconButton>
+          <Box>
+            <Typography
+              variant="h4"
+              sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}
+            >
+              Class Roster
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Lookup names, email ids, and semester details of enrolled students in your classes
+            </Typography>
+          </Box>
         </Box>
+
+        {isFormReady && (
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={() => handleExport('csv')}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              Export CSV
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={() => handleExport('pdf')}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              Export PDF
+            </Button>
+          </Box>
+        )}
       </Box>
 
       {/* ── Selectors Row ── */}

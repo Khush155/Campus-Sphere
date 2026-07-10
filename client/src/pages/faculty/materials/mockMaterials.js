@@ -1,0 +1,63 @@
+// client/src/pages/faculty/materials/mockMaterials.js
+//
+// Mock data representing Course Materials for Faculty CSE classes.
+
+export const mockMaterialsList = [
+  {
+    id: 'mat01',
+    title: 'Lecture Slides: Introduction to Trees and Binary Search Trees',
+    subjectId: 'sub1',
+    subjectCode: 'CSE201',
+    sectionId: 'sec1a',
+    sectionName: 'CSE-A',
+    type: 'PPT',
+    url: 'https://campus.edu/files/ds-introduction-to-trees.pptx',
+    fileSize: '4.2 MB',
+    uploadedAt: '2026-07-01',
+  },
+  {
+    id: 'mat02',
+    title: 'Code Reference: Balanced AVL Tree Rotations (C++)',
+    subjectId: 'sub1',
+    subjectCode: 'CSE201',
+    sectionId: 'sec1a',
+    sectionName: 'CSE-A',
+    type: 'NOTE',
+    description: 'Practical implementation guide detailing Single and Double Rotations for balancing AVL Nodes.',
+    uploadedAt: '2026-07-03',
+  },
+  {
+    id: 'mat03',
+    title: 'DBMS Lecture: Normalization Rules (1NF, 2NF, 3NF, BCNF)',
+    subjectId: 'sub2',
+    subjectCode: 'CSE305',
+    sectionId: 'sec2a',
+    sectionName: 'CSE-A',
+    type: 'PDF',
+    url: 'https://campus.edu/files/dbms-normalization-rules.pdf',
+    fileSize: '1.8 MB',
+    uploadedAt: '2026-07-04',
+  },
+  {
+    id: 'mat04',
+    title: 'Video Guide: Understanding Database Indexing & B-Trees',
+    subjectId: 'sub2',
+    subjectCode: 'CSE305',
+    sectionId: 'sec2a',
+    sectionName: 'CSE-A',
+    type: 'YOUTUBE',
+    url: 'https://www.youtube.com/watch?v=a71866',
+    uploadedAt: '2026-07-05',
+  },
+  {
+    id: 'mat05',
+    title: 'Reference Guide: Process Synchronization & Mutex locks in OS',
+    subjectId: 'sub3',
+    subjectCode: 'CSE302',
+    sectionId: 'sec3a',
+    sectionName: 'CSE-A',
+    type: 'LINK',
+    url: 'https://www.geeksforgeeks.org/process-synchronization-in-operating-system/',
+    uploadedAt: '2026-07-07',
+  },
+];

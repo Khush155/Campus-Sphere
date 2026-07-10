@@ -49,6 +49,14 @@ import { BulkPromotion } from '../pages/admin/BulkPromotion/BulkPromotion';
 import { Certificates } from '../pages/admin/Certificates/Certificates';
 import { Reports } from '../pages/admin/Reports/Reports';
 
+// Newly added Expanded Faculty pages
+import MaterialsPage from '../pages/faculty/materials/MaterialsPage';
+import ProfilePage from '../pages/faculty/profile/ProfilePage';
+import AnalyticsPage from '../pages/faculty/analytics/AnalyticsPage';
+import NotificationPage from '../pages/faculty/notifications/NotificationPage';
+import SearchPage from '../pages/faculty/search/SearchPage';
+import SettingsPage from '../pages/faculty/settings/SettingsPage';
+
 // Guard for authenticated sections
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -298,6 +306,12 @@ export const AppRoutes = () => {
         <Route path="exams" element={<RoleRoute allowedRoles={['FACULTY']}><ExamPage /></RoleRoute>} />
         <Route path="marks" element={<RoleRoute allowedRoles={['FACULTY']}><MarksPage /></RoleRoute>} />
         <Route path="timetable" element={<RoleRoute allowedRoles={['FACULTY']}><TimetablePage /></RoleRoute>} />
+        <Route path="materials" element={<RoleRoute allowedRoles={['FACULTY']}><MaterialsPage /></RoleRoute>} />
+        <Route path="profile" element={<RoleRoute allowedRoles={['FACULTY']}><ProfilePage /></RoleRoute>} />
+        <Route path="analytics" element={<RoleRoute allowedRoles={['FACULTY']}><AnalyticsPage /></RoleRoute>} />
+        <Route path="notifications" element={<RoleRoute allowedRoles={['FACULTY']}><NotificationPage /></RoleRoute>} />
+        <Route path="search" element={<RoleRoute allowedRoles={['FACULTY']}><SearchPage /></RoleRoute>} />
+        <Route path="settings" element={<RoleRoute allowedRoles={['FACULTY']}><SettingsPage /></RoleRoute>} />
         <Route path="fees" element={<PlaceholderView title="Fees" />} />
         <Route path="notices" element={<PlaceholderView title="Notice Board" />} />
       </Route>

@@ -23,6 +23,7 @@ import {
   Publish as PublishIcon,
   Archive as ArchiveIcon,
   LockReset as UnpublishIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -317,6 +318,33 @@ export const MarksPage = () => {
     }, 600);
   };
 
+  const handleExport = (type) => {
+    if (!records || records.length === 0) return;
+    const filename = `marks_${selectedSubjectId || 'subject'}_${selectedAssessmentId || 'assessment'}.${type === 'csv' ? 'csv' : 'txt'}`;
+    const element = document.createElement('a');
+    let content = '';
+
+    if (type === 'csv') {
+      content = 'Roll Number,Student Name,Marks Obtained,Remarks\n';
+      records.forEach((rec) => {
+        content += `${rec.rollNumber},${rec.studentName},${rec.isAbsent ? 'ABSENT' : rec.marks},${rec.remarks || ''}\n`;
+      });
+      element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(content));
+    } else {
+      content = `--- Gradebook Report ---\nSubject ID: ${selectedSubjectId}\nAssessment ID: ${selectedAssessmentId}\n\n`;
+      records.forEach((rec) => {
+        content += `${rec.rollNumber} - ${rec.studentName}: ${rec.isAbsent ? 'ABSENT' : rec.marks} marks (${rec.remarks || 'No remarks'})\n`;
+      });
+      element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+    }
+
+    element.setAttribute('download', filename);
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
   return (
     <Box sx={{ flexGrow: 1 }}>
       {/* ── Page Header ── */}
@@ -372,6 +400,25 @@ export const MarksPage = () => {
                 sx={{ fontWeight: 700, fontSize: '0.7rem' }}
               />
             )}
+
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={() => handleExport('csv')}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              Export CSV
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={() => handleExport('pdf')}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              Export PDF
+            </Button>
 
             {/* Actions Grid */}
             {!isEditing ? (

@@ -59,6 +59,7 @@ import {
   CardMembership as CardMembershipIcon,
   Assessment as AssessmentIcon,
   CalendarToday as CalendarTodayIcon,
+  MenuBook as BookIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
@@ -182,6 +183,11 @@ export const AppLayout = () => {
         { text: 'Marks', icon: <FactCheckIcon />, path: '/marks', roles: ['FACULTY'] },
         { text: 'Timetable', icon: <CalendarTodayIcon />, path: '/timetable', roles: ['FACULTY'] },
         { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['FACULTY'] },
+        { text: 'Materials', icon: <MenuBookIcon />, path: '/materials', roles: ['FACULTY'] },
+        { text: 'Analytics', icon: <BarChartIcon />, path: '/analytics', roles: ['FACULTY'] },
+        { text: 'Notifications', icon: <NotificationsIcon />, path: '/notifications', roles: ['FACULTY'] },
+        { text: 'Search Directory', icon: <SearchIcon />, path: '/search', roles: ['FACULTY'] },
+        { text: 'Settings', icon: <SettingsIcon />, path: '/settings', roles: ['FACULTY'] },
       ]
     : [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN'] },
@@ -468,8 +474,8 @@ export const AppLayout = () => {
                 />
               </Box>
               <Divider />
-              <MenuItem onClick={handleProfileMenuClose}>Profile</MenuItem>
-              <MenuItem onClick={handleProfileMenuClose}>Settings</MenuItem>
+              <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/profile'); }}>Profile</MenuItem>
+              <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/settings'); }}>Settings</MenuItem>
               <Divider />
               <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
                 <ListItemIcon sx={{ color: 'error.main', minWidth: 30 }}>
