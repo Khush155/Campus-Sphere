@@ -15,8 +15,12 @@ const { successResponse } = require('./utils/apiResponse');
 
 const app = express();
 
-// Set security HTTP headers
-app.use(helmet());
+// Set security HTTP headers (allowing cross-origin resource sharing for static files)
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 
 // CORS configuration (allow credentials for httpOnly cookies)
 app.use(
@@ -46,7 +50,7 @@ app.use(mongoSanitize());
 app.use('/api', apiLimiter);
 
 // Serve static upload files
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Swagger API Documentation Config
 const swaggerOptions = {
@@ -115,6 +119,8 @@ app.use('/api/v1/auth', require('./routes/authRoutes'));
 app.use('/api/v1/college', require('./routes/collegeRoutes'));
 app.use('/api/v1/users', require('./routes/userRoutes'));
 app.use('/api/v1/notices', require('./routes/noticeRoutes'));
+app.use('/api/v1/academic-sessions', require('./routes/academicSessionRoutes'));
+app.use('/api/v1/college-profile', require('./routes/collegeProfileRoutes'));
 
 // Catch-all for unhandled routes
 app.all('*', (req, res, next) => {

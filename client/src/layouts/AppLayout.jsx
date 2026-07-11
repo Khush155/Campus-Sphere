@@ -32,11 +32,13 @@ import {
   Logout as LogoutIcon,
   Palette as PaletteIcon,
   Search as SearchIcon,
+  AccountBalance as AccountBalanceIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../contexts/AuthContext';
 import CommandPalette from '../components/common/CommandPalette';
+import { useCollegeProfileQuery } from '../queries/collegeProfileQueries';
 
 const drawerWidth = 240;
 
@@ -50,6 +52,8 @@ export const AppLayout = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [presetAnchorEl, setPresetAnchorEl] = useState(null);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+
+  const { data: profile } = useCollegeProfileQuery();
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -94,6 +98,8 @@ export const AppLayout = () => {
         { text: 'College Setup', icon: <SchoolIcon />, path: '/admin/college-setup/departments' },
         { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users' },
         { text: 'Notice Board', icon: <NotificationsIcon />, path: '/admin/notices' },
+        { text: 'Academic Calendar', icon: <DateRangeIcon />, path: '/admin/academic-calendar' },
+        { text: 'College Profile', icon: <AccountBalanceIcon />, path: '/admin/college-profile' },
       ]
     : [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
@@ -114,21 +120,45 @@ export const AppLayout = () => {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
+  const getFullLogoUrl = (relativeUrl) => {
+    if (!relativeUrl) return null;
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+    const rootUrl = baseUrl.replace('/api/v1', '');
+    return `${rootUrl}${relativeUrl}`;
+  };
+
+  const hasCustomProfile = profile && profile.name && profile.name !== 'My College';
+
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Toolbar sx={{ justifyContent: 'center', py: 2 }}>
+      <Toolbar sx={{ justifyContent: 'center', py: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        {hasCustomProfile && profile.logoUrl ? (
+          <Box
+            component="img"
+            src={getFullLogoUrl(profile.logoUrl)}
+            alt="College Logo"
+            sx={{ width: 32, height: 32, objectFit: 'contain' }}
+          />
+        ) : null}
         <Typography
-          variant="h5"
+          variant="h6"
           component="div"
           sx={{
             fontWeight: 800,
-            background: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
             letterSpacing: '0.5px',
+            maxWidth: 180,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            color: theme.palette.text.primary,
+            ...(!hasCustomProfile && {
+              background: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }),
           }}
         >
-          CampusSphere
+          {hasCustomProfile ? profile.name : 'CampusSphere'}
         </Typography>
       </Toolbar>
       <Divider />

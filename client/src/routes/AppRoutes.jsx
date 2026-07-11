@@ -12,6 +12,8 @@ import UserRoster from '../pages/admin/UserManagement/UserRoster';
 import SetupWizard from '../pages/admin/SetupWizard';
 import { useDepartmentsQuery } from '../queries/collegeQueries';
 import NoticeBoard from '../pages/admin/NoticeBoard/NoticeBoard';
+import { AcademicCalendar } from '../pages/admin/AcademicCalendar/AcademicCalendar';
+import { CollegeProfile } from '../pages/admin/CollegeProfile/CollegeProfile';
 
 // Guard for authenticated sections
 const ProtectedRoute = ({ children }) => {
@@ -161,6 +163,28 @@ export const AppRoutes = () => {
             <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <NoticeBoard />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/academic-calendar"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <AcademicCalendar />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/college-profile"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <CollegeProfile />
               </AdminSetupGuard>
             </RoleRoute>
           }

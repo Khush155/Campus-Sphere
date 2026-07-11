@@ -109,6 +109,7 @@ const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, 
       semester: u.semester || null,
       status: u.status,
       shift: u.shift || null,
+      lastLoginAt: u.lastLoginAt || null,
       createdAt: u.createdAt,
     })),
     meta: {

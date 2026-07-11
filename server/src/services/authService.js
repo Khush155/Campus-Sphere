@@ -88,6 +88,9 @@ const loginUser = async (email, password) => {
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
 
+  // Update last login timestamp
+  user.lastLoginAt = new Date();
+
   // 5. Manage active sessions list (FIFO eviction if count exceeds limit)
   if (user.refreshTokens.length >= MAX_CONCURRENT_SESSIONS) {
     user.refreshTokens.shift(); // Evict the oldest session

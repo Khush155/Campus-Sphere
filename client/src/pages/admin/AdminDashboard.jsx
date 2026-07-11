@@ -36,6 +36,7 @@ import {
 import { useUsersQuery, useAuditLogsQuery, useInsightsQuery } from '../../queries/userQueries';
 import { useDepartmentsQuery, useCoursesQuery } from '../../queries/collegeQueries';
 import { useAuth } from '../../contexts/AuthContext';
+import { useActiveSessionQuery } from '../../queries/academicSessionQueries';
 
 // Helper for relative timestamps
 const getRelativeTime = (timestamp) => {
@@ -115,6 +116,9 @@ export const AdminDashboard = () => {
   // Query for Recent Activity
   const { data: auditLogs, isLoading: loadingAudits } = useAuditLogsQuery();
 
+  // Query for Active Session
+  const { data: activeSession, isLoading: loadingActive } = useActiveSessionQuery();
+
   // Fetch full student list to calculate department distribution in-memory
   const { data: allStudents } = useUsersQuery({ role: 'STUDENT', limit: 1000 });
 
@@ -187,8 +191,12 @@ export const AdminDashboard = () => {
   };
 
   const getSubtextGreeting = () => {
-    if (isLoadingKPI) return 'Connecting core academic parameters...';
-    return `Odd Semester 2026–27 · ${totalStudents} active student records connected`;
+    if (isLoadingKPI || loadingActive) return 'Connecting core academic parameters...';
+    if (!activeSession) {
+      return `No active session set — configure one in Academic Calendar · ${totalStudents} active student records connected`;
+    }
+    const semTypeLabel = activeSession.semesterType === 'ODD' ? 'Odd Semester' : 'Even Semester';
+    return `${semTypeLabel} ${activeSession.academicYear} · ${totalStudents} active student records connected`;
   };
 
   return (

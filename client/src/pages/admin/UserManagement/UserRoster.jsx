@@ -70,6 +70,29 @@ const userEditSchema = z.object({
   }
 });
 
+const formatRelativeTime = (dateString) => {
+  if (!dateString) return 'Never';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHr / 24);
+
+  if (diffSec < 60) {
+    return 'Just now';
+  } else if (diffMin < 60) {
+    return `${diffMin}m ago`;
+  } else if (diffHr < 24) {
+    return `${diffHr}h ago`;
+  } else if (diffDays === 1) {
+    return '1 day ago';
+  } else {
+    return `${diffDays} days ago`;
+  }
+};
+
 export const UserRoster = () => {
   const theme = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -450,6 +473,9 @@ export const UserRoster = () => {
                 <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   STATUS
                 </TableCell>
+                <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                  LAST LOGIN
+                </TableCell>
                 <TableCell align="right" sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   ACTIONS
                 </TableCell>
@@ -524,6 +550,9 @@ export const UserRoster = () => {
                           {user.status}
                         </Typography>
                       </Box>
+                    </TableCell>
+                    <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontSize: density === 'compact' ? '0.78rem' : '0.82rem', color: theme.palette.text.secondary }}>
+                      {formatRelativeTime(user.lastLoginAt)}
                     </TableCell>
                     <TableCell align="right" sx={{ py: density === 'compact' ? 1 : 1.75 }}>
                       <IconButton aria-label="user actions menu" size="small" onClick={(e) => handleMenuOpen(e, user)}>

@@ -6,6 +6,7 @@ import * as z from 'zod';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLoginMutation } from '../../queries/authQueries';
 import { detectRoleApi } from '../../services/authService';
+import { useCollegeProfileQuery } from '../../queries/collegeProfileQueries';
 import {
   Box,
   Typography,
@@ -51,6 +52,17 @@ export const LoginPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const prefersReducedMotion = usePrefersReducedMotion();
+
+  const { data: profile } = useCollegeProfileQuery();
+
+  const getFullLogoUrl = (relativeUrl) => {
+    if (!relativeUrl) return null;
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+    const rootUrl = baseUrl.replace('/api/v1', '');
+    return `${rootUrl}${relativeUrl}`;
+  };
+
+  const hasCustomProfile = profile && profile.name && profile.name !== 'My College';
 
   const [showPassword, setShowPassword] = useState(false);
   const [apiError, setApiError] = useState(null);
@@ -258,6 +270,14 @@ export const LoginPage = () => {
 
         {/* Wordmark and Tagline */}
         <Box sx={{ zIndex: 2 }}>
+          {hasCustomProfile && profile.logoUrl ? (
+            <Box
+              component="img"
+              src={getFullLogoUrl(profile.logoUrl)}
+              alt="College Logo"
+              sx={{ width: 64, height: 64, objectFit: 'contain', mb: 2 }}
+            />
+          ) : null}
           <Typography
             variant="h4"
             component="h1"
@@ -268,7 +288,7 @@ export const LoginPage = () => {
               mb: 1.5,
             }}
           >
-            CampusSphere
+            {hasCustomProfile ? profile.name : 'CampusSphere'}
           </Typography>
           <Typography
             variant="body2"
@@ -279,7 +299,9 @@ export const LoginPage = () => {
               maxWidth: '300px',
             }}
           >
-            The academic operations platform for engineering institutions.
+            {hasCustomProfile && profile.affiliation
+              ? profile.affiliation
+              : 'The academic operations platform for engineering institutions.'}
           </Typography>
         </Box>
 
