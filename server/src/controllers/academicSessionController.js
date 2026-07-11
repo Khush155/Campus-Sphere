@@ -7,7 +7,8 @@ const { successResponse } = require('../utils/apiResponse');
  */
 const createSession = async (req, res, _next) => {
   const validatedBody = academicSessionSchema.parse(req.body);
-  const session = await academicSessionService.createSession(validatedBody, req.user.id);
+  const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
+  const session = await academicSessionService.createSession(validatedBody, req.user.id, meta);
   return successResponse(res, 201, 'Academic session created successfully.', session);
 };
 
@@ -40,7 +41,8 @@ const getActiveSession = async (req, res, _next) => {
  * Controller to explicitly activate an existing academic session.
  */
 const activateSession = async (req, res, _next) => {
-  const session = await academicSessionService.activateSession(req.params.id, req.user.id);
+  const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
+  const session = await academicSessionService.activateSession(req.params.id, req.user.id, meta);
   return successResponse(res, 200, 'Academic session activated successfully.', session);
 };
 

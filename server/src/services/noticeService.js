@@ -100,7 +100,7 @@ const getNoticeDetails = async (id) => {
 /**
  * Update notice fields and audit changes.
  */
-const updateNoticeDetails = async (id, updateData, adminUserId) => {
+const updateNoticeDetails = async (id, updateData, adminUserId, meta) => {
   const notice = await Notice.findById(id);
   if (!notice) {
     throw new AppError('Notice not found.', 404, ERROR_CODES.NOT_FOUND);
@@ -155,6 +155,7 @@ const updateNoticeDetails = async (id, updateData, adminUserId) => {
       targetDepartments: after.targetDepartments,
       targetSemesters: after.targetSemesters,
     },
+    meta,
   });
 
   logger.info(`[Notice Updated] ID: ${notice._id} - Actioned By: ${adminUserId}`);
@@ -164,7 +165,7 @@ const updateNoticeDetails = async (id, updateData, adminUserId) => {
 /**
  * Soft delete / archive notice.
  */
-const archiveNoticeDetails = async (id, adminUserId) => {
+const archiveNoticeDetails = async (id, adminUserId, meta) => {
   const notice = await Notice.findById(id);
   if (!notice) {
     throw new AppError('Notice not found.', 404, ERROR_CODES.NOT_FOUND);
@@ -178,6 +179,7 @@ const archiveNoticeDetails = async (id, adminUserId) => {
     action: 'NOTICE_ARCHIVED',
     targetId: notice._id,
     targetModel: 'Notice',
+    meta,
   });
 
   logger.info(`[Notice Archived] ID: ${notice._id} - Actioned By: ${adminUserId}`);

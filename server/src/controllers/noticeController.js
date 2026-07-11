@@ -42,9 +42,9 @@ const getNoticeById = async (req, res, _next) => {
  * Controller to update notice attributes.
  */
 const updateNotice = async (req, res, _next) => {
-  // Use .partial() to validate incoming fields during updates
   const validatedBody = noticeSchema.partial().parse(req.body);
-  const updated = await noticeService.updateNoticeDetails(req.params.id, validatedBody, req.user.id);
+  const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
+  const updated = await noticeService.updateNoticeDetails(req.params.id, validatedBody, req.user.id, meta);
   return successResponse(res, 200, 'Notice updated successfully.', updated);
 };
 
@@ -52,7 +52,8 @@ const updateNotice = async (req, res, _next) => {
  * Controller to archive / soft delete notice.
  */
 const archiveNotice = async (req, res, _next) => {
-  await noticeService.archiveNoticeDetails(req.params.id, req.user.id);
+  const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
+  await noticeService.archiveNoticeDetails(req.params.id, req.user.id, meta);
   return successResponse(res, 200, 'Notice archived successfully.');
 };
 

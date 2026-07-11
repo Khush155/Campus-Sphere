@@ -124,7 +124,7 @@ const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, 
 /**
  * Update user profile parameters securely.
  */
-const updateUserDetails = async (userId, updateData, adminUserId) => {
+const updateUserDetails = async (userId, updateData, adminUserId, meta) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new AppError('User not found.', 404, ERROR_CODES.NOT_FOUND);
@@ -202,6 +202,7 @@ const updateUserDetails = async (userId, updateData, adminUserId) => {
       targetModel: 'User',
       before: { shift: before.shift },
       after: { shift: after.shift },
+      meta,
     });
   }
 
@@ -214,6 +215,7 @@ const updateUserDetails = async (userId, updateData, adminUserId) => {
       targetModel: 'User',
       before: { role: before.role },
       after: { role: after.role },
+      meta,
     });
   } else if (before.status !== after.status) {
     await logAuditEvent({
@@ -223,6 +225,7 @@ const updateUserDetails = async (userId, updateData, adminUserId) => {
       targetModel: 'User',
       before: { status: before.status },
       after: { status: after.status },
+      meta,
     });
   }
 
@@ -238,6 +241,7 @@ const updateUserDetails = async (userId, updateData, adminUserId) => {
         targetModel: 'User',
         before: { branchId: before.branchId, semester: before.semester },
         after: { branchId: after.branchId, semester: after.semester, reason: updateData.reason },
+        meta,
       });
     }
   }
@@ -258,7 +262,7 @@ const updateUserDetails = async (userId, updateData, adminUserId) => {
 /**
  * Deactivates (soft deletes) a user account.
  */
-const deleteUserAccount = async (userId, adminUserId) => {
+const deleteUserAccount = async (userId, adminUserId, meta) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new AppError('User not found.', 404, ERROR_CODES.NOT_FOUND);
@@ -275,6 +279,7 @@ const deleteUserAccount = async (userId, adminUserId) => {
     targetModel: 'User',
     before,
     after: { status: 'INACTIVE' },
+    meta,
   });
 
   logger.info(`[User Deactivated] ID: ${user._id} - Actioned By: ${adminUserId}`);

@@ -40,7 +40,8 @@ const getProfile = async (req, res, _next) => {
  */
 const updateProfile = async (req, res, _next) => {
   const validatedData = collegeProfileUpdateSchema.parse(req.body);
-  const profile = await collegeProfileService.updateProfile(validatedData, req.user.id);
+  const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
+  const profile = await collegeProfileService.updateProfile(validatedData, req.user.id, meta);
   return successResponse(res, 200, 'College profile updated successfully.', profile);
 };
 

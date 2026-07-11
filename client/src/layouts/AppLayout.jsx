@@ -33,6 +33,7 @@ import {
   Palette as PaletteIcon,
   Search as SearchIcon,
   AccountBalance as AccountBalanceIcon,
+  History as HistoryIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
@@ -100,6 +101,7 @@ export const AppLayout = () => {
         { text: 'Notice Board', icon: <NotificationsIcon />, path: '/admin/notices' },
         { text: 'Academic Calendar', icon: <DateRangeIcon />, path: '/admin/academic-calendar' },
         { text: 'College Profile', icon: <AccountBalanceIcon />, path: '/admin/college-profile' },
+        { text: 'Audit Logs', icon: <HistoryIcon />, path: '/admin/audit-logs' },
       ]
     : [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },

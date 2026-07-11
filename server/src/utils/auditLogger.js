@@ -12,13 +12,18 @@ const logger = require('./logger');
  * @param {Object} [params.before] - Object state before the change.
  * @param {Object} [params.after] - Object state after the change.
  * @param {Object} [params.req] - Express request object to parse ip and user-agent.
+ * @param {Object} [params.meta] - Pre-extracted { ipAddress, userAgent } (used when req is not available).
  */
-const logAuditEvent = async ({ actorId, action, targetId, targetModel, before, after, req }) => {
+const logAuditEvent = async ({ actorId, action, targetId, targetModel, before, after, req, meta }) => {
   try {
     let ipAddress = null;
     let userAgent = null;
 
-    if (req) {
+    if (meta) {
+      // Prefer pre-extracted meta when called from service layer
+      ipAddress = meta.ipAddress || null;
+      userAgent = meta.userAgent || null;
+    } else if (req) {
       ipAddress = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
       userAgent = req.headers['user-agent'];
     }

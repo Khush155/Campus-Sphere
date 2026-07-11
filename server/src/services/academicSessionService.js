@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
  * Creates a new Academic Session.
  * If status is set to 'ACTIVE', atomically archives any previously active sessions.
  */
-const createSession = async (sessionData, adminUserId) => {
+const createSession = async (sessionData, adminUserId, meta) => {
   const isPendingActive = sessionData.status === 'ACTIVE';
 
   if (isPendingActive) {
@@ -29,6 +29,7 @@ const createSession = async (sessionData, adminUserId) => {
         semesterType: session.semesterType,
         status: 'ACTIVE',
       },
+      meta,
     });
     logger.info(`[Academic Session Activated] ID: ${session._id} - Year: ${session.academicYear} - Semester: ${session.semesterType}`);
   }
@@ -41,7 +42,7 @@ const createSession = async (sessionData, adminUserId) => {
  * Activates an existing Academic Session.
  * Atomically archives any currently active sessions first.
  */
-const activateSession = async (sessionId, adminUserId) => {
+const activateSession = async (sessionId, adminUserId, meta) => {
   // 1. Archive whatever session currently holds ACTIVE status first
   await AcademicSession.updateMany({ status: 'ACTIVE' }, { status: 'ARCHIVED' });
 
@@ -67,6 +68,7 @@ const activateSession = async (sessionId, adminUserId) => {
       semesterType: session.semesterType,
       status: 'ACTIVE',
     },
+    meta,
   });
 
   logger.info(`[Academic Session Activated] ID: ${session._id} - Year: ${session.academicYear} - Semester: ${session.semesterType}`);

@@ -18,7 +18,7 @@ const getProfile = async () => {
 /**
  * Updates the singleton CollegeProfile document and logs audit trail.
  */
-const updateProfile = async (updates, actorId) => {
+const updateProfile = async (updates, actorId, meta) => {
   const before = await getProfile();
   
   const updated = await CollegeProfile.findByIdAndUpdate(
@@ -34,6 +34,7 @@ const updateProfile = async (updates, actorId) => {
     targetModel: 'CollegeProfile',
     before,
     after: updated,
+    meta,
   });
 
   logger.info(`[College Profile Updated] Settings updated by Actor: ${actorId}`);
