@@ -21,6 +21,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 const assignSchema = z.object({
   subjectId: z.string().min(1, 'Subject is required'),
   facultyId: z.string().min(1, 'Faculty is required'),
+  group: z.string().max(20, 'Group too long').optional(),
 });
 
 const AssignFacultyDrawer = ({ open, onClose, onSubmit, isSubmitting }) => {
@@ -32,6 +33,7 @@ const AssignFacultyDrawer = ({ open, onClose, onSubmit, isSubmitting }) => {
     defaultValues: {
       subjectId: '',
       facultyId: '',
+      group: '',
     }
   });
 
@@ -124,6 +126,30 @@ const AssignFacultyDrawer = ({ open, onClose, onSubmit, isSubmitting }) => {
                       </MenuItem>
                     ))}
                   </TextField>
+                )}
+              />
+            </Box>
+
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
+                Target Group (Optional)
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                Leave empty to assign to the Full Batch. Enter a group name (e.g., "G1") to assign this teacher only to that group.
+              </Typography>
+              <Controller
+                name="group"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    size="small"
+                    placeholder="e.g. G1"
+                    error={!!errors.group}
+                    helperText={errors.group?.message}
+                    sx={{ bgcolor: 'background.paper' }}
+                  />
                 )}
               />
             </Box>

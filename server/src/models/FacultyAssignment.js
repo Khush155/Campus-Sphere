@@ -12,6 +12,11 @@ const facultyAssignmentSchema = new mongoose.Schema(
       ref: 'Subject',
       required: [true, 'Subject reference is required'],
     },
+    group: {
+      type: String,
+      trim: true,
+      maxlength: [20, 'Group cannot exceed 20 characters'],
+    },
     status: {
       type: String,
       enum: {
@@ -39,9 +44,9 @@ const facultyAssignmentSchema = new mongoose.Schema(
   }
 );
 
-// Enforce only one ACTIVE assignment per subject at a time
+// Enforce only one ACTIVE assignment per subject and group at a time
 facultyAssignmentSchema.index(
-  { subjectId: 1 },
+  { subjectId: 1, group: 1 },
   { unique: true, partialFilterExpression: { status: 'ACTIVE' } }
 );
 

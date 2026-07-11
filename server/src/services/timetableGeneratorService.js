@@ -54,10 +54,22 @@ const generateSmartTimetable = async ({ departmentId, courseId, branchId, semest
   // 2. Fetch all subjects for this semester
   const subjects = await Subject.find({ departmentId, branchId, semester: parseInt(semester, 10) });
 
-  // 3. For each subject, find the assigned faculty
+  // 3. For each subject, find the assigned faculty that matches the targeted group (or full batch)
   const validRequirements = [];
   for (const subject of subjects) {
-    const assignment = await FacultyAssignment.findOne({ subjectId: subject._id, status: 'ACTIVE' });
+    // If the HOD is generating for group 'G1', we look for an assignment specifically for 'G1',
+    // OR an assignment for the full batch (group: null).
+    const assignmentQuery = {
+      subjectId: subject._id,
+      status: 'ACTIVE',
+    };
+    if (group) {
+      assignmentQuery.$or = [{ group: group }, { group: null }];
+    } else {
+      assignmentQuery.group = null; // Generating for full batch requires a full batch assignment
+    }
+    
+    const assignment = await FacultyAssignment.findOne(assignmentQuery);
     if (assignment) {
       validRequirements.push({
         subject,
@@ -65,7 +77,7 @@ const generateSmartTimetable = async ({ departmentId, courseId, branchId, semest
         credits: subject.credits, // This maps to the number of 1-hour slots we need
       });
     } else {
-      logger.warn(`[Smart Timetable] Skipping Subject ${subject.code} - No active faculty assignment.`);
+      logger.warn(`[Smart Timetable] Skipping Subject ${subject.code} - No active faculty assignment found for group ${group || 'FULL_BATCH'}.`);
     }
   }
 

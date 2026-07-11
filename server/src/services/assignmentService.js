@@ -7,7 +7,7 @@ const logger = require('../utils/logger');
 const { logAuditEvent } = require('../utils/auditLogger');
 const paginate = require('../utils/paginate');
 
-const createAssignment = async ({ facultyId, subjectId, assignedBy, departmentId, req }) => {
+const createAssignment = async ({ facultyId, subjectId, group, assignedBy, departmentId, req }) => {
   // 1. Verify faculty exists, is FACULTY, and belongs to the SAME department as HOD
   const faculty = await User.findById(facultyId);
   if (!faculty) {
@@ -26,21 +26,45 @@ const createAssignment = async ({ facultyId, subjectId, assignedBy, departmentId
     throw new AppError('Subject not found.', 404, ERROR_CODES.NOT_FOUND);
   }
 
-  // 3. Verify no active assignment exists for this subject
-  const activeAssignment = await FacultyAssignment.findOne({ subjectId, status: 'ACTIVE' });
-  if (activeAssignment) {
-    throw new AppError('An active assignment already exists for this subject.', 400, ERROR_CODES.DUPLICATE_ENTRY);
+  // 3. Verify no active assignment exists for this subject + group combination
+  // Validation Logic:
+  // - If `group` is provided, ensure there isn't already a `FULL_BATCH` (null group) assignment for this subject.
+  // - If `group` is NOT provided, ensure there aren't already ANY assignments (group or otherwise) for this subject.
+  
+  if (group) {
+    // Check if there is already a full batch assignment
+    const fullBatchAssignment = await FacultyAssignment.findOne({ subjectId, status: 'ACTIVE', group: null });
+    if (fullBatchAssignment) {
+      throw new AppError('A faculty is already assigned to the full batch. You cannot assign to a specific group unless you revoke the full batch assignment.', 400, ERROR_CODES.VALIDATION_ERROR);
+    }
+    
+    // Check if this specific group is already assigned
+    const groupAssignment = await FacultyAssignment.findOne({ subjectId, status: 'ACTIVE', group });
+    if (groupAssignment) {
+      throw new AppError(`An active assignment already exists for this subject for Group ${group}.`, 400, ERROR_CODES.DUPLICATE_ENTRY);
+    }
+  } else {
+    // Check if any assignments exist for this subject
+    const anyAssignment = await FacultyAssignment.findOne({ subjectId, status: 'ACTIVE' });
+    if (anyAssignment) {
+      if (anyAssignment.group) {
+        throw new AppError(`Faculty are already assigned to specific groups for this subject. Revoke them to assign a full batch.`, 400, ERROR_CODES.VALIDATION_ERROR);
+      } else {
+        throw new AppError('An active full batch assignment already exists for this subject.', 400, ERROR_CODES.DUPLICATE_ENTRY);
+      }
+    }
   }
 
   // 4. Create assignment
   const assignment = await FacultyAssignment.create({
     facultyId,
     subjectId,
+    group: group || null,
     assignedBy,
     status: 'ACTIVE',
   });
 
-  logger.info(`[Faculty Assigned] Faculty: ${facultyId} to Subject: ${subjectId} by HOD: ${assignedBy}`);
+  logger.info(`[Faculty Assigned] Faculty: ${facultyId} to Subject: ${subjectId} Group: ${group || 'FULL_BATCH'} by HOD: ${assignedBy}`);
 
   // 5. Audit Log
   await logAuditEvent({

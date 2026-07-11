@@ -9,6 +9,7 @@ const createAssignmentSchema = z.object({
   subjectId: z
     .string({ required_error: 'Subject ID is required' })
     .regex(objectIdRegex, 'Invalid subject ID format'),
+  group: z.string().trim().max(20, 'Group cannot exceed 20 characters').optional().or(z.null()),
 });
 
 const revokeAssignmentSchema = z.object({

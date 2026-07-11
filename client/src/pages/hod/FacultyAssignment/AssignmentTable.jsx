@@ -38,6 +38,7 @@ const AssignmentTable = ({ assignments, meta, onPageChange, onRevokeClick }) => 
             <TableRow>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', py: 2 }}>SUBJECT</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', py: 2 }}>FACULTY</TableCell>
+              <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', py: 2 }}>TARGET GROUP</TableCell>
               <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', py: 2 }}>STATUS</TableCell>
               <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.8rem', py: 2 }}>ACTIONS</TableCell>
             </TableRow>
@@ -64,6 +65,13 @@ const AssignmentTable = ({ assignments, meta, onPageChange, onRevokeClick }) => 
                       </Box>
                     ) : (
                       <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>Unknown</Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {assignment.group ? (
+                      <Chip label={`Group: ${assignment.group}`} size="small" variant="outlined" color="primary" />
+                    ) : (
+                      <Chip label="Full Batch" size="small" variant="outlined" color="default" />
                     )}
                   </TableCell>
                   <TableCell>
