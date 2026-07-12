@@ -3,11 +3,13 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from '../layouts/AppLayout';
 import Home from '../pages/Home';
 import LoginPage from '../pages/auth/LoginPage';
+import AdmissionPortal from '../pages/public/AdmissionPortal';
 import { useAuth } from '../contexts/AuthContext';
 import { Typography, Paper, CircularProgress, Box } from '@mui/material';
 import RoleRoute from './RoleRoute';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import SetupHub from '../pages/admin/CollegeSetup/SetupHub';
+import AdmissionQueue from '../pages/admin/StudentManagement/AdmissionQueue';
 import UserRoster from '../pages/admin/UserManagement/UserRoster';
 import SetupWizard from '../pages/admin/SetupWizard';
 import { useDepartmentsQuery } from '../queries/collegeQueries';
@@ -106,6 +108,7 @@ export const AppRoutes = () => {
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+      <Route path="/apply" element={<AdmissionPortal />} />
 
       {/* Protected Layout Routes */}
       <Route
@@ -221,6 +224,14 @@ export const AppRoutes = () => {
         <Route path="attendance" element={<PlaceholderView title="Attendance" />} />
         <Route path="fees" element={<PlaceholderView title="Fees" />} />
         <Route path="notices" element={<PlaceholderView title="Notice Board" />} />
+        <Route
+          path="admin/admissions"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AdmissionQueue />
+            </RoleRoute>
+          }
+        />
       </Route>
 
       {/* Wildcard Fallback */}
