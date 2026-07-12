@@ -4,6 +4,8 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const roleMiddleware = require('../middlewares/roleMiddleware');
 const asyncHandler = require('../middlewares/asyncHandler');
 const ROLES = require('../constants/roles');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
 
 const router = express.Router();
 
@@ -31,6 +33,8 @@ const adminAndHodGuard = [
  *         description: Users list.
  */
 router.get('/', adminAndHodGuard, asyncHandler(userController.getUsers));
+
+router.post('/import-students', adminAndHodGuard, upload.single('file'), asyncHandler(userController.importStudents));
 
 /**
  * @openapi
