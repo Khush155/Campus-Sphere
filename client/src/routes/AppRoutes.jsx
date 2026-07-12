@@ -10,6 +10,9 @@ import RoleRoute from './RoleRoute';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import SetupHub from '../pages/admin/CollegeSetup/SetupHub';
 import AdmissionQueue from '../pages/admin/StudentManagement/AdmissionQueue';
+import FeeManagementHub from '../pages/admin/Finance/FeeManagementHub';
+import StudentFeePortal from '../pages/student/StudentFeePortal';
+import StudentDashboard from '../pages/student/StudentDashboard';
 import UserRoster from '../pages/admin/UserManagement/UserRoster';
 import SetupWizard from '../pages/admin/SetupWizard';
 import { useDepartmentsQuery } from '../queries/collegeQueries';
@@ -19,6 +22,9 @@ import RosterHub from '../pages/hod/Roster/RosterHub';
 import ReportsHub from '../pages/hod/Reports/ReportsHub';
 import TimetableHub from '../pages/hod/Timetable/TimetableHub';
 import RequestHub from '../pages/hod/CrossDeptRequests/RequestHub';
+import AcademicCalendarHub from '../pages/admin/AcademicCalendarHub';
+import FacultyAttendanceHub from '../pages/faculty/FacultyAttendanceHub';
+import StudentAttendancePortal from '../pages/student/StudentAttendancePortal';
 // HOD pages now loaded via HodDashboard tabs
 
 // Guard for authenticated sections
@@ -99,6 +105,9 @@ const HomeRedirect = () => {
   }
   if (user?.role === 'HOD') {
     return <Navigate to="/hod/overview" replace />;
+  }
+  if (user?.role === 'STUDENT') {
+    return <StudentDashboard />;
   }
   return <Home />;
 };
@@ -219,16 +228,48 @@ export const AppRoutes = () => {
           }
         />
 
+        <Route
+          path="admin/calendar"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AcademicCalendarHub />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="faculty/attendance"
+          element={
+            <RoleRoute allowedRoles={['FACULTY']}>
+              <FacultyAttendanceHub />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="student/attendance"
+          element={
+            <RoleRoute allowedRoles={['STUDENT']}>
+              <StudentAttendancePortal />
+            </RoleRoute>
+          }
+        />
         <Route path="students" element={<PlaceholderView title="Students" />} />
         <Route path="faculty" element={<PlaceholderView title="Faculty" />} />
         <Route path="attendance" element={<PlaceholderView title="Attendance" />} />
-        <Route path="fees" element={<PlaceholderView title="Fees" />} />
+        <Route path="fees" element={<StudentFeePortal />} />
         <Route path="notices" element={<PlaceholderView title="Notice Board" />} />
         <Route
           path="admin/admissions"
           element={
             <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdmissionQueue />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="admin/fees"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <FeeManagementHub />
             </RoleRoute>
           }
         />

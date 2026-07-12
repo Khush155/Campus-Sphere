@@ -35,6 +35,8 @@ import {
   AssignmentInd as AssignmentIndIcon,
   SwapHoriz as SwapHorizIcon,
   BarChart as BarChartIcon,
+  EventNote as EventNoteIcon,
+  Campaign as CampaignIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
@@ -92,28 +94,33 @@ export const AppLayout = () => {
   };
 
   const menuItems = user?.role === 'SUPER_ADMIN'
-    ? [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard', roles: ['SUPER_ADMIN'] },
-        { text: 'College Setup', icon: <SchoolIcon />, path: '/admin/college-setup/departments', roles: ['SUPER_ADMIN'] },
-        { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users', roles: ['SUPER_ADMIN'] },
-      ]
-    : user?.role === 'HOD'
-    ? [
-        { text: 'Overview', icon: <DashboardIcon />, path: '/hod/overview', roles: ['HOD'] },
-        { text: 'Faculty Assignment', icon: <AssignmentIndIcon />, path: '/hod/faculty-assignment', roles: ['HOD'] },
-        { text: 'Cross-Dept Requests', icon: <SwapHorizIcon />, path: '/hod/cross-dept-requests', roles: ['HOD'] },
-        { text: 'Timetable', icon: <DateRangeIcon />, path: '/hod/timetable', roles: ['HOD'] },
-        { text: 'Roster', icon: <PeopleIcon />, path: '/hod/roster', roles: ['HOD'] },
-        { text: 'Reports', icon: <BarChartIcon />, path: '/hod/reports', roles: ['HOD'] },
-      ]
-    : [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },
-        { text: 'Students', icon: <PeopleIcon />, path: '/students', roles: ['COLLEGE_ADMIN'] },
-        { text: 'Faculty', icon: <SchoolIcon />, path: '/faculty', roles: ['COLLEGE_ADMIN'] },
-        { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },
-        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['COLLEGE_ADMIN', 'STUDENT'] },
-        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },
-      ];
+      ? [
+          { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard', roles: ['SUPER_ADMIN'] },
+          { text: 'College Setup', icon: <SchoolIcon />, path: '/admin/college-setup/departments', roles: ['SUPER_ADMIN'] },
+          { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users', roles: ['SUPER_ADMIN'] },
+          { text: 'Admissions', icon: <AssignmentIndIcon />, path: '/admin/admissions', roles: ['SUPER_ADMIN'] },
+          { text: 'Fee Hub (Admin)', icon: <ReceiptLongIcon />, path: '/admin/fees', roles: ['SUPER_ADMIN'] },
+          { text: 'Academic Calendar', icon: <DateRangeIcon />, path: '/admin/calendar', roles: ['SUPER_ADMIN'] },
+          { text: 'Notice Board', icon: <CampaignIcon />, path: '/notices', roles: ['SUPER_ADMIN'] },
+        ]
+      : user?.role === 'HOD'
+      ? [
+          { text: 'Overview', icon: <DashboardIcon />, path: '/hod/overview', roles: ['HOD'] },
+          { text: 'Faculty Assignment', icon: <AssignmentIndIcon />, path: '/hod/faculty-assignment', roles: ['HOD'] },
+          { text: 'Cross-Dept Requests', icon: <SwapHorizIcon />, path: '/hod/cross-dept-requests', roles: ['HOD'] },
+          { text: 'Timetable', icon: <DateRangeIcon />, path: '/hod/timetable', roles: ['HOD'] },
+          { text: 'Roster', icon: <PeopleIcon />, path: '/hod/roster', roles: ['HOD'] },
+          { text: 'Reports', icon: <BarChartIcon />, path: '/hod/reports', roles: ['HOD'] },
+        ]
+      : [
+          { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },
+          { text: 'Students', icon: <PeopleIcon />, path: '/students', roles: ['COLLEGE_ADMIN'] },
+          { text: 'Mark Attendance', icon: <EventNoteIcon />, path: '/faculty/attendance', roles: ['FACULTY'] },
+          { text: 'My Attendance', icon: <EventNoteIcon />, path: '/student/attendance', roles: ['STUDENT'] },
+          { text: 'Fee Hub (Admin)', icon: <ReceiptLongIcon />, path: '/admin/fees', roles: ['COLLEGE_ADMIN'] },
+          { text: 'My Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['STUDENT'] },
+          { text: 'Notice Board', icon: <CampaignIcon />, path: '/notices', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },
+        ];
 
   const visibleMenuItems = (user?.role === 'SUPER_ADMIN' || user?.role === 'HOD')
     ? menuItems
