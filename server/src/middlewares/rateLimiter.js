@@ -32,7 +32,7 @@ const apiLimiter = rateLimit({
  */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'test' ? 10000 : 5, // Limit each IP to 5 requests per windowMs (e.g. login attempts)
+  max: process.env.NODE_ENV !== 'production' ? 10000 : 5, // Limit each IP to 5 requests per windowMs in production
   message: 'Too many authentication attempts. Please try again after 15 minutes',
   statusCode: 429,
   handler: limitHandler,

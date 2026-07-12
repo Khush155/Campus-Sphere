@@ -119,6 +119,9 @@ app.use('/api/v1/reports', require('./routes/reportRoutes'));
 app.use('/api/v1/timetable', require('./routes/timetableRoutes'));
 app.use('/api/v1/cross-dept-requests', require('./routes/requestRoutes'));
 app.use('/api/v1/admissions', require('./routes/admissionRoutes'));
+app.use('/api/v1/fees', require('./routes/feeRoutes'));
+app.use('/api/v1/calendar', require('./routes/calendarRoutes'));
+app.use('/api/v1/attendance', require('./routes/attendanceRoutes'));
 
 // Catch-all for unhandled routes
 app.all('*', (req, res, next) => {
