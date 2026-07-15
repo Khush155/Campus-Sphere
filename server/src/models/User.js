@@ -61,6 +61,12 @@ const userSchema = new mongoose.Schema(
       type: Number,
       required: false,
     },
+    academicStatus: {
+      type: String,
+      enum: ['ONGOING', 'GRADUATED'],
+      default: 'ONGOING',
+      index: true,
+    },
     shift: {
       type: String,
       enum: ['GENERAL', 'MORNING', 'EVENING'],

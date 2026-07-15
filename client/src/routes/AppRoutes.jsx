@@ -15,6 +15,7 @@ import NoticeBoard from '../pages/admin/NoticeBoard/NoticeBoard';
 import { AcademicCalendar } from '../pages/admin/AcademicCalendar/AcademicCalendar';
 import { CollegeProfile } from '../pages/admin/CollegeProfile/CollegeProfile';
 import { AuditLogViewer } from '../pages/admin/AuditLog/AuditLogViewer';
+import { BulkPromotion } from '../pages/admin/BulkPromotion/BulkPromotion';
 
 // Guard for authenticated sections
 const ProtectedRoute = ({ children }) => {
@@ -197,6 +198,17 @@ export const AppRoutes = () => {
             <RoleRoute allowedRoles={['SUPER_ADMIN']}>
               <AdminSetupGuard>
                 <AuditLogViewer />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/bulk-promotion"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <BulkPromotion />
               </AdminSetupGuard>
             </RoleRoute>
           }

@@ -34,6 +34,7 @@ import {
   Search as SearchIcon,
   AccountBalance as AccountBalanceIcon,
   History as HistoryIcon,
+  Autorenew as AutorenewIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
@@ -100,6 +101,7 @@ export const AppLayout = () => {
         { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users' },
         { text: 'Notice Board', icon: <NotificationsIcon />, path: '/admin/notices' },
         { text: 'Academic Calendar', icon: <DateRangeIcon />, path: '/admin/academic-calendar' },
+        { text: 'Bulk Promotion', icon: <AutorenewIcon />, path: '/admin/bulk-promotion' },
         { text: 'College Profile', icon: <AccountBalanceIcon />, path: '/admin/college-profile' },
         { text: 'Audit Logs', icon: <HistoryIcon />, path: '/admin/audit-logs' },
       ]
