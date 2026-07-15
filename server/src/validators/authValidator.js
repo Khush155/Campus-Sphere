@@ -61,6 +61,17 @@ const registerSchema = z.object({
     .optional()
     .or(z.null())
     .optional(),
+  shift: z.enum(['GENERAL', 'MORNING', 'EVENING']).optional().or(z.literal('')).or(z.null()).optional(),
+}).superRefine((data, ctx) => {
+  if (data.role === 'HOD') {
+    if (!data.shift || !['GENERAL', 'MORNING', 'EVENING'].includes(data.shift)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Shift is required for HOD role and must be GENERAL, MORNING, or EVENING',
+        path: ['shift'],
+      });
+    }
+  }
 });
 
 const forgotPasswordSchema = z.object({

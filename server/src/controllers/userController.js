@@ -28,8 +28,9 @@ const getUsers = async (req, res, _next) => {
 const updateUser = async (req, res, _next) => {
   const { id } = req.params;
   const validatedBody = updateUserSchema.parse(req.body);
+  const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
 
-  const updatedUser = await userService.updateUserDetails(id, validatedBody, req.user.id);
+  const updatedUser = await userService.updateUserDetails(id, validatedBody, req.user.id, meta);
 
   return successResponse(res, 200, 'User updated successfully', updatedUser);
 };
@@ -39,8 +40,9 @@ const updateUser = async (req, res, _next) => {
  */
 const deleteUser = async (req, res, _next) => {
   const { id } = req.params;
+  const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
 
-  await userService.deleteUserAccount(id, req.user.id);
+  await userService.deleteUserAccount(id, req.user.id, meta);
 
   return successResponse(res, 200, 'User deactivated successfully');
 };

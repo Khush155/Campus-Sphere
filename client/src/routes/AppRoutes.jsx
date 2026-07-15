@@ -11,6 +11,13 @@ import SetupHub from '../pages/admin/CollegeSetup/SetupHub';
 import UserRoster from '../pages/admin/UserManagement/UserRoster';
 import SetupWizard from '../pages/admin/SetupWizard';
 import { useDepartmentsQuery } from '../queries/collegeQueries';
+import NoticeBoard from '../pages/admin/NoticeBoard/NoticeBoard';
+import { AcademicCalendar } from '../pages/admin/AcademicCalendar/AcademicCalendar';
+import { CollegeProfile } from '../pages/admin/CollegeProfile/CollegeProfile';
+import { AuditLogViewer } from '../pages/admin/AuditLog/AuditLogViewer';
+import { BulkPromotion } from '../pages/admin/BulkPromotion/BulkPromotion';
+import { Certificates } from '../pages/admin/Certificates/Certificates';
+import { Reports } from '../pages/admin/Reports/Reports';
 
 // Guard for authenticated sections
 const ProtectedRoute = ({ children }) => {
@@ -149,6 +156,83 @@ export const AppRoutes = () => {
             <RoleRoute allowedRoles={['SUPER_ADMIN']}>
               <AdminSetupGuard>
                 <UserRoster />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/notices"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AdminSetupGuard>
+                <NoticeBoard />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/academic-calendar"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <AcademicCalendar />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/college-profile"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <CollegeProfile />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/audit-logs"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <AuditLogViewer />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/bulk-promotion"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <BulkPromotion />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/certificates"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <Certificates />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/reports"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <Reports />
               </AdminSetupGuard>
             </RoleRoute>
           }

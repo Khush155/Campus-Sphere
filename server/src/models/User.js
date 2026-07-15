@@ -61,6 +61,20 @@ const userSchema = new mongoose.Schema(
       type: Number,
       required: false,
     },
+    academicStatus: {
+      type: String,
+      enum: ['ONGOING', 'GRADUATED'],
+      default: 'ONGOING',
+      index: true,
+    },
+    shift: {
+      type: String,
+      enum: ['GENERAL', 'MORNING', 'EVENING'],
+      default: undefined,
+      required: function () {
+        return this.role === 'HOD';
+      },
+    },
     refreshTokens: {
       type: [String],
       default: [],
@@ -72,6 +86,10 @@ const userSchema = new mongoose.Schema(
     resetPasswordExpire: {
       type: Date,
       select: false,
+    },
+    lastLoginAt: {
+      type: Date,
+      default: null,
     },
   },
   {
