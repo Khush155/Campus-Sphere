@@ -124,6 +124,8 @@ app.use('/api/v1/college-profile', require('./routes/collegeProfileRoutes'));
 app.use('/api/v1/audit-logs', require('./routes/auditLogRoutes'));
 app.use('/api/v1/admin', require('./routes/dashboardRoutes'));
 app.use('/api/v1/promotions', require('./routes/promotionRoutes'));
+app.use('/api/v1', require('./routes/pdfRoutes'));
+app.use('/api/v1/reports', require('./routes/reportRoutes'));
 
 // Catch-all for unhandled routes
 app.all('*', (req, res, next) => {

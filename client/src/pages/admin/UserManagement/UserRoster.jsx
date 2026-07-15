@@ -189,6 +189,15 @@ export const UserRoster = () => {
     handleMenuClose();
   };
 
+  const handleGenerateIdCardClick = () => {
+    if (activeMenuUser) {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+      const token = localStorage.getItem('accessToken');
+      window.open(`${baseUrl}/id-cards/${activeMenuUser.id}?token=${token}`, '_blank');
+    }
+    handleMenuClose();
+  };
+
   const handleDeactivateConfirm = async () => {
     if (deactivateUser) {
       const userToDeactivate = deactivateUser;
@@ -299,6 +308,35 @@ export const UserRoster = () => {
           >
             {density === 'comfortable' ? 'Compact View' : 'Comfortable View'}
           </Button>
+
+          {(roleFilter || deptFilter) && (
+            <Button
+              variant="outlined"
+              onClick={() => {
+                const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+                const token = localStorage.getItem('accessToken');
+                const params = new URLSearchParams();
+                if (deptFilter) params.append('departmentId', deptFilter);
+                if (roleFilter) params.append('role', roleFilter);
+                params.append('token', token);
+                window.open(`${baseUrl}/id-cards/bulk?${params.toString()}`, '_blank');
+              }}
+              sx={{
+                borderColor: theme.palette.primary.main,
+                color: theme.palette.primary.main,
+                fontWeight: 600,
+                textTransform: 'none',
+                px: 2,
+                height: '40px',
+                '&:hover': {
+                  bgcolor: theme.custom.interaction.hoverTint,
+                  borderColor: theme.palette.primary.main,
+                },
+              }}
+            >
+              Bulk ID Cards
+            </Button>
+          )}
 
           <Button
             variant="contained"
@@ -583,6 +621,10 @@ export const UserRoster = () => {
         <MenuItem onClick={handleDeactivateClick}>
           {activeMenuUser?.status === 'INACTIVE' ? 'Activate Account' : 'Deactivate'}
         </MenuItem>
+        <MenuItem onClick={handleViewSessionsClick} sx={{ color: 'primary.main' }}>View Sessions</MenuItem>
+        {['STUDENT', 'FACULTY', 'HOD'].includes(activeMenuUser?.role) && (
+          <MenuItem onClick={handleGenerateIdCardClick}>Generate ID Card</MenuItem>
+        )}
       </Menu>
 
       {/* 5. User Creation Wizard Modal */}
