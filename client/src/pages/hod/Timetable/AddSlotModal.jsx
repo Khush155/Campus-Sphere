@@ -37,7 +37,7 @@ const schema = z.object({
   path: ['endTime']
 });
 
-const AddSlotModal = ({ open, onClose, filters }) => {
+const AddSlotModal = ({ open, onClose, filters, existingSlots = [] }) => {
   const { control, handleSubmit, watch, reset, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -78,6 +78,30 @@ const AddSlotModal = ({ open, onClose, filters }) => {
 
   const onSubmit = async (data) => {
     setApiError(null);
+
+    // Conflict Detection
+    const hasConflict = existingSlots.some(slot => {
+      if (slot.dayOfWeek !== data.dayOfWeek) return false;
+      
+      const newStart = parseInt(data.startTime.replace(':', ''));
+      const newEnd = parseInt(data.endTime.replace(':', ''));
+      const oldStart = parseInt(slot.startTime.replace(':', ''));
+      const oldEnd = parseInt(slot.endTime.replace(':', ''));
+
+      const isTimeOverlap = newStart < oldEnd && newEnd > oldStart;
+      if (!isTimeOverlap) return false;
+
+      const isSameFaculty = slot.facultyId?._id === data.facultyId;
+      const isSameBatchOrGroup = !filters.group || !slot.group || slot.group === filters.group;
+
+      return isSameFaculty || isSameBatchOrGroup;
+    });
+
+    if (hasConflict) {
+      setApiError('Conflict detected: This slot overlaps with an existing slot for the same faculty or batch/group.');
+      return;
+    }
+
     try {
       await createMutation.mutateAsync({
         ...data,

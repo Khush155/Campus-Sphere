@@ -35,6 +35,16 @@ import {
   AssignmentInd as AssignmentIndIcon,
   SwapHoriz as SwapHorizIcon,
   BarChart as BarChartIcon,
+  MenuBook as MenuBookIcon,
+  FactCheck as FactCheckIcon,
+  Article as ArticleIcon,
+  AccountTree as AccountTreeIcon,
+  Work as WorkIcon,
+  EventNote as EventNoteIcon,
+  ReportProblem as ReportProblemIcon,
+  Folder as FolderIcon,
+  Groups as GroupsIcon,
+  Public as PublicIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
@@ -99,12 +109,25 @@ export const AppLayout = () => {
       ]
     : user?.role === 'HOD'
     ? [
-        { text: 'Overview', icon: <DashboardIcon />, path: '/hod/overview', roles: ['HOD'] },
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/hod/overview', roles: ['HOD'] },
+        { text: 'Faculty', icon: <AssignmentIndIcon />, path: '/hod/faculty', roles: ['HOD'] },
         { text: 'Faculty Assignment', icon: <AssignmentIndIcon />, path: '/hod/faculty-assignment', roles: ['HOD'] },
         { text: 'Cross-Dept Requests', icon: <SwapHorizIcon />, path: '/hod/cross-dept-requests', roles: ['HOD'] },
+        { text: 'Students', icon: <PeopleIcon />, path: '/hod/students', roles: ['HOD'] },
+        { text: 'Subjects', icon: <MenuBookIcon />, path: '/hod/subjects', roles: ['HOD'] },
         { text: 'Timetable', icon: <DateRangeIcon />, path: '/hod/timetable', roles: ['HOD'] },
-        { text: 'Roster', icon: <PeopleIcon />, path: '/hod/roster', roles: ['HOD'] },
+        { text: 'Attendance', icon: <FactCheckIcon />, path: '/hod/attendance', roles: ['HOD'] },
+        { text: 'Examinations', icon: <ArticleIcon />, path: '/hod/examinations', roles: ['HOD'] },
+        { text: 'Projects', icon: <AccountTreeIcon />, path: '/hod/projects', roles: ['HOD'] },
+        { text: 'Placements', icon: <WorkIcon />, path: '/hod/placements', roles: ['HOD'] },
+        { text: 'Leave Management', icon: <EventNoteIcon />, path: '/hod/leave-management', roles: ['HOD'] },
+        { text: 'Notices', icon: <NotificationsIcon />, path: '/hod/notices', roles: ['HOD'] },
         { text: 'Reports', icon: <BarChartIcon />, path: '/hod/reports', roles: ['HOD'] },
+        { text: 'Complaints', icon: <ReportProblemIcon />, path: '/hod/complaints', roles: ['HOD'] },
+        { text: 'Documents', icon: <FolderIcon />, path: '/hod/documents', roles: ['HOD'] },
+        { text: 'Meetings', icon: <GroupsIcon />, path: '/hod/meetings', roles: ['HOD'] },
+        { text: 'Opportunities', icon: <PublicIcon />, path: '/hod/opportunities', roles: ['HOD'] },
+        { text: 'Feedback', icon: <ReportProblemIcon />, path: '/hod/feedback', roles: ['HOD'] },
       ]
     : [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },

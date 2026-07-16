@@ -118,6 +118,17 @@ app.use('/api/v1/assignments', require('./routes/assignmentRoutes'));
 app.use('/api/v1/reports', require('./routes/reportRoutes'));
 app.use('/api/v1/timetable', require('./routes/timetableRoutes'));
 app.use('/api/v1/cross-dept-requests', require('./routes/requestRoutes'));
+app.use('/api/v1/examinations', require('./routes/examinationRoutes'));
+app.use('/api/v1/projects', require('./routes/projectRoutes'));
+app.use('/api/v1/placements', require('./routes/placementRoutes'));
+app.use('/api/v1/leaves', require('./routes/leaveRoutes'));
+app.use('/api/v1/notices', require('./routes/noticeRoutes'));
+app.use('/api/v1/complaints', require('./routes/complaintRoutes'));
+app.use('/api/v1/documents', require('./routes/documentRoutes'));
+app.use('/api/v1/meetings', require('./routes/meetingRoutes'));
+app.use('/api/v1/attendance', require('./routes/attendanceRoutes'));
+app.use('/api/v1/opportunities', require('./routes/opportunityRoutes'));
+app.use('/api/v1/feedback', require('./routes/feedbackRoutes'));
 
 // Catch-all for unhandled routes
 app.all('*', (req, res, next) => {

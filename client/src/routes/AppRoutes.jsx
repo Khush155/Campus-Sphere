@@ -17,6 +17,21 @@ import RosterHub from '../pages/hod/Roster/RosterHub';
 import ReportsHub from '../pages/hod/Reports/ReportsHub';
 import TimetableHub from '../pages/hod/Timetable/TimetableHub';
 import RequestHub from '../pages/hod/CrossDeptRequests/RequestHub';
+
+import HodFacultyHub from '../pages/hod/Faculty/HodFacultyHub';
+import HodStudentsHub from '../pages/hod/Students/HodStudentsHub';
+import HodSubjectsHub from '../pages/hod/Subjects/HodSubjectsHub';
+import HodAttendanceHub from '../pages/hod/AttendanceHub/HodAttendanceHub';
+import HodExaminationsHub from '../pages/hod/ExaminationsHub/HodExaminationsHub';
+import HodProjectsHub from '../pages/hod/ProjectsHub/HodProjectsHub';
+import HodPlacementsHub from '../pages/hod/PlacementsHub/HodPlacementsHub';
+import HodLeaveHub from '../pages/hod/LeaveHub/HodLeaveHub';
+import HodNoticesHub from '../pages/hod/NoticesHub/HodNoticesHub';
+import HodComplaintsHub from '../pages/hod/ComplaintsHub/HodComplaintsHub';
+import HodDocumentsHub from '../pages/hod/DocumentsHub/HodDocumentsHub';
+import HodMeetingsHub from '../pages/hod/MeetingsHub/HodMeetingsHub';
+import HodOpportunitiesHub from '../pages/hod/OpportunitiesHub/HodOpportunitiesHub';
+import HodFeedbackHub from '../pages/hod/FeedbackHub/HodFeedbackHub';
 // HOD pages now loaded via HodDashboard tabs
 
 // Guard for authenticated sections
@@ -165,56 +180,25 @@ export const AppRoutes = () => {
         />
 
         {/* HOD Workspace Routes */}
-        <Route
-          path="hod/overview"
-          element={
-            <RoleRoute allowedRoles={['HOD']}>
-              <HodDashboard />
-            </RoleRoute>
-          }
-        />
-        <Route
-          path="hod/faculty-assignment"
-          element={
-            <RoleRoute allowedRoles={['HOD']}>
-              <Box sx={{ p: { xs: 1, sm: 3 } }}>
-                <AssignmentHub />
-              </Box>
-            </RoleRoute>
-          }
-        />
-        <Route
-          path="hod/cross-dept-requests"
-          element={
-            <RoleRoute allowedRoles={['HOD']}>
-              <RequestHub />
-            </RoleRoute>
-          }
-        />
-        <Route
-          path="hod/timetable"
-          element={
-            <RoleRoute allowedRoles={['HOD']}>
-              <TimetableHub />
-            </RoleRoute>
-          }
-        />
-        <Route
-          path="hod/roster"
-          element={
-            <RoleRoute allowedRoles={['HOD']}>
-              <RosterHub />
-            </RoleRoute>
-          }
-        />
-        <Route
-          path="hod/reports"
-          element={
-            <RoleRoute allowedRoles={['HOD']}>
-              <ReportsHub />
-            </RoleRoute>
-          }
-        />
+        <Route path="hod/overview" element={<RoleRoute allowedRoles={['HOD']}><HodDashboard /></RoleRoute>} />
+        <Route path="hod/faculty" element={<RoleRoute allowedRoles={['HOD']}><HodFacultyHub /></RoleRoute>} />
+        <Route path="hod/faculty-assignment" element={<RoleRoute allowedRoles={['HOD']}><AssignmentHub /></RoleRoute>} />
+        <Route path="hod/students" element={<RoleRoute allowedRoles={['HOD']}><HodStudentsHub /></RoleRoute>} />
+        <Route path="hod/subjects" element={<RoleRoute allowedRoles={['HOD']}><HodSubjectsHub /></RoleRoute>} />
+        <Route path="hod/feedback" element={<RoleRoute allowedRoles={['HOD']}><HodFeedbackHub /></RoleRoute>} />
+        <Route path="hod/timetable" element={<RoleRoute allowedRoles={['HOD']}><TimetableHub /></RoleRoute>} />
+        <Route path="hod/cross-dept-requests" element={<RoleRoute allowedRoles={['HOD']}><RequestHub /></RoleRoute>} />
+        <Route path="hod/attendance" element={<RoleRoute allowedRoles={['HOD']}><HodAttendanceHub /></RoleRoute>} />
+        <Route path="hod/examinations" element={<RoleRoute allowedRoles={['HOD']}><HodExaminationsHub /></RoleRoute>} />
+        <Route path="hod/projects" element={<RoleRoute allowedRoles={['HOD']}><HodProjectsHub /></RoleRoute>} />
+        <Route path="hod/placements" element={<RoleRoute allowedRoles={['HOD']}><HodPlacementsHub /></RoleRoute>} />
+        <Route path="hod/leave-management" element={<RoleRoute allowedRoles={['HOD']}><HodLeaveHub /></RoleRoute>} />
+        <Route path="hod/notices" element={<RoleRoute allowedRoles={['HOD']}><HodNoticesHub /></RoleRoute>} />
+        <Route path="hod/reports" element={<RoleRoute allowedRoles={['HOD']}><ReportsHub /></RoleRoute>} />
+        <Route path="hod/complaints" element={<RoleRoute allowedRoles={['HOD']}><HodComplaintsHub /></RoleRoute>} />
+        <Route path="hod/documents" element={<RoleRoute allowedRoles={['HOD']}><HodDocumentsHub /></RoleRoute>} />
+        <Route path="hod/meetings" element={<RoleRoute allowedRoles={['HOD']}><HodMeetingsHub /></RoleRoute>} />
+        <Route path="hod/opportunities" element={<RoleRoute allowedRoles={['HOD']}><HodOpportunitiesHub /></RoleRoute>} />
 
         <Route path="students" element={<PlaceholderView title="Students" />} />
         <Route path="faculty" element={<PlaceholderView title="Faculty" />} />

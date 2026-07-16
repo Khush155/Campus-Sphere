@@ -106,7 +106,8 @@ const TimetableHub = () => {
         <AddSlotModal
           open={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
-          filters={filters} // Pass the current batch selection to the modal
+          filters={filters}
+          existingSlots={slots || []}
         />
       )}
 
