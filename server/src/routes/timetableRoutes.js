@@ -8,15 +8,14 @@ const ROLES = require('../constants/roles');
 const router = express.Router();
 
 router.use(authMiddleware);
-router.use(roleMiddleware(ROLES.HOD));
 
 router
   .route('/')
-  .get(asyncHandler(timetableController.getSlotsForBatch))
-  .post(asyncHandler(timetableController.createSlot));
+  .get(roleMiddleware(ROLES.HOD, ROLES.FACULTY), asyncHandler(timetableController.getSlotsForBatch))
+  .post(roleMiddleware(ROLES.HOD), asyncHandler(timetableController.createSlot));
 
-router.post('/auto-generate', asyncHandler(timetableController.autoGenerateTimetable));
+router.post('/auto-generate', roleMiddleware(ROLES.HOD), asyncHandler(timetableController.autoGenerateTimetable));
 
-router.delete('/:id', asyncHandler(timetableController.deleteSlot));
+router.delete('/:id', roleMiddleware(ROLES.HOD), asyncHandler(timetableController.deleteSlot));
 
 module.exports = router;

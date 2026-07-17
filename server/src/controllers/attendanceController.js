@@ -62,6 +62,36 @@ const submitAttendance = asyncHandler(async (req, res, next) => {
 });
 
 /**
+ * @desc    Get attendance sheet for a subject, group, and date
+ * @route   GET /api/v1/attendance
+ * @access  Private/Faculty
+ */
+const getAttendanceSheet = asyncHandler(async (req, res, next) => {
+  const { subjectId, date, group } = req.query;
+
+  if (!subjectId || !date || !group) {
+    return next(new AppError('Subject ID, Date, and Group/Section are required', 400, ERROR_CODES.VALIDATION_ERROR));
+  }
+
+  // 1. Find all students in this group/section
+  const students = await User.find({ role: 'STUDENT', group });
+  const studentIds = students.map((s) => s._id);
+
+  // 2. Normalize date to midnight UTC
+  const normalizedDate = new Date(date);
+  normalizedDate.setUTCHours(0, 0, 0, 0);
+
+  // 3. Find attendance records
+  const records = await Attendance.find({
+    subjectId: new mongoose.Types.ObjectId(subjectId),
+    date: normalizedDate,
+    studentId: { $in: studentIds },
+  });
+
+  return successResponse(res, 200, 'Attendance sheet retrieved successfully', records);
+});
+
+/**
  * @desc    Get attendance percentages for a student across all subjects (Faculty)
  * @route   GET /api/v1/attendance/student/:studentId
  * @access  Private
@@ -340,6 +370,7 @@ const approveMedicalLeave = async (req, res) => {
 
 module.exports = {
   submitAttendance,
+  getAttendanceSheet,
   getStudentAttendanceSummary,
   bulkMarkAttendance,
   markAttendance,

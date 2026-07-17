@@ -39,7 +39,7 @@ const scheduleExam = asyncHandler(async (req, res, next) => {
  * @access  Private/Faculty/Admin
  */
 const submitExamResult = asyncHandler(async (req, res, next) => {
-  const { examId, studentId, marksObtained, isPublished } = req.body;
+  const { examId, studentId, marksObtained, absent, remarks, isPublished } = req.body;
 
   // 1. Verify the exam exists
   const exam = await Exam.findById(examId);
@@ -58,7 +58,9 @@ const submitExamResult = asyncHandler(async (req, res, next) => {
 
   if (resultRecord) {
     // Update existing record
-    resultRecord.marksObtained = marksObtained;
+    resultRecord.marksObtained = absent ? 0 : (marksObtained ?? 0);
+    resultRecord.absent = absent ?? false;
+    resultRecord.remarks = remarks ?? '';
     if (isPublished !== undefined) {
       resultRecord.isPublished = isPublished;
     }
@@ -67,7 +69,9 @@ const submitExamResult = asyncHandler(async (req, res, next) => {
     resultRecord = new ExamResult({
       examId,
       studentId,
-      marksObtained,
+      marksObtained: absent ? 0 : (marksObtained ?? 0),
+      absent: absent ?? false,
+      remarks: remarks ?? '',
       isPublished: isPublished ?? false,
     });
   }
@@ -160,8 +164,39 @@ const calculateStudentGPA = asyncHandler(async (req, res, next) => {
   });
 });
 
+/**
+ * @desc    Get exams list, optionally filtered by subjectId
+ * @route   GET /api/v1/exams
+ * @access  Private
+ */
+const getExams = asyncHandler(async (req, res, next) => {
+  const { subjectId } = req.query;
+  const filter = {};
+  
+  if (subjectId) {
+    filter.subjectId = subjectId;
+  }
+  
+  const exams = await Exam.find(filter).populate('subjectId', 'name code').sort({ date: 1 });
+  
+  return successResponse(res, 200, 'Exams retrieved successfully', exams);
+});
+
+/**
+ * @desc    Get results for a specific exam
+ * @route   GET /api/v1/exams/:examId/results
+ * @access  Private/Faculty/Admin
+ */
+const getExamResults = asyncHandler(async (req, res, next) => {
+  const { examId } = req.params;
+  const results = await ExamResult.find({ examId }).populate('studentId', 'name email');
+  return successResponse(res, 200, 'Exam results retrieved successfully', results);
+});
+
 module.exports = {
   scheduleExam,
   submitExamResult,
   calculateStudentGPA,
+  getExams,
+  getExamResults,
 };

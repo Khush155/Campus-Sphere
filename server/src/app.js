@@ -141,6 +141,9 @@ app.use('/api/v1/promotions', require('./routes/promotionRoutes'));
 app.use('/api/v1', require('./routes/pdfRoutes'));
 app.use('/api/v1/faculty', require('./routes/facultyRoutes'));
 app.use('/api/v1/exams', require('./routes/examRoutes'));
+app.use('/api/v1/materials', require('./routes/materialRoutes'));
+app.use('/api/v1/notifications', require('./routes/notificationRoutes'));
+app.use('/api/v1/faculty-assignments', require('./routes/facultyAssignmentRoutes'));
 app.use('/api/v1/academics', require('./routes/academicRoutes'));
 
 // Catch-all for unhandled routes

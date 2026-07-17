@@ -15,7 +15,6 @@ import {
   Menu,
   MenuItem,
   Divider,
-  Tooltip,
   Chip,
 } from '@mui/material';
 import {
@@ -32,7 +31,7 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import StatusChip from '../../components/StatusChip';
-import { ASSIGNMENT_STATUS_OPTIONS } from '../mockData';
+import { ASSIGNMENT_STATUS_OPTIONS } from '../assignmentConstants';
 
 /**
  * Helper to format ISO dates to a reader-friendly local string.

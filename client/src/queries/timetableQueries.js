@@ -13,8 +13,8 @@ export const useTimetableQuery = (filters) => {
       const response = await api.get('/timetable', { params: cleanFilters });
       return response.data.data;
     },
-    // Only run the query if we have the minimum required filters
-    enabled: !!filters.course && !!filters.branch && !!filters.semester,
+    // Only run the query if we have the minimum required filters or user is Faculty
+    enabled: filters.isFaculty || (!!filters.course && !!filters.branch && !!filters.semester),
   });
 };
 

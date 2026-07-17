@@ -11,7 +11,7 @@ import {
   Class as SectionIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { CLASS_TYPE_OPTIONS } from '../mockData';
+import { CLASS_TYPE_OPTIONS } from '../timetableConstants';
 
 export const TimetableCard = ({ slot }) => {
   const theme = useTheme();

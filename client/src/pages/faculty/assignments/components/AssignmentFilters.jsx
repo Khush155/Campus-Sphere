@@ -14,8 +14,6 @@ import {
   InputAdornment,
 } from '@mui/material';
 import { Search as SearchIcon } from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
-
 // Reuse existing selectors from Attendance module to keep code DRY
 import SubjectSelector from '../../attendance/components/SubjectSelector';
 import SectionSelector from '../../attendance/components/SectionSelector';
@@ -32,7 +30,6 @@ export const AssignmentFilters = ({
   searchQuery,
   onSearchQueryChange,
 }) => {
-  const theme = useTheme();
 
   return (
     <Box sx={{ mb: 3 }}>

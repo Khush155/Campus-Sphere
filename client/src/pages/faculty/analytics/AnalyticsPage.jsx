@@ -1,7 +1,6 @@
 // client/src/pages/faculty/analytics/AnalyticsPage.jsx
 //
-// Page component rendering the Attendance & Marks Analytics.
-// Visualized via Recharts Line, Bar, and Pie components.
+// Page component rendering the Attendance & Marks Analytics from MongoDB.
 
 import React from 'react';
 import {
@@ -11,6 +10,7 @@ import {
   Paper,
   IconButton,
   Divider,
+  CircularProgress,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -37,34 +37,31 @@ import {
 } from 'recharts';
 import { useTheme } from '@mui/material/styles';
 
-// ─────────────────────────────────────────────────────────────
-// Mock Datasets
-// ─────────────────────────────────────────────────────────────
-const monthlyTrendData = [
-  { month: 'Jan', attendance: 82, averageGrade: 74 },
-  { month: 'Feb', attendance: 85, averageGrade: 76 },
-  { month: 'Mar', attendance: 88, averageGrade: 78 },
-  { month: 'Apr', attendance: 84, averageGrade: 79 },
-  { month: 'May', attendance: 89, averageGrade: 82 },
-];
-
-const subjectAttendanceData = [
-  { name: 'Data Structures (CSE201)', attendance: 88, passingRate: 95 },
-  { name: 'Database Systems (CSE305)', attendance: 84, passingRate: 91 },
-  { name: 'Operating Systems (CSE302)', attendance: 81, passingRate: 88 },
-];
-
-const sectionDistributionData = [
-  { name: 'CSE-A (DSA)', value: 45, color: '#4f46e5' },
-  { name: 'CSE-A (DBMS)', value: 35, color: '#10b981' },
-  { name: 'CSE-B (DBMS)', value: 12, color: '#3b82f6' },
-  { name: 'CSE-A (OS)', value: 8, color: '#f59e0b' },
-];
+// Import backend analytics query hook
+import { useFacultyAnalyticsQuery } from '../../../queries/facultyQueries';
 
 export const AnalyticsPage = () => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
+
+  // Query analytics from backend
+  const { data: metrics, isLoading, error } = useFacultyAnalyticsQuery();
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error || !metrics) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        Failed to load analytics metrics. Please ensure you are logged in as a Faculty member.
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -106,7 +103,7 @@ export const AnalyticsPage = () => {
                 AVERAGE ATTENDANCE
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                86.4%
+                {metrics.averageAttendance}%
               </Typography>
             </Box>
             <Box sx={{ p: 1.5, borderRadius: '50%', bgcolor: 'rgba(79, 70, 229, 0.08)' }}>
@@ -132,7 +129,7 @@ export const AnalyticsPage = () => {
                 HIGHEST ATTENDANCE
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                89%
+                {metrics.highestAttendance}%
               </Typography>
             </Box>
             <Box sx={{ p: 1.5, borderRadius: '50%', bgcolor: 'rgba(16, 185, 129, 0.08)' }}>
@@ -158,7 +155,7 @@ export const AnalyticsPage = () => {
                 AVERAGE GRADES GPA
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                8.1 / 10
+                {metrics.averageGradeGpa} / 10
               </Typography>
             </Box>
             <Box sx={{ p: 1.5, borderRadius: '50%', bgcolor: 'rgba(59, 130, 246, 0.08)' }}>
@@ -184,7 +181,7 @@ export const AnalyticsPage = () => {
                 ABSENCE ALERTS COUNT
               </Typography>
               <Typography variant="h4" sx={{ fontWeight: 800, color: 'error.main' }}>
-                4
+                {metrics.absenceAlerts}
               </Typography>
             </Box>
             <Box sx={{ p: 1.5, borderRadius: '50%', bgcolor: 'rgba(239, 68, 68, 0.08)' }}>
@@ -204,10 +201,10 @@ export const AnalyticsPage = () => {
             </Typography>
             <Box sx={{ width: '100%', height: 320 }}>
               <ResponsiveContainer>
-                <LineChart data={monthlyTrendData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                <LineChart data={metrics.monthlyTrend} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                   <XAxis dataKey="month" stroke={theme.palette.text.secondary} style={{ fontSize: '0.75rem' }} />
-                  <YAxis stroke={theme.palette.text.secondary} style={{ fontSize: '0.75rem' }} domain={[60, 100]} />
+                  <YAxis stroke={theme.palette.text.secondary} style={{ fontSize: '0.75rem' }} domain={[50, 100]} />
                   <ChartTooltip
                     contentStyle={{
                       backgroundColor: theme.palette.background.paper,
@@ -237,17 +234,17 @@ export const AnalyticsPage = () => {
           </Paper>
         </Grid>
 
-        {/* Pie Chart: Section-wise Class Size */}
+        {/* Pie Chart: Attendance Distribution */}
         <Grid item xs={12} lg={4}>
           <Paper variant="outlined" sx={{ p: 4, borderRadius: 4, height: '100%' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1.5 }}>
-              Subject Attendance Share
+              Attendance Distribution (%)
             </Typography>
             <Box sx={{ width: '100%', height: 260, display: 'flex', justifyContent: 'center' }}>
               <ResponsiveContainer>
                 <RechartsPieChart>
                   <Pie
-                    data={sectionDistributionData}
+                    data={metrics.distribution}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
@@ -255,7 +252,7 @@ export const AnalyticsPage = () => {
                     paddingAngle={4}
                     dataKey="value"
                   >
-                    {sectionDistributionData.map((entry, index) => (
+                    {metrics.distribution.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -266,7 +263,7 @@ export const AnalyticsPage = () => {
             <Divider sx={{ my: 1.5 }} />
             {/* Custom Legends list */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {sectionDistributionData.map((entry, idx) => (
+              {metrics.distribution.map((entry, idx) => (
                 <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                     <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: entry.color }} />
@@ -291,7 +288,7 @@ export const AnalyticsPage = () => {
             </Typography>
             <Box sx={{ width: '100%', height: 320 }}>
               <ResponsiveContainer>
-                <RechartsBarChart data={subjectAttendanceData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                <RechartsBarChart data={metrics.performance} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                   <XAxis dataKey="name" stroke={theme.palette.text.secondary} style={{ fontSize: '0.75rem' }} />
                   <YAxis stroke={theme.palette.text.secondary} style={{ fontSize: '0.75rem' }} domain={[50, 100]} />

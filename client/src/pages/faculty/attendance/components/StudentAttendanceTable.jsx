@@ -52,7 +52,7 @@ import {
   Badge as DutyIcon,
 } from '@mui/icons-material';
 
-import { ATTENDANCE_STATUS } from '../mockData';
+import { ATTENDANCE_STATUS } from '../attendanceConstants';
 
 /**
  * Maps status values to MUI icons for the Mark All buttons.

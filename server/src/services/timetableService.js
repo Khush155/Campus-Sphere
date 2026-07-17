@@ -169,8 +169,17 @@ const deleteSlot = async (slotId, departmentId, deletedBy, req) => {
   });
 };
 
+const getSlotsForFaculty = async (facultyId) => {
+  return await TimetableSlot.find({ facultyId })
+    .populate('subjectId', 'name code')
+    .populate('courseId', 'name code')
+    .populate('branchId', 'name code')
+    .sort({ startTime: 1 });
+};
+
 module.exports = {
   createSlot,
   getSlotsForBatch,
   deleteSlot,
+  getSlotsForFaculty,
 };

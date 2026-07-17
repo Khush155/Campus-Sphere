@@ -16,8 +16,6 @@ import {
   FormLabel,
   FormHelperText,
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-
 /**
  * Generates an ISO string for a date 7 days from now,
  * formatted to fit the input type="datetime-local" (YYYY-MM-DDTHH:mm).
@@ -41,7 +39,6 @@ export const AssignmentForm = ({
   submitText = 'Submit',
   isSubmitting = false,
 }) => {
-  const theme = useTheme();
 
   // ══════════════════════════════════════════════════════════
   // LOCAL STATE

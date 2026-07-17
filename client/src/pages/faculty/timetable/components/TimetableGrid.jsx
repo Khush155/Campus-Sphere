@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import TimetableCard from './TimetableCard';
-import { WEEKDAYS, TIME_SLOTS } from '../mockData';
+import { WEEKDAYS, TIME_SLOTS } from '../timetableConstants';
 
 export const TimetableGrid = ({ timetableData = [] }) => {
   const theme = useTheme();

@@ -41,6 +41,8 @@ export const SectionSelector = ({
   selectedSectionId,
   onSectionChange,
   disabled = false,
+  helperText,
+  size,
 }) => {
   const handleChange = (event) => {
     onSectionChange(event.target.value);
@@ -65,7 +67,8 @@ export const SectionSelector = ({
       value={selectedSectionId}
       onChange={handleChange}
       disabled={disabled || sections.length === 0}
-      helperText={getHelperText()}
+      size={size}
+      helperText={helperText !== undefined ? helperText : getHelperText()}
       InputProps={{
         startAdornment: (
           <InputAdornment position="start">

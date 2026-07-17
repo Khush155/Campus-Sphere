@@ -23,6 +23,14 @@ const examResultSchema = new mongoose.Schema(
     gradePoint: {
       type: Number, // E.g., 10, 9, 7, 0
     },
+    absent: {
+      type: Boolean,
+      default: false,
+    },
+    remarks: {
+      type: String,
+      default: '',
+    },
     isPublished: {
       type: Boolean,
       default: false, // If false, results are 'in-progress' and skipped in official calculations

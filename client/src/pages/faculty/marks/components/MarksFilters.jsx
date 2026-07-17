@@ -15,7 +15,7 @@ import {
 // Reuse selectors from Attendance module
 import SubjectSelector from '../../attendance/components/SubjectSelector';
 import SectionSelector from '../../attendance/components/SectionSelector';
-import { ASSESSMENT_TYPE_OPTIONS } from '../mockData';
+import { ASSESSMENT_TYPE_OPTIONS } from '../marksConstants';
 
 export const MarksFilters = ({
   subjects = [],
@@ -25,7 +25,7 @@ export const MarksFilters = ({
   selectedSectionId,
   onSectionChange,
   assessmentType,
-  onAssessmentTypeChange,
+  onTypeChange,
   assessments = [],
   selectedAssessmentId,
   onAssessmentChange,
@@ -40,6 +40,8 @@ export const MarksFilters = ({
               subjects={subjects}
               selectedSubjectId={selectedSubjectId}
               onSubjectChange={onSubjectChange}
+              size="small"
+              helperText=" "
             />
           </Grid>
 
@@ -50,6 +52,8 @@ export const MarksFilters = ({
               selectedSectionId={selectedSectionId}
               onSectionChange={onSectionChange}
               disabled={!selectedSubjectId}
+              size="small"
+              helperText=" "
             />
           </Grid>
 
@@ -60,10 +64,11 @@ export const MarksFilters = ({
               fullWidth
               label="Assessment Type"
               value={assessmentType}
-              onChange={(e) => onAssessmentTypeChange(e.target.value)}
+              onChange={(e) => onTypeChange(e.target.value)}
               disabled={!selectedSubjectId || !selectedSectionId}
               size="small"
               InputLabelProps={{ shrink: true }}
+              helperText=" "
             >
               <MenuItem value="">
                 <em>Select Type</em>
@@ -92,7 +97,7 @@ export const MarksFilters = ({
                   ? 'Select type first'
                   : assessments.length === 0
                   ? 'No published items found'
-                  : ''
+                  : ' '
               }
             >
               <MenuItem value="">

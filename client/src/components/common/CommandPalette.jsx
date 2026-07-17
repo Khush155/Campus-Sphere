@@ -1,3 +1,8 @@
+// client/src/components/common/CommandPalette.jsx
+//
+// Global Search / Command Palette component.
+// Enables searchable modal triggered by Search icon or Ctrl+K.
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -19,7 +24,13 @@ import {
   FlashOnOutlined,
   PersonOutline,
   BookOutlined,
+  AssignmentOutlined as AssignmentIcon,
+  AssessmentOutlined as ExamIcon,
+  MenuBookOutlined as BookIcon,
+  NotificationsOutlined as NotificationsIcon,
+  CalendarTodayOutlined as CalendarIcon,
 } from '@mui/icons-material';
+
 import { useUsersQuery } from '../../queries/userQueries';
 import { useSubjectsQuery } from '../../queries/collegeQueries';
 import { useAuth } from '../../contexts/AuthContext';
@@ -32,9 +43,21 @@ const getIconForType = (type) => {
     case 'ACTION':
       return <FlashOnOutlined />;
     case 'RECORD_USER':
+    case 'RECORD_STUDENT':
+    case 'RECORD_FACULTY':
       return <PersonOutline />;
     case 'RECORD_SUBJECT':
       return <BookOutlined />;
+    case 'RECORD_ASSIGNMENT':
+      return <AssignmentIcon />;
+    case 'RECORD_EXAM':
+      return <ExamIcon />;
+    case 'RECORD_MATERIAL':
+      return <BookIcon />;
+    case 'RECORD_NOTIFICATION':
+      return <NotificationsIcon />;
+    case 'RECORD_TIMETABLE':
+      return <CalendarIcon />;
     default:
       return <NavigationOutlined />;
   }
@@ -44,6 +67,7 @@ export const CommandPalette = ({ open, onClose }) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const inputRef = useRef(null);
+  const { user } = useAuth();
 
   // States
   const [query, setQuery] = useState('');
@@ -77,23 +101,37 @@ export const CommandPalette = ({ open, onClose }) => {
     }
   }, [open]);
 
-  // Static options list
+  // Static options list for Admin / HOD
   const staticOptions = [
-    // Navigation
     { id: 'nav-dash', type: 'NAV', text: 'Go to Dashboard', icon: <NavigationOutlined />, path: '/admin/dashboard' },
     { id: 'nav-depts', type: 'NAV', text: 'Go to College Setup - Departments', icon: <NavigationOutlined />, path: '/admin/college-setup/departments' },
     { id: 'nav-courses', type: 'NAV', text: 'Go to College Setup - Courses', icon: <NavigationOutlined />, path: '/admin/college-setup/courses' },
     { id: 'nav-branches', type: 'NAV', text: 'Go to College Setup - Branches', icon: <NavigationOutlined />, path: '/admin/college-setup/branches' },
     { id: 'nav-subjects', type: 'NAV', text: 'Go to College Setup - Subjects', icon: <NavigationOutlined />, path: '/admin/college-setup/subjects' },
     { id: 'nav-users', type: 'NAV', text: 'Go to Users Directory', icon: <NavigationOutlined />, path: '/admin/users' },
-
-    // Quick Actions
     { id: 'act-user', type: 'ACTION', text: 'Register new user account', icon: <FlashOnOutlined />, path: '/admin/users?register=true' },
     { id: 'act-dept', type: 'ACTION', text: 'Add a new department', icon: <FlashOnOutlined />, path: '/admin/college-setup/departments?add=true' },
     { id: 'act-course', type: 'ACTION', text: 'Add a new degree course', icon: <FlashOnOutlined />, path: '/admin/college-setup/courses?add=true' },
     { id: 'act-branch', type: 'ACTION', text: 'Add a new branch specialization', icon: <FlashOnOutlined />, path: '/admin/college-setup/branches?add=true' },
     { id: 'act-subject', type: 'ACTION', text: 'Add a curriculum subject', icon: <FlashOnOutlined />, path: '/admin/college-setup/subjects?add=true' },
   ];
+
+  // Static options list for Faculty
+  const facultyStaticOptions = [
+    { id: 'nav-dash', type: 'NAV', text: 'Go to Faculty Dashboard', icon: <NavigationOutlined />, path: '/faculty' },
+    { id: 'nav-students', type: 'NAV', text: 'Go to Students Roster', icon: <NavigationOutlined />, path: '/students' },
+    { id: 'nav-attendance', type: 'NAV', text: 'Go to Attendance Marking', icon: <NavigationOutlined />, path: '/attendance' },
+    { id: 'nav-assignments', type: 'NAV', text: 'Go to Assignments Module', icon: <NavigationOutlined />, path: '/assignments' },
+    { id: 'nav-exams', type: 'NAV', text: 'Go to Exams Module', icon: <NavigationOutlined />, path: '/exams' },
+    { id: 'nav-marks', type: 'NAV', text: 'Go to Gradebook & Marks', icon: <NavigationOutlined />, path: '/marks' },
+    { id: 'nav-timetable', type: 'NAV', text: 'Go to Timetable Schedule', icon: <NavigationOutlined />, path: '/timetable' },
+    { id: 'nav-materials', type: 'NAV', text: 'Go to Course Materials', icon: <NavigationOutlined />, path: '/materials' },
+    { id: 'nav-analytics', type: 'NAV', text: 'Go to Analytics Dashboard', icon: <NavigationOutlined />, path: '/analytics' },
+    { id: 'nav-notifications', type: 'NAV', text: 'Go to Notifications Center', icon: <NavigationOutlined />, path: '/notifications' },
+    { id: 'nav-settings', type: 'NAV', text: 'Go to Settings', icon: <NavigationOutlined />, path: '/settings' },
+  ];
+
+  const staticList = user?.role === 'FACULTY' ? facultyStaticOptions : staticOptions;
 
   // Dynamic user records search mapping
   const userOptions = usersData?.data?.map((u) => ({
@@ -105,7 +143,6 @@ export const CommandPalette = ({ open, onClose }) => {
   })) || [];
 
   // Dynamic subject records search mapping
-  // Dynamic subject records search mapping
   const subjectOptions = subjectsData?.map((s) => ({
     id: `subject-${s._id}`,
     type: 'RECORD_SUBJECT',
@@ -114,7 +151,23 @@ export const CommandPalette = ({ open, onClose }) => {
     path: `/admin/college-setup/subjects?search=${encodeURIComponent(s.name)}`,
   })) || [];
 
-  const allItems = [...staticOptions, ...userOptions, ...subjectOptions];
+  // Faculty specific records
+  const facultyRecords = user?.role === 'FACULTY' ? [
+    { id: 'fac-profile', type: 'RECORD_FACULTY', text: 'Profile: Dr. Ananya Sharma (Assistant Professor)', icon: <PersonOutline />, path: '/profile' },
+    { id: 'asg-1', type: 'RECORD_ASSIGNMENT', text: 'Assignment: Tree Balancing Implementation (CSE201)', icon: <AssignmentIcon />, path: '/assignments' },
+    { id: 'asg-2', type: 'RECORD_ASSIGNMENT', text: 'Assignment: Relational Algebra Worksheet (CSE305)', icon: <AssignmentIcon />, path: '/assignments' },
+    { id: 'asg-3', type: 'RECORD_ASSIGNMENT', text: 'Assignment: Process Sync Programming Lab (CSE302)', icon: <AssignmentIcon />, path: '/assignments' },
+    { id: 'exam-1', type: 'RECORD_EXAM', text: 'Exam: DSA Midterm Assessment (CSE201)', icon: <ExamIcon />, path: '/exams' },
+    { id: 'exam-2', type: 'RECORD_EXAM', text: 'Exam: DBMS Quiz 1 (CSE305)', icon: <ExamIcon />, path: '/exams' },
+    { id: 'exam-3', type: 'RECORD_EXAM', text: 'Exam: OS End-Term Theory Exam (CSE302)', icon: <ExamIcon />, path: '/exams' },
+    { id: 'mat-1', type: 'RECORD_MATERIAL', text: 'Material: Tree balancing lecture slides (PPT)', icon: <BookIcon />, path: '/materials' },
+    { id: 'mat-2', type: 'RECORD_MATERIAL', text: 'Material: DBMS Normalization Rules guide (PDF)', icon: <BookIcon />, path: '/materials' },
+    { id: 'mat-3', type: 'RECORD_MATERIAL', text: 'Material: Database Indexing & B-Trees video (YouTube)', icon: <BookIcon />, path: '/materials' },
+    { id: 'notif-page', type: 'RECORD_NOTIFICATION', text: 'Notification Log: Review submissions and schedule alerts', icon: <NotificationsIcon />, path: '/notifications' },
+    { id: 'timetable-page', type: 'RECORD_TIMETABLE', text: 'Timetable: View weekly classes schedule grid', icon: <CalendarIcon />, path: '/timetable' }
+  ] : [];
+
+  const allItems = [...staticList, ...userOptions, ...subjectOptions, ...facultyRecords];
 
   // Map icons onto recent items
   const recentOptions = recentItems.map((item) => ({
@@ -125,7 +178,7 @@ export const CommandPalette = ({ open, onClose }) => {
 
   // Fuzzy filter query match - if empty, show recents first, then navigation defaults
   const filtered = query === ''
-    ? [...recentOptions, ...staticOptions]
+    ? [...recentOptions, ...staticList]
     : allItems.filter((item) =>
         item.text.toLowerCase().includes(query.toLowerCase())
       );
@@ -200,17 +253,17 @@ export const CommandPalette = ({ open, onClose }) => {
                   my: 0.2,
                   borderRadius: '8px',
                   py: 1,
-                  bgcolor: isSelected ? theme.custom.interaction.hoverTint : 'transparent',
+                  bgcolor: isSelected ? theme.custom?.interaction?.hoverTint || 'rgba(79, 70, 229, 0.08)' : 'transparent',
                   color: isSelected ? theme.palette.primary.main : theme.palette.text.primary,
                   '&.Mui-selected': {
-                    bgcolor: theme.custom.interaction.hoverTint,
+                    bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(79, 70, 229, 0.08)',
                     color: theme.palette.primary.main,
                     '&:hover': {
-                      bgcolor: theme.custom.interaction.hoverTint,
+                      bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(79, 70, 229, 0.08)',
                     },
                   },
                   '&:hover': {
-                    bgcolor: theme.custom.interaction.hoverTint,
+                    bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(79, 70, 229, 0.08)',
                   },
                 }}
               >
@@ -259,11 +312,11 @@ export const CommandPalette = ({ open, onClose }) => {
         sx={{
           width: '100%',
           maxWidth: 600,
-          bgcolor: theme.custom.surface.overlay,
+          bgcolor: theme.custom?.surface?.overlay || theme.palette.background.paper,
           borderRadius: '16px',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           overflow: 'hidden',
-          border: `1px solid ${theme.custom.border.subtle}`,
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
           display: 'flex',
           flexDirection: 'column',
           maxHeight: '75vh',
@@ -271,7 +324,7 @@ export const CommandPalette = ({ open, onClose }) => {
         }}
       >
         {/* Search Input Box */}
-        <Box sx={{ p: 2, display: 'flex', alignItems: 'center', borderBottom: `1px solid ${theme.custom.border.subtle}`, bgcolor: theme.custom.surface.sunken }}>
+        <Box sx={{ p: 2, display: 'flex', alignItems: 'center', borderBottom: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`, bgcolor: theme.custom?.surface?.sunken || theme.palette.action.hover }}>
           <SearchOutlined sx={{ color: theme.palette.text.secondary, mr: 1.5 }} />
           <TextField
             inputRef={inputRef}
@@ -301,7 +354,7 @@ export const CommandPalette = ({ open, onClose }) => {
               borderRadius: '4px',
               bgcolor: 'rgba(0,0,0,0.06)',
               color: theme.palette.text.secondary,
-              fontFamily: theme.typography.mono.fontFamily,
+              fontFamily: theme.typography.mono?.fontFamily || 'monospace',
               fontSize: '0.68rem',
             }}
           >
@@ -320,17 +373,22 @@ export const CommandPalette = ({ open, onClose }) => {
           ) : (
             <>
               {renderGroup('RECENT', 'RECENT SEARCHES & VIEWS')}
-              {filtered.filter((i) => i.type === 'RECENT').length > 0 && <Divider sx={{ my: 1, borderColor: theme.custom.border.subtle }} />}
+              {filtered.filter((i) => i.type === 'RECENT').length > 0 && <Divider sx={{ my: 1, borderColor: theme.custom?.border?.subtle || theme.palette.divider }} />}
               {renderGroup('NAV', 'NAVIGATION')}
               {filtered.filter((i) => i.type === 'NAV').length > 0 &&
-                filtered.filter((i) => i.type !== 'NAV' && i.type !== 'RECENT').length > 0 && <Divider sx={{ my: 1, borderColor: theme.custom.border.subtle }} />}
+                filtered.filter((i) => i.type !== 'NAV' && i.type !== 'RECENT').length > 0 && <Divider sx={{ my: 1, borderColor: theme.custom?.border?.subtle || theme.palette.divider }} />}
               {renderGroup('ACTION', 'QUICK ACTIONS')}
               {filtered.filter((i) => i.type === 'ACTION').length > 0 &&
-                filtered.filter((i) => i.type.startsWith('RECORD')).length > 0 && <Divider sx={{ my: 1, borderColor: theme.custom.border.subtle }} />}
+                filtered.filter((i) => i.type.startsWith('RECORD')).length > 0 && <Divider sx={{ my: 1, borderColor: theme.custom?.border?.subtle || theme.palette.divider }} />}
               {renderGroup('RECORD_USER', 'USERS RECORDS')}
-              {filtered.filter((i) => i.type === 'RECORD_USER').length > 0 &&
-                filtered.filter((i) => i.type === 'RECORD_SUBJECT').length > 0 && <Divider sx={{ my: 1, borderColor: theme.custom.border.subtle }} />}
               {renderGroup('RECORD_SUBJECT', 'CURRICULUM SUBJECTS')}
+              {renderGroup('RECORD_STUDENT', 'STUDENTS DIRECTORY')}
+              {renderGroup('RECORD_FACULTY', 'FACULTY MEMBERS')}
+              {renderGroup('RECORD_ASSIGNMENT', 'ASSIGNMENTS')}
+              {renderGroup('RECORD_EXAM', 'EXAM SCHEDULES')}
+              {renderGroup('RECORD_MATERIAL', 'COURSE MATERIALS')}
+              {renderGroup('RECORD_NOTIFICATION', 'NOTIFICATIONS ALERTS')}
+              {renderGroup('RECORD_TIMETABLE', 'TIMETABLES')}
             </>
           )}
         </Box>
@@ -339,19 +397,19 @@ export const CommandPalette = ({ open, onClose }) => {
         <Box
           sx={{
             p: 1.5,
-            borderTop: `1px solid ${theme.custom.border.subtle}`,
+            borderTop: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
             display: 'flex',
             gap: 2,
             justifyContent: 'flex-end',
             alignItems: 'center',
-            bgcolor: theme.custom.surface.sunken,
+            bgcolor: theme.custom?.surface?.sunken || theme.palette.action.hover,
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontFamily: theme.typography.body2.fontFamily }}>
               Select:
             </Typography>
-            <Typography variant="caption" sx={{ px: 0.6, py: 0.1, bgcolor: 'rgba(0,0,0,0.06)', borderRadius: '3px', fontFamily: theme.typography.mono.fontFamily, fontSize: '0.68rem' }}>
+            <Typography variant="caption" sx={{ px: 0.6, py: 0.1, bgcolor: 'rgba(0,0,0,0.06)', borderRadius: '3px', fontFamily: theme.typography.mono?.fontFamily || 'monospace', fontSize: '0.68rem' }}>
               ↑↓
             </Typography>
           </Box>
@@ -359,7 +417,7 @@ export const CommandPalette = ({ open, onClose }) => {
             <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontFamily: theme.typography.body2.fontFamily }}>
               Execute:
             </Typography>
-            <Typography variant="caption" sx={{ px: 0.6, py: 0.1, bgcolor: 'rgba(0,0,0,0.06)', borderRadius: '3px', fontFamily: theme.typography.mono.fontFamily, fontSize: '0.68rem' }}>
+            <Typography variant="caption" sx={{ px: 0.6, py: 0.1, bgcolor: 'rgba(0,0,0,0.06)', borderRadius: '3px', fontFamily: theme.typography.mono?.fontFamily || 'monospace', fontSize: '0.68rem' }}>
               Enter
             </Typography>
           </Box>

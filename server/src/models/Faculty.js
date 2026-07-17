@@ -36,6 +36,24 @@ const facultySchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    employeeId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
+    officeRoom: {
+      type: String,
+      trim: true,
+    },
+    qualification: {
+      type: String,
+      trim: true,
+    },
+    specialization: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,

@@ -15,13 +15,14 @@ const { createExamSchema, submitResultSchema } = require('../validations/examVal
 // Apply authentication globally to all exam routes
 router.use(authMiddleware);
 
-// Route to schedule a new exam (restricted to Faculty & Admin)
-router.post(
-  '/',
-  roleMiddleware('FACULTY', 'ADMIN'),
-  validate(createExamSchema),
-  examController.scheduleExam
-);
+router
+  .route('/')
+  .get(examController.getExams)
+  .post(
+    roleMiddleware('FACULTY', 'ADMIN'),
+    validate(createExamSchema),
+    examController.scheduleExam
+  );
 
 // Route to submit/update student exam grades (restricted to Faculty & Admin)
 router.post(
@@ -29,6 +30,12 @@ router.post(
   roleMiddleware('FACULTY', 'ADMIN'),
   validate(submitResultSchema),
   examController.submitExamResult
+);
+
+// Route to fetch exam results by examId
+router.get(
+  '/:examId/results',
+  examController.getExamResults
 );
 
 // Route to calculate GPA for a student (accessible to Admin, Faculty, and Students)

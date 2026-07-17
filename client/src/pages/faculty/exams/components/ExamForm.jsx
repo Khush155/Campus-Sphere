@@ -17,7 +17,7 @@ import {
   FormHelperText,
   MenuItem,
 } from '@mui/material';
-import { EXAM_TYPE_OPTIONS } from '../mockData';
+import { EXAM_TYPE_OPTIONS } from '../examConstants';
 
 /**
  * Generates local compatible datetime string (YYYY-MM-DDTHH:mm) for tomorrow at 10 AM.

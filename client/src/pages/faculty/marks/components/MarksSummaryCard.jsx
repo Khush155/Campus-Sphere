@@ -11,7 +11,6 @@ import {
   TrendingDown as LowScoreIcon,
   Functions as AverageIcon,
   DoneOutline as PassIcon,
-  HighlightOff as FailIcon,
   PersonOff as AbsentIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
@@ -73,12 +72,15 @@ export const MarksSummaryCard = ({ records = [] }) => {
     let absentCount = 0;
 
     records.forEach((row) => {
+      if (row.marksObtained === '') {
+        return; // Skip ungraded students from calculations
+      }
       if (row.marksObtained === null) {
         absentCount++;
         // Absent students count as failures for percentage calculations
         failCount++;
       } else {
-        const score = row.marksObtained;
+        const score = Number(row.marksObtained);
         gradedCount++;
         sum += score;
 

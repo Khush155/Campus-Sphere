@@ -35,6 +35,8 @@ export const SubjectSelector = ({
   selectedSubjectId,
   onSubjectChange,
   disabled = false,
+  helperText,
+  size,
 }) => {
   // Handle the MUI Select change event.
   // MUI's TextField with select passes a standard React change event
@@ -51,8 +53,11 @@ export const SubjectSelector = ({
       value={selectedSubjectId}
       onChange={handleChange}
       disabled={disabled || subjects.length === 0}
+      size={size}
       helperText={
-        subjects.length === 0
+        helperText !== undefined
+          ? helperText
+          : subjects.length === 0
           ? 'No subjects assigned. Contact your HOD.'
           : 'Choose the subject to mark attendance for'
       }

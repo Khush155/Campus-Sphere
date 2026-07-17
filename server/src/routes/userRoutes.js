@@ -18,7 +18,7 @@ const superAdminGuard = [
 // Admin and HOD access guard for read operations
 const adminAndHodGuard = [
   authMiddleware,
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY),
 ];
 
 /**

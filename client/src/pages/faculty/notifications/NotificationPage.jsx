@@ -1,7 +1,6 @@
 // client/src/pages/faculty/notifications/NotificationPage.jsx
 //
-// Page component rendering the Notification Center for Faculty.
-// Handles read/unread filters, mock status updates, and dynamic alerts.
+// Page component rendering the Notification Center for Faculty with backend integration.
 
 import React, { useState } from 'react';
 import {
@@ -17,113 +16,77 @@ import {
   Button,
   Tabs,
   Tab,
-  Divider,
   Badge,
+  Tooltip,
+  Divider,
+  CircularProgress,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
   Notifications as BellIcon,
   AssignmentTurnedIn as SubmissionIcon,
   Warning as PendingIcon,
-  EventNote as CalendarIcon,
   Info as InfoIcon,
   CheckCircle as ReadIcon,
   FiberManualRecord as UnreadDotIcon,
-  DeleteOutline as TrashIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
-const initialNotifications = [
-  {
-    id: 'n1',
-    title: 'Assignment Submissions Received',
-    message: '5 students submitted their work for "CSE201 - Assignment 1 (Balanced Trees)".',
-    category: 'ACADEMIC',
-    type: 'SUBMISSION',
-    timestamp: '2 hours ago',
-    unread: true,
-  },
-  {
-    id: 'n2',
-    title: 'Marks Verification Pending',
-    message: 'Gradebook for "DBMS Midterm Assessment" requires review and approval.',
-    category: 'ADMINISTRATIVE',
-    type: 'PENDING',
-    timestamp: '5 hours ago',
-    unread: true,
-  },
-  {
-    id: 'n3',
-    title: 'Exam Scheduled',
-    message: 'Operating Systems End-Term theory exam scheduled for July 24th in Hall-A.',
-    category: 'ACADEMIC',
-    type: 'CALENDAR',
-    timestamp: '1 day ago',
-    unread: false,
-  },
-  {
-    id: 'n4',
-    title: 'Timetable Adjustment',
-    message: 'Wednesday Period 2 slot shifted to room LH-202 (Database Lecture).',
-    category: 'ADMINISTRATIVE',
-    type: 'CALENDAR',
-    timestamp: '2 days ago',
-    unread: false,
-  },
-  {
-    id: 'n5',
-    title: 'College Notice Published',
-    message: 'Registrar office announced extension of semester enrollment deadline.',
-    category: 'SYSTEM',
-    type: 'INFO',
-    timestamp: '3 days ago',
-    unread: false,
-  },
-];
+// Import backend query hooks
+import {
+  useNotificationsQuery,
+  useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
+} from '../../../queries/facultyQueries';
 
 export const NotificationPage = () => {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState(initialNotifications);
   const [activeTab, setActiveTab] = useState(0); // 0 = All, 1 = Unread, 2 = Academic, 3 = Admin
+
+  // Query notifications from backend
+  const { data: notifications = [], isLoading } = useNotificationsQuery();
+
+  const markReadMutation = useMarkNotificationReadMutation();
+  const markAllReadMutation = useMarkAllNotificationsReadMutation();
 
   // Handlers
   const handleMarkAsRead = (id) => {
-    setNotifications(
-      notifications.map((n) => (n.id === id ? { ...n, unread: false } : n))
-    );
+    markReadMutation.mutate(id);
   };
 
   const handleMarkAllRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, unread: false })));
-  };
-
-  const handleDelete = (id) => {
-    setNotifications(notifications.filter((n) => n.id !== id));
+    markAllReadMutation.mutate();
   };
 
   // Filter Logic
   const filteredNotifications = notifications.filter((n) => {
-    if (activeTab === 1) return n.unread;
+    if (activeTab === 1) return !n.isRead;
     if (activeTab === 2) return n.category === 'ACADEMIC';
     if (activeTab === 3) return n.category === 'ADMINISTRATIVE';
     return true; // Tab 0 = All
   });
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  const getIconForType = (type) => {
-    switch (type) {
-      case 'SUBMISSION':
+  const getIconForCategory = (category) => {
+    switch (category) {
+      case 'ACADEMIC':
         return <SubmissionIcon color="primary" />;
-      case 'PENDING':
+      case 'ADMINISTRATIVE':
         return <PendingIcon color="error" />;
-      case 'CALENDAR':
-        return <CalendarIcon color="warning" />;
-      case 'INFO':
+      case 'GENERAL':
       default:
         return <InfoIcon color="info" />;
     }
   };
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -150,9 +113,10 @@ export const NotificationPage = () => {
           <Button
             variant="outlined"
             onClick={handleMarkAllRead}
+            disabled={markAllReadMutation.isPending}
             sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
           >
-            Mark all as read
+            {markAllReadMutation.isPending ? 'Marking...' : 'Mark all as read'}
           </Button>
         )}
       </Box>
@@ -198,18 +162,18 @@ export const NotificationPage = () => {
         {filteredNotifications.length > 0 ? (
           <List disablePadding>
             {filteredNotifications.map((item, index) => (
-              <React.Fragment key={item.id}>
+              <React.Fragment key={item._id}>
                 <ListItem
                   sx={{
                     px: 3,
                     py: 2.5,
-                    bgcolor: item.unread ? 'action.hover' : 'transparent',
+                    bgcolor: !item.isRead ? 'action.hover' : 'transparent',
                     transition: 'background-color 0.2s',
                     '&:hover': { bgcolor: 'action.selected' },
                   }}
                 >
                   <ListItemIcon sx={{ minWidth: 46 }}>
-                    {getIconForType(item.type)}
+                    {getIconForCategory(item.category)}
                   </ListItemIcon>
                   <ListItemText
                     primary={
@@ -217,7 +181,7 @@ export const NotificationPage = () => {
                         <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
                           {item.title}
                         </Typography>
-                        {item.unread && (
+                        {!item.isRead && (
                           <UnreadDotIcon sx={{ fontSize: 10, color: '#ef4444' }} />
                         )}
                       </Box>
@@ -228,25 +192,24 @@ export const NotificationPage = () => {
                           {item.message}
                         </Typography>
                         <Typography variant="caption" color="text.disabled" sx={{ fontWeight: 600 }}>
-                          {item.timestamp}
+                          {new Date(item.createdAt).toLocaleString()}
                         </Typography>
                       </Box>
                     }
                   />
                   <ListItemSecondaryAction>
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                      {item.unread && (
+                      {!item.isRead && (
                         <Tooltip title="Mark as read">
-                          <IconButton onClick={() => handleMarkAsRead(item.id)} size="small">
+                          <IconButton
+                            onClick={() => handleMarkAsRead(item._id)}
+                            disabled={markReadMutation.isPending}
+                            size="small"
+                          >
                             <ReadIcon fontSize="small" color="primary" />
                           </IconButton>
                         </Tooltip>
                       )}
-                      <Tooltip title="Delete">
-                        <IconButton onClick={() => handleDelete(item.id)} size="small" color="error">
-                          <TrashIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
                     </Box>
                   </ListItemSecondaryAction>
                 </ListItem>

@@ -15,11 +15,20 @@ import {
   TextField,
   Typography,
   Checkbox,
-  FormControlLabel,
   Chip,
   Box,
+  Button,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import {
+  Edit as EditIcon,
+  AddComment as AddCommentIcon,
+} from '@mui/icons-material';
 
 export const MarksEntryTable = ({
   records = [],
@@ -30,6 +39,23 @@ export const MarksEntryTable = ({
 }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
+
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [selectedStudentId, setSelectedStudentId] = React.useState(null);
+  const [selectedStudentName, setSelectedStudentName] = React.useState('');
+  const [tempFeedback, setTempFeedback] = React.useState('');
+
+  const handleOpenFeedback = (studentId, name, currentRemarks) => {
+    setSelectedStudentId(studentId);
+    setSelectedStudentName(name);
+    setTempFeedback(currentRemarks || '');
+    setDialogOpen(true);
+  };
+
+  const handleSaveFeedback = () => {
+    onRemarksChange(selectedStudentId, tempFeedback);
+    setDialogOpen(false);
+  };
 
   if (records.length === 0) {
     return (
@@ -61,6 +87,7 @@ export const MarksEntryTable = ({
   };
 
   return (
+    <>
     <TableContainer
       component={Paper}
       elevation={0}
@@ -188,25 +215,46 @@ export const MarksEntryTable = ({
 
                 {/* Remarks Input */}
                 <TableCell>
-                  {isEditing ? (
-                    <TextField
-                      fullWidth
-                      value={row.remarks || ''}
-                      onChange={(e) => onRemarksChange(row.studentId, e.target.value)}
-                      disabled={isAbsent}
-                      placeholder={isAbsent ? 'Absent' : 'Add feedback...'}
+                  {isAbsent ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      Absent
+                    </Typography>
+                  ) : row.remarks ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-word', maxWidth: 180 }}>
+                        {row.remarks}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleOpenFeedback(row.studentId, row.name, row.remarks)}
+                        title="Edit Feedback"
+                        sx={{ color: '#4f46e5' }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  ) : (
+                    <Button
                       size="small"
+                      variant="outlined"
+                      startIcon={<AddCommentIcon />}
+                      onClick={() => handleOpenFeedback(row.studentId, row.name, row.remarks)}
                       sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 1.5,
-                          fontSize: '0.82rem',
+                        textTransform: 'none',
+                        borderRadius: 2,
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        py: 0.5,
+                        borderColor: '#4f46e550',
+                        color: '#4f46e5',
+                        '&:hover': {
+                          borderColor: '#4f46e5',
+                          bgcolor: 'rgba(79, 70, 229, 0.04)',
                         },
                       }}
-                    />
-                  ) : (
-                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: isAbsent ? 'italic' : 'normal' }}>
-                      {isAbsent ? 'Absent' : row.remarks || '-'}
-                    </Typography>
+                    >
+                      Add Feedback
+                    </Button>
                   )}
                 </TableCell>
               </TableRow>
@@ -215,6 +263,61 @@ export const MarksEntryTable = ({
         </TableBody>
       </Table>
     </TableContainer>
+
+    <Dialog
+      open={dialogOpen}
+      onClose={() => setDialogOpen(false)}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: { borderRadius: 3, p: 1 }
+      }}
+    >
+      <DialogTitle sx={{ fontWeight: 800 }}>
+        Feedback for {selectedStudentName}
+      </DialogTitle>
+      <DialogContent>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Provide custom comments, improvement notes, or observations about this student's grade.
+        </Typography>
+        <TextField
+          autoFocus
+          margin="dense"
+          label="Remarks / Feedback"
+          type="text"
+          fullWidth
+          multiline
+          rows={4}
+          variant="outlined"
+          value={tempFeedback}
+          onChange={(e) => setTempFeedback(e.target.value)}
+          placeholder="Enter feedback..."
+          InputProps={{
+            sx: { borderRadius: 2 }
+          }}
+        />
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={() => setDialogOpen(false)} sx={{ textTransform: 'none', fontWeight: 600 }}>
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSaveFeedback}
+          variant="contained"
+          sx={{
+            textTransform: 'none',
+            fontWeight: 700,
+            bgcolor: '#4f46e5',
+            '&:hover': { bgcolor: '#4338ca' },
+            borderRadius: 2,
+            px: 3
+          }}
+        >
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 };
 

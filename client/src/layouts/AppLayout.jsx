@@ -474,7 +474,7 @@ export const AppLayout = () => {
                 />
               </Box>
               <Divider />
-              <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/profile'); }}>Profile</MenuItem>
+              <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/'); }}>Profile</MenuItem>
               <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/settings'); }}>Settings</MenuItem>
               <Divider />
               <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>

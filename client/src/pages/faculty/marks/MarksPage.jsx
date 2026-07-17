@@ -1,7 +1,6 @@
 // client/src/pages/faculty/marks/MarksPage.jsx
 //
-// Container component orchestrating the Faculty Marks module.
-// Owns selections, calculations, action states, and CRUD mock updates.
+// Container component orchestrating the Faculty Marks module with backend MongoDB integration.
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
@@ -12,17 +11,16 @@ import {
   Snackbar,
   Alert,
   IconButton,
+  CircularProgress,
   Chip,
+  Grid,
+  TextField,
+  MenuItem,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
   Edit as EditIcon,
   Save as SaveIcon,
-  Send as SubmitIcon,
-  CheckCircle as ApproveIcon,
-  Publish as PublishIcon,
-  Archive as ArchiveIcon,
-  LockReset as UnpublishIcon,
   Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -32,106 +30,137 @@ import MarksFilters from './components/MarksFilters';
 import MarksEntryTable from './components/MarksEntryTable';
 import MarksSummaryCard from './components/MarksSummaryCard';
 
-// Data sources
-import { mockAssessments, mockGradebooks } from './mockData';
-import { mockAttendanceSubjects, mockStudentsList } from '../attendance/mockData';
-import StatusChip from '../components/StatusChip';
-
-// Subject → Section mapping (consistent with Attendance/Exams)
-const SUBJECT_SECTIONS = {
-  sub1: [{ id: 'sec1a', name: 'CSE-A', strength: 20 }],
-  sub2: [
-    { id: 'sec2a', name: 'CSE-A', strength: 20 },
-    { id: 'sec2b', name: 'CSE-B', strength: 18 },
-  ],
-  sub3: [{ id: 'sec3a', name: 'CSE-A', strength: 20 }],
-};
+// Import backend hooks
+import {
+  useFacultyDashboardQuery,
+  useExamsQuery,
+  useSubmitExamResultMutation,
+  useExamResultsQuery,
+} from '../../../queries/facultyQueries';
+import { useUsersQuery } from '../../../queries/userQueries';
 
 export const MarksPage = () => {
   const navigate = useNavigate();
 
-  // ══════════════════════════════════════════════════════════
-  // STATE MANAGEMENT
-  // ══════════════════════════════════════════════════════════
+  // State Management
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedSectionId, setSelectedSectionId] = useState('');
-  const [assessmentType, setAssessmentType] = useState('');
+  const [assessmentType, setAssessmentType] = useState('THEORY');
   const [selectedAssessmentId, setSelectedAssessmentId] = useState('');
+  const [sortBy, setSortBy] = useState('rollAsc');
 
   // Active Gradebook State
   const [status, setStatus] = useState('DRAFT');
-  const [isPublished, setIsPublished] = useState(false);
   const [records, setRecords] = useState([]);
 
   // Mode States
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
-  // ══════════════════════════════════════════════════════════
-  // DERIVED DATA & CALCULATIONS
-  // ══════════════════════════════════════════════════════════
-  
-  // Available sections for the selected subject
-  const sectionsForSubject = SUBJECT_SECTIONS[selectedSubjectId] || [];
+  // 1. Fetch dashboard stats for assigned subjects list
+  const { data: dashboardData, isLoading: isDashboardLoading } = useFacultyDashboardQuery();
+  const assignedSubjects = dashboardData?.assignedSubjects || [];
 
-  // Available assessments matching subject, section, and type
+  // Helper to determine sections based on subject code
+  const getSectionsForSubject = (subjectId) => {
+    const subject = assignedSubjects.find((s) => s.id === subjectId);
+    if (!subject) return [];
+    const code = subject.code || '';
+    if (code.startsWith('CS')) {
+      return [
+        { id: 'CSE-A', name: 'CSE-A', strength: 20 },
+        { id: 'CSE-B', name: 'CSE-B', strength: 18 },
+      ];
+    }
+    if (code.startsWith('EC')) {
+      return [{ id: 'ECE-A', name: 'ECE-A', strength: 20 }];
+    }
+    return [{ id: 'CSE-A', name: 'CSE-A', strength: 20 }];
+  };
+
+  const sectionsForSubject = getSectionsForSubject(selectedSubjectId);
+
+  // 2. Fetch exams list from MongoDB
+  const { data: rawExams = [] } = useExamsQuery({
+    subjectId: selectedSubjectId || undefined,
+  });
+
+  // Map backend exams to available assessments matching the selected type
   const availableAssessments = useMemo(() => {
-    if (!selectedSubjectId || !selectedSectionId || !assessmentType) return [];
-    return mockAssessments.filter(
-      (asg) =>
-        asg.subjectId === selectedSubjectId &&
-        asg.sectionId === selectedSectionId &&
-        asg.assessmentType === assessmentType
-    );
-  }, [selectedSubjectId, selectedSectionId, assessmentType]);
+    return rawExams
+      .filter((ex) => {
+        const typeMap = ex.examType === 'LAB' ? 'PRACTICAL' : (ex.examType === 'QUIZ' ? 'QUIZ' : 'EXAM');
+        return typeMap === assessmentType;
+      })
+      .map((ex) => ({
+        id: ex._id,
+        name: ex.name,
+        title: ex.name,
+        maxMarks: ex.maxMarks,
+        passingMarks: ex.passingMarks,
+        assessmentType: ex.examType === 'LAB' ? 'PRACTICAL' : (ex.examType === 'QUIZ' ? 'QUIZ' : 'EXAM'),
+      }));
+  }, [rawExams, assessmentType]);
 
   const activeAssessment = useMemo(() => {
-    return mockAssessments.find((asg) => asg.id === selectedAssessmentId);
-  }, [selectedAssessmentId]);
+    return availableAssessments.find((asg) => asg.id === selectedAssessmentId);
+  }, [selectedAssessmentId, availableAssessments]);
 
-  // ══════════════════════════════════════════════════════════
-  // LOAD GRADEBOOK RECORDS
-  // ══════════════════════════════════════════════════════════
+  // 3. Fetch students roster for the gradebook list
+  const { data: studentsResponse, isLoading: isStudentsLoading } = useUsersQuery({
+    role: 'STUDENT',
+    group: selectedSectionId || undefined,
+    limit: 100,
+  });
+
+  const studentsList = useMemo(() => studentsResponse?.data || [], [studentsResponse]);
+
+  const submitResultMutation = useSubmitExamResultMutation();
+
+  // Fetch existing exam results from MongoDB
+  const { data: dbResults = [], isLoading: isResultsLoading } = useExamResultsQuery(selectedAssessmentId);
+
+  // Load and populate records (syncing with MongoDB results if they exist)
   useEffect(() => {
-    if (!selectedAssessmentId) {
+    if (!selectedAssessmentId || studentsList.length === 0) {
       setRecords([]);
       setStatus('DRAFT');
-      setIsPublished(false);
-      setIsEditing(false);
       return;
     }
 
-    const existingGradebook = mockGradebooks[selectedAssessmentId];
+    const maxMarksValue = activeAssessment?.maxMarks || 100;
+    const initialRecords = studentsList.map((stud, idx) => {
+      // Find matching result in MongoDB
+      const studId = stud._id || stud.id;
+      const dbMatch = dbResults.find(
+        (res) => (res.studentId?._id || res.studentId) === studId
+      );
 
-    if (existingGradebook) {
-      // Load copy of existing records
-      setRecords(JSON.parse(JSON.stringify(existingGradebook.records)));
-      setStatus(existingGradebook.status);
-      setIsPublished(existingGradebook.isPublished);
-    } else {
-      // Initialize a fresh gradebook for the section list
-      const maxMarksValue = activeAssessment?.maxMarks || 100;
-      const initialRecords = mockStudentsList.map((stud) => ({
-        studentId: stud.id,
-        rollNumber: stud.rollNumber,
+      const marksValue = dbMatch
+        ? (dbMatch.absent ? null : dbMatch.marksObtained)
+        : '';
+
+      return {
+        studentId: studId,
+        rollNumber: stud.rollNumber || `CS20260${idx + 1}`,
         name: stud.name,
         email: stud.email,
-        marksObtained: 0, // default to 0
+        marksObtained: marksValue,
         maxMarks: maxMarksValue,
-        grade: 'F', // default grade
-        remarks: '',
-      }));
-      setRecords(initialRecords);
-      setStatus('DRAFT');
-      setIsPublished(false);
-    }
-    setIsEditing(false);
-  }, [selectedAssessmentId, activeAssessment]);
+        grade: dbMatch ? dbMatch.grade : '',
+        remarks: dbMatch ? dbMatch.remarks || '' : '',
+      };
+    });
 
-  // ══════════════════════════════════════════════════════════
-  // AUTOMATIC LETTER GRADE CALCULATION
-  // ══════════════════════════════════════════════════════════
+    setRecords(initialRecords);
+    
+    // Determine status from dbResults (if some are published, status is APPROVED)
+    const anyPublished = dbResults.some((res) => res.isPublished);
+    setStatus(anyPublished ? 'APPROVED' : 'DRAFT');
+  }, [selectedAssessmentId, activeAssessment, studentsList, dbResults]);
+
+  // Automatic Letter Grade Calculation
   const calculateGrade = (score, max) => {
     if (score === null || score === undefined || isNaN(score)) return 'F';
     const ratio = score / max;
@@ -144,28 +173,29 @@ export const MarksPage = () => {
     return 'F';
   };
 
-  // ══════════════════════════════════════════════════════════
-  // HANDLERS FOR PRESENTATION TABLE
-  // ══════════════════════════════════════════════════════════
-  
   const showToast = (message, severity = 'success') => {
     setToast({ open: true, message, severity });
   };
 
   const handleSubjectChange = (subjectId) => {
     setSelectedSubjectId(subjectId);
-    setSelectedSectionId('');
-    setAssessmentType('');
+    const sections = getSectionsForSubject(subjectId);
+    if (sections.length > 0) {
+      setSelectedSectionId(sections[0].id);
+    } else {
+      setSelectedSectionId('');
+    }
+    setAssessmentType('THEORY');
     setSelectedAssessmentId('');
   };
 
   const handleSectionChange = (sectionId) => {
     setSelectedSectionId(sectionId);
-    setAssessmentType('');
+    setAssessmentType('THEORY');
     setSelectedAssessmentId('');
   };
 
-  const handleAssessmentTypeChange = (type) => {
+  const handleTypeChange = (type) => {
     setAssessmentType(type);
     setSelectedAssessmentId('');
   };
@@ -174,166 +204,110 @@ export const MarksPage = () => {
     setSelectedAssessmentId(id);
   };
 
-  // Edit cell scores
-  const handleMarksChange = (studentId, val) => {
+  const handleRecordChange = (studentId, field, value) => {
     setRecords((prev) =>
       prev.map((rec) => {
         if (rec.studentId !== studentId) return rec;
-        
-        let score = val;
-        if (val !== '') {
-          // Clamp score between 0 and student's maxMarks
-          score = Math.max(0, Math.min(rec.maxMarks, Number(val)));
+
+        const updated = { ...rec, [field]: value };
+        if (field === 'marksObtained') {
+          if (value === '' || value === null) {
+            updated.marksObtained = value;
+            updated.grade = 'F';
+          } else {
+            let score = parseFloat(value);
+            if (isNaN(score)) score = 0;
+            if (score > rec.maxMarks) score = rec.maxMarks;
+            updated.marksObtained = score;
+            updated.grade = calculateGrade(score, rec.maxMarks);
+          }
         }
-
-        return {
-          ...rec,
-          marksObtained: score,
-          grade: calculateGrade(score, rec.maxMarks),
-        };
+        return updated;
       })
     );
   };
 
-  // Edit cell remarks
-  const handleRemarksChange = (studentId, text) => {
-    setRecords((prev) =>
-      prev.map((rec) =>
-        rec.studentId === studentId ? { ...rec, remarks: text } : rec
-      )
-    );
-  };
-
-  // Toggle Absent state
-  const handleAbsentToggle = (studentId, isChecked) => {
-    setRecords((prev) =>
-      prev.map((rec) => {
-        if (rec.studentId !== studentId) return rec;
-        return {
-          ...rec,
-          marksObtained: isChecked ? null : 0, // Null represents absent
-          grade: isChecked ? 'F' : 'F',
-          remarks: isChecked ? 'Absent' : '',
-        };
-      })
-    );
-  };
-
-  // ── Administrative Status Transitions ──
-
-  // Save Draft (Local Cache Commit)
-  const handleSaveDraft = () => {
-    setIsSubmitting(true);
-    setTimeout(() => {
-      // Validate inputs
-      const invalid = records.some(r => r.marksObtained !== null && r.marksObtained === '');
-      if (invalid) {
-        showToast('Please specify valid score inputs for all active students.', 'error');
-        setIsSubmitting(false);
-        return;
+  // Sort student records instantly for table rendering
+  const sortedRecords = useMemo(() => {
+    const list = [...records];
+    list.sort((a, b) => {
+      if (sortBy === 'rollAsc') {
+        return (a.rollNumber || '').localeCompare(b.rollNumber || '');
       }
+      if (sortBy === 'rollDesc') {
+        return (b.rollNumber || '').localeCompare(a.rollNumber || '');
+      }
+      if (sortBy === 'nameAsc') {
+        return (a.name || '').localeCompare(b.name || '');
+      }
+      if (sortBy === 'nameDesc') {
+        return (b.name || '').localeCompare(a.name || '');
+      }
+      if (sortBy === 'marksAsc') {
+        const scoreA = a.marksObtained === null ? -1 : Number(a.marksObtained);
+        const scoreB = b.marksObtained === null ? -1 : Number(b.marksObtained);
+        return scoreA - scoreB;
+      }
+      if (sortBy === 'marksDesc') {
+        const scoreA = a.marksObtained === null ? -1 : Number(a.marksObtained);
+        const scoreB = b.marksObtained === null ? -1 : Number(b.marksObtained);
+        return scoreB - scoreA;
+      }
+      return 0;
+    });
+    return list;
+  }, [records, sortBy]);
 
-      // Update mock database reference
-      mockGradebooks[selectedAssessmentId] = {
-        assessmentId: selectedAssessmentId,
-        subjectId: selectedSubjectId,
-        sectionId: selectedSectionId,
-        maxMarks: activeAssessment.maxMarks,
-        status, // keep current status
-        isPublished,
-        records: JSON.parse(JSON.stringify(records)),
-      };
-
-      setIsEditing(false);
-      setIsSubmitting(false);
-      showToast('Draft grades saved successfully!');
-    }, 600);
-  };
-
-  // Submit to HOD
-  const handleSubmitForReview = () => {
+  const handleSaveMarks = () => {
     setIsSubmitting(true);
-    setTimeout(() => {
-      setStatus('SUBMITTED');
-      // Save changes with new status
-      mockGradebooks[selectedAssessmentId] = {
-        assessmentId: selectedAssessmentId,
-        subjectId: selectedSubjectId,
-        sectionId: selectedSectionId,
-        maxMarks: activeAssessment.maxMarks,
-        status: 'SUBMITTED',
-        isPublished: false,
-        records: JSON.parse(JSON.stringify(records)),
-      };
-      setIsSubmitting(false);
-      showToast('Gradebook submitted to HOD for approval.');
-    }, 600);
-  };
 
-  // HOD Approve
-  const handleApprove = () => {
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setStatus('APPROVED');
-      mockGradebooks[selectedAssessmentId].status = 'APPROVED';
-      setIsSubmitting(false);
-      showToast('Grades approved! Ready to publish.');
-    }, 600);
-  };
+    const gradedRecords = records.filter((rec) => rec.marksObtained !== '');
 
-  // Publish to Portal
-  const handlePublishResults = () => {
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setStatus('PUBLISHED');
-      setIsPublished(true);
-      mockGradebooks[selectedAssessmentId].status = 'PUBLISHED';
-      mockGradebooks[selectedAssessmentId].isPublished = true;
+    if (gradedRecords.length === 0) {
       setIsSubmitting(false);
-      showToast('Grades published! Students can now view their scores.');
-    }, 600);
-  };
+      showToast('No grades entered to save.', 'info');
+      return;
+    }
 
-  // Recall / Unpublish Grades
-  const handleUnpublish = () => {
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setStatus('APPROVED');
-      setIsPublished(false);
-      mockGradebooks[selectedAssessmentId].status = 'APPROVED';
-      mockGradebooks[selectedAssessmentId].isPublished = false;
-      setIsSubmitting(false);
-      showToast('Grades recalled. Status reverted to Approved.', 'warning');
-    }, 600);
-  };
+    const promises = gradedRecords.map((rec) => {
+      const isAbsent = rec.marksObtained === null;
+      return submitResultMutation.mutateAsync({
+        examId: selectedAssessmentId,
+        studentId: rec.studentId,
+        marksObtained: isAbsent ? 0 : Number(rec.marksObtained),
+        absent: isAbsent,
+        remarks: rec.remarks || '',
+        isPublished: true,
+      });
+    });
 
-  // Archive Gradebook
-  const handleArchive = () => {
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setStatus('ARCHIVED');
-      mockGradebooks[selectedAssessmentId].status = 'ARCHIVED';
-      setIsSubmitting(false);
-      showToast('Grades locked as archived records.');
-    }, 600);
+    Promise.all(promises)
+      .then(() => {
+        setIsSubmitting(false);
+        setStatus('APPROVED');
+        showToast('Marks saved successfully to MongoDB!', 'success');
+      })
+      .catch((err) => {
+        setIsSubmitting(false);
+        showToast(`Save failed: ${err.response?.data?.message || err.message}`, 'error');
+      });
   };
 
   const handleExport = (type) => {
-    if (!records || records.length === 0) return;
-    const filename = `marks_${selectedSubjectId || 'subject'}_${selectedAssessmentId || 'assessment'}.${type === 'csv' ? 'csv' : 'txt'}`;
+    const filename = `marks_${activeAssessment?.name || 'grades'}_${selectedSectionId}.${type === 'csv' ? 'csv' : 'txt'}`;
     const element = document.createElement('a');
     let content = '';
 
     if (type === 'csv') {
-      content = 'Roll Number,Student Name,Marks Obtained,Remarks\n';
+      content = 'Roll Number,Student Name,Marks Obtained,Max Marks,Grade,Remarks\n';
       records.forEach((rec) => {
-        content += `${rec.rollNumber},${rec.studentName},${rec.isAbsent ? 'ABSENT' : rec.marks},${rec.remarks || ''}\n`;
+        content += `${rec.rollNumber},${rec.name},${rec.marksObtained},${rec.maxMarks},${rec.grade},${rec.remarks || ''}\n`;
       });
       element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(content));
     } else {
-      content = `--- Gradebook Report ---\nSubject ID: ${selectedSubjectId}\nAssessment ID: ${selectedAssessmentId}\n\n`;
+      content = `--- Gradebook Report ---\nAssessment: ${activeAssessment?.name || 'N/A'}\nSection: ${selectedSectionId}\n\n`;
       records.forEach((rec) => {
-        content += `${rec.rollNumber} - ${rec.studentName}: ${rec.isAbsent ? 'ABSENT' : rec.marks} marks (${rec.remarks || 'No remarks'})\n`;
+        content += `${rec.rollNumber} - ${rec.name}: ${rec.marksObtained}/${rec.maxMarks} (${rec.grade})\n`;
       });
       element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
     }
@@ -345,273 +319,174 @@ export const MarksPage = () => {
     document.body.removeChild(element);
   };
 
+  const filterSubjects = assignedSubjects.map((sub) => ({
+    id: sub.id,
+    name: sub.name,
+    code: sub.code,
+    credits: sub.credits,
+  }));
+
   return (
     <Box sx={{ flexGrow: 1 }}>
       {/* ── Page Header ── */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 2,
-          mb: 4,
-        }}
-      >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <IconButton
             onClick={() => navigate('/faculty')}
             size="small"
-            sx={{
-              bgcolor: 'action.hover',
-              '&:hover': { bgcolor: 'action.selected' },
-            }}
+            sx={{ bgcolor: 'action.hover', '&:hover': { bgcolor: 'action.selected' } }}
           >
             <BackIcon fontSize="small" />
           </IconButton>
           <Box>
             <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
-              Student Gradebook
+              Marks Entry & Gradebooks
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Input student scores, compute grades, submit sheets for approval, and publish final marks
+              Record assessment grades, calculate averages, approve gradebook states, and publish marks to student portals
             </Typography>
           </Box>
         </Box>
-
-        {/* Dynamic Action Controls */}
-        {selectedAssessmentId && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-            {/* Status display */}
-            <StatusChip label={status} color={
-              status === 'PUBLISHED' ? '#10b981' :
-              status === 'APPROVED' ? '#a855f7' :
-              status === 'SUBMITTED' ? '#3b82f6' :
-              status === 'ARCHIVED' ? '#9ca3af' : '#6b7280'
-            } />
-
-            {/* Results visibility chip */}
-            {isPublished && (
-              <Chip
-                label="Student Portal: Visible"
-                size="small"
-                color="success"
-                variant="outlined"
-                sx={{ fontWeight: 700, fontSize: '0.7rem' }}
-              />
-            )}
-
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<DownloadIcon />}
-              onClick={() => handleExport('csv')}
-              sx={{ textTransform: 'none', fontWeight: 700 }}
-            >
-              Export CSV
-            </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<DownloadIcon />}
-              onClick={() => handleExport('pdf')}
-              sx={{ textTransform: 'none', fontWeight: 700 }}
-            >
-              Export PDF
-            </Button>
-
-            {/* Actions Grid */}
-            {!isEditing ? (
-              <>
-                {/* Edit Button (Allowed unless archived) */}
-                {status !== 'ARCHIVED' && status !== 'PUBLISHED' && (
-                  <Button
-                    variant="outlined"
-                    startIcon={<EditIcon />}
-                    onClick={() => setIsEditing(true)}
-                    size="small"
-                    sx={{ textTransform: 'none', fontWeight: 700 }}
-                  >
-                    Edit Grades
-                  </Button>
-                )}
-
-                {/* Submit button (Draft -> Submitted) */}
-                {status === 'DRAFT' && (
-                  <Button
-                    variant="contained"
-                    startIcon={<SubmitIcon />}
-                    onClick={handleSubmitForReview}
-                    size="small"
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: 700,
-                      bgcolor: '#3b82f6',
-                      '&:hover': { bgcolor: '#2563eb' },
-                    }}
-                  >
-                    Submit to HOD
-                  </Button>
-                )}
-
-                {/* HOD Review (Submitted -> Approved) */}
-                {status === 'SUBMITTED' && (
-                  <Button
-                    variant="contained"
-                    startIcon={<ApproveIcon />}
-                    onClick={handleApprove}
-                    size="small"
-                    color="secondary"
-                    sx={{ textTransform: 'none', fontWeight: 700 }}
-                  >
-                    Approve Sheet
-                  </Button>
-                )}
-
-                {/* Publish button (Approved -> Published) */}
-                {status === 'APPROVED' && (
-                  <Button
-                    variant="contained"
-                    startIcon={<PublishIcon />}
-                    onClick={handlePublishResults}
-                    size="small"
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: 700,
-                      bgcolor: '#10b981',
-                      '&:hover': { bgcolor: '#059669' },
-                    }}
-                  >
-                    Publish Results
-                  </Button>
-                )}
-
-                {/* Unpublish button (Published -> Approved) */}
-                {status === 'PUBLISHED' && (
-                  <Button
-                    variant="outlined"
-                    color="warning"
-                    startIcon={<UnpublishIcon />}
-                    onClick={handleUnpublish}
-                    size="small"
-                    sx={{ textTransform: 'none', fontWeight: 700 }}
-                  >
-                    Recall Grades
-                  </Button>
-                )}
-
-                {/* Archive button */}
-                {status === 'PUBLISHED' && (
-                  <Button
-                    variant="contained"
-                    color="inherit"
-                    startIcon={<ArchiveIcon />}
-                    onClick={handleArchive}
-                    size="small"
-                    sx={{ textTransform: 'none', fontWeight: 700 }}
-                  >
-                    Archive
-                  </Button>
-                )}
-              </>
-            ) : (
-              /* Editing mode buttons */
-              <>
-                <Button
-                  variant="outlined"
-                  onClick={() => {
-                    // Reset to saved copy
-                    const saved = mockGradebooks[selectedAssessmentId];
-                    if (saved) {
-                      setRecords(JSON.parse(JSON.stringify(saved.records)));
-                    } else {
-                      setRecords([]);
-                    }
-                    setIsEditing(false);
-                  }}
-                  size="small"
-                  sx={{ textTransform: 'none', fontWeight: 600 }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="contained"
-                  startIcon={<SaveIcon />}
-                  onClick={handleSaveDraft}
-                  disabled={isSubmitting}
-                  size="small"
-                  sx={{
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    bgcolor: '#4f46e5',
-                    '&:hover': { bgcolor: '#4338ca' },
-                  }}
-                >
-                  {isSubmitting ? 'Saving...' : 'Save Draft'}
-                </Button>
-              </>
-            )}
-          </Box>
+        {selectedAssessmentId && records.length > 0 && (
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={() => handleExport('csv')}
+            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
+          >
+            Export CSV
+          </Button>
         )}
       </Box>
 
-      {/* ── Filters Bar ── */}
-      <MarksFilters
-        subjects={mockAttendanceSubjects}
-        selectedSubjectId={selectedSubjectId}
-        onSubjectChange={handleSubjectChange}
-        sections={sectionsForSubject}
-        selectedSectionId={selectedSectionId}
-        onSectionChange={handleSectionChange}
-        assessmentType={assessmentType}
-        onAssessmentTypeChange={handleAssessmentTypeChange}
-        assessments={availableAssessments}
-        selectedAssessmentId={selectedAssessmentId}
-        onAssessmentChange={handleAssessmentChange}
-      />
-
-      {/* ── Summary Stats & Graded Lists ── */}
-      {selectedAssessmentId ? (
-        <>
-          <MarksSummaryCard records={records} />
-          <MarksEntryTable
-            records={records}
-            isEditing={isEditing}
-            onMarksChange={handleMarksChange}
-            onRemarksChange={handleRemarksChange}
-            onAbsentToggle={handleAbsentToggle}
+      {/* ── Filter Selectors Row ── */}
+      <Paper sx={{ p: 3, mb: 4 }} elevation={0} variant="outlined">
+        {isDashboardLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+            <CircularProgress size={24} />
+          </Box>
+        ) : (
+          <MarksFilters
+            subjects={filterSubjects}
+            selectedSubjectId={selectedSubjectId}
+            onSubjectChange={handleSubjectChange}
+            sections={sectionsForSubject}
+            selectedSectionId={selectedSectionId}
+            onSectionChange={handleSectionChange}
+            assessmentType={assessmentType}
+            onTypeChange={handleTypeChange}
+            assessments={availableAssessments}
+            selectedAssessmentId={selectedAssessmentId}
+            onAssessmentChange={handleAssessmentChange}
           />
-        </>
+        )}
+      </Paper>
+
+      {/* ── Main Gradebook Workspace ── */}
+      {selectedAssessmentId ? (
+        isStudentsLoading || isResultsLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : records.length > 0 ? (
+          <Grid container spacing={3}>
+            {/* Left: Interactive Marks Entry Table */}
+            <Grid item xs={12} lg={8}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3.5 }}>
+                {/* Header status bar */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                      Roster Grades Entry
+                    </Typography>
+                    <Chip label={status} color={status === 'APPROVED' ? 'success' : 'default'} size="small" sx={{ fontWeight: 700 }} />
+                  </Box>
+
+                  {/* Actions buttons & Sort By Selector */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <TextField
+                      select
+                      size="small"
+                      label="Sort By"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      sx={{
+                        width: 160,
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                          fontSize: '0.85rem',
+                        },
+                      }}
+                      InputLabelProps={{ shrink: true }}
+                    >
+                      <MenuItem value="rollAsc">Roll Number ↑</MenuItem>
+                      <MenuItem value="rollDesc">Roll Number ↓</MenuItem>
+                      <MenuItem value="nameAsc">Name A-Z</MenuItem>
+                      <MenuItem value="nameDesc">Name Z-A</MenuItem>
+                      <MenuItem value="marksAsc">Marks ↑</MenuItem>
+                      <MenuItem value="marksDesc">Marks ↓</MenuItem>
+                    </TextField>
+
+                    <Button
+                      variant="contained"
+                      startIcon={<SaveIcon />}
+                      onClick={handleSaveMarks}
+                      disabled={isSubmitting}
+                      sx={{ textTransform: 'none', fontWeight: 700, bgcolor: '#10b981', '&:hover': { bgcolor: '#059669' } }}
+                    >
+                      {isSubmitting ? 'Saving...' : 'Save Gradebook'}
+                    </Button>
+                  </Box>
+                </Box>
+
+                <MarksEntryTable
+                  records={sortedRecords}
+                  isEditing={isEditing}
+                  onMarksChange={(studentId, marks) => handleRecordChange(studentId, 'marksObtained', marks)}
+                  onRemarksChange={(studentId, remarks) => handleRecordChange(studentId, 'remarks', remarks)}
+                  onAbsentToggle={(studentId, isAbsent) => {
+                    handleRecordChange(studentId, 'marksObtained', isAbsent ? null : 0);
+                  }}
+                />
+              </Paper>
+            </Grid>
+
+            {/* Right: Dynamic Summary Performance Card */}
+            <Grid item xs={12} lg={4}>
+              <MarksSummaryCard records={records} />
+            </Grid>
+          </Grid>
+        ) : (
+          <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 3 }}>
+            <Typography variant="body1" color="text.secondary">
+              No students found registered under section {selectedSectionId}.
+            </Typography>
+          </Paper>
+        )
       ) : (
-        /* Unselected Prompt */
+        /* Empty Workflow state */
         <Paper
           variant="outlined"
           sx={{
-            p: 4,
+            p: 6,
             textAlign: 'center',
-            borderRadius: 3,
+            borderRadius: 3.5,
             bgcolor: 'background.paper',
           }}
         >
           <Typography variant="body1" color="text.secondary">
-            Select a subject, section, assessment type, and specific assessment to load the grading worksheet.
+            Select a subject, section, type, and exam above to start entry.
           </Typography>
         </Paper>
       )}
 
-      {/* ── Feedback Toast ── */}
+      {/* ── Toast Feedback notification ── */}
       <Snackbar
         open={toast.open}
         autoHideDuration={4000}
-        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        onClose={() => setToast({ ...toast, open: false })}
       >
-        <Alert
-          onClose={() => setToast((prev) => ({ ...prev, open: false }))}
-          severity={toast.severity}
-          variant="filled"
-          sx={{ fontWeight: 600 }}
-        >
+        <Alert severity={toast.severity} variant="filled" sx={{ width: '100%' }}>
           {toast.message}
         </Alert>
       </Snackbar>

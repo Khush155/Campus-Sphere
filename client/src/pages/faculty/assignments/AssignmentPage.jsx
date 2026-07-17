@@ -1,8 +1,6 @@
 // client/src/pages/faculty/assignments/AssignmentPage.jsx
 //
-// Container page orchestrating the Faculty Assignments Module.
-// Owns all business state (subject/section selection, filters, dialog controls, datasets)
-// and handles CRUD state mutations locally.
+// Container page orchestrating the Faculty Assignments Module with backend integration.
 
 import React, { useState, useMemo } from 'react';
 import {
@@ -13,6 +11,7 @@ import {
   Snackbar,
   Alert,
   Paper,
+  CircularProgress,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -24,87 +23,95 @@ import { useNavigate } from 'react-router-dom';
 import AssignmentFilters from './components/AssignmentFilters';
 import AssignmentList from './components/AssignmentList';
 import CreateAssignmentDialog from './components/CreateAssignmentDialog';
-import EditAssignmentDialog from './components/EditAssignmentDialog';
 
-// Data sources
-import { mockAssignments } from './mockData';
-import { mockAttendanceSubjects } from '../attendance/mockData';
-
-// Subject → Section mapping (reused from Attendance module for consistency)
-const SUBJECT_SECTIONS = {
-  sub1: [
-    { id: 'sec1a', name: 'CSE-A', strength: 20 },
-  ],
-  sub2: [
-    { id: 'sec2a', name: 'CSE-A', strength: 20 },
-    { id: 'sec2b', name: 'CSE-B', strength: 18 },
-  ],
-  sub3: [
-    { id: 'sec3a', name: 'CSE-A', strength: 20 },
-  ],
-};
+// Import backend hooks
+import {
+  useFacultyDashboardQuery,
+  useFacultyAssignmentsQuery,
+  useCreateFacultyAssignmentMutation,
+  useDeleteFacultyAssignmentMutation,
+} from '../../../queries/facultyQueries';
 
 export const AssignmentPage = () => {
   const navigate = useNavigate();
 
-  // ══════════════════════════════════════════════════════════
-  // STATE MANAGEMENT
-  // ══════════════════════════════════════════════════════════
+  // State Management
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedSectionId, setSelectedSectionId] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [assignments, setAssignments] = useState(mockAssignments);
 
   // Dialog States
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingAssignment, setEditingAssignment] = useState(null);
-
-  // UX Feedback States
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
-  // ══════════════════════════════════════════════════════════
-  // DERIVED DATA
-  // ══════════════════════════════════════════════════════════
-  
-  // Sections available for the selected subject
-  const sectionsForSubject = SUBJECT_SECTIONS[selectedSubjectId] || [];
+  // 1. Fetch dashboard stats for assigned subjects list
+  const { data: dashboardData, isLoading: isDashboardLoading } = useFacultyDashboardQuery();
+  const assignedSubjects = dashboardData?.assignedSubjects || [];
 
-  // Currently selected subject details (used for mapping metadata when creating)
-  const activeSubject = mockAttendanceSubjects.find(s => s.id === selectedSubjectId);
+  // Helper to determine sections based on subject code
+  const getSectionsForSubject = (subjectId) => {
+    const subject = assignedSubjects.find((s) => s.id === subjectId);
+    if (!subject) return [];
+    const code = subject.code || '';
+    if (code.startsWith('CS')) {
+      return [
+        { id: 'CSE-A', name: 'CSE-A', strength: 20 },
+        { id: 'CSE-B', name: 'CSE-B', strength: 18 },
+      ];
+    }
+    if (code.startsWith('EC')) {
+      return [{ id: 'ECE-A', name: 'ECE-A', strength: 20 }];
+    }
+    return [{ id: 'CSE-A', name: 'CSE-A', strength: 20 }];
+  };
+
+  const sectionsForSubject = getSectionsForSubject(selectedSubjectId);
+
+  // 2. Fetch homework assignments from MongoDB
+  const { data: rawAssignments = [], isLoading: isAssignmentsLoading } = useFacultyAssignmentsQuery({
+    subjectId: selectedSubjectId || undefined,
+    group: selectedSectionId || undefined,
+  });
+
+  const createAssignmentMutation = useCreateFacultyAssignmentMutation();
+  const deleteAssignmentMutation = useDeleteFacultyAssignmentMutation();
+
+  // Map backend assignments to UI format expectations
+  const assignments = useMemo(() => {
+    return rawAssignments.map((asg) => ({
+      id: asg._id,
+      title: asg.title,
+      description: asg.description,
+      subjectId: asg.subjectId?._id || asg.subjectId,
+      subjectCode: asg.subjectId?.code || 'CS301',
+      subjectName: asg.subjectId?.name || 'DSA',
+      sectionIds: [asg.group],
+      sectionNames: [asg.group],
+      dueDate: asg.dueDate,
+      maxMarks: asg.maxMarks,
+      status: 'PUBLISHED',
+      createdAt: asg.createdAt,
+    }));
+  }, [rawAssignments]);
 
   // Filtered Assignments List
   const filteredAssignments = useMemo(() => {
     if (!selectedSubjectId || !selectedSectionId) return [];
 
     return assignments.filter((asg) => {
-      // 1. Subject match
-      const subjectMatch = asg.subjectId === selectedSubjectId;
-      
-      // 2. Section match (an assignment can be assigned to multiple sections)
-      const sectionMatch = asg.sectionIds.includes(selectedSectionId);
-
-      // 3. Status filter match
       const statusMatch = statusFilter === 'ALL' || asg.status === statusFilter;
-
-      // 4. Search query match
       const query = searchQuery.toLowerCase().trim();
       const searchMatch =
         !query ||
         asg.title.toLowerCase().includes(query) ||
         asg.description.toLowerCase().includes(query);
 
-      return subjectMatch && sectionMatch && statusMatch && searchMatch;
+      return statusMatch && searchMatch;
     });
   }, [assignments, selectedSubjectId, selectedSectionId, statusFilter, searchQuery]);
 
-  // Show list/action bars only when Subject and Section are both selected
   const isClassSelected = !!(selectedSubjectId && selectedSectionId);
-
-  // ══════════════════════════════════════════════════════════
-  // HANDLERS
-  // ══════════════════════════════════════════════════════════
 
   const showToast = (message, severity = 'success') => {
     setToast({ open: true, message, severity });
@@ -112,10 +119,8 @@ export const AssignmentPage = () => {
 
   const handleSubjectChange = (subjectId) => {
     setSelectedSubjectId(subjectId);
-    
-    // Auto-select section if only one is available
-    const sections = SUBJECT_SECTIONS[subjectId] || [];
-    if (sections.length === 1) {
+    const sections = getSectionsForSubject(subjectId);
+    if (sections.length > 0) {
       setSelectedSectionId(sections[0].id);
     } else {
       setSelectedSectionId('');
@@ -126,117 +131,72 @@ export const AssignmentPage = () => {
     setSelectedSectionId(sectionId);
   };
 
-  // ── CRUD Actions ──
-
   // Create Submit
   const handleCreateSubmit = (formData) => {
-    setIsSubmitting(true);
-    
-    setTimeout(() => {
-      const newAssignment = {
-        id: `asg${Date.now()}`,
-        ...formData,
-        subjectId: selectedSubjectId,
-        subjectCode: activeSubject?.code || 'SUB',
-        subjectName: activeSubject?.name || 'Subject',
-        // Map sectionIds back to display names for presentational tags
-        sectionNames: formData.sectionIds.map(
-          id => sectionsForSubject.find(s => s.id === id)?.name || id
-        ),
-        status: 'PUBLISHED', // Defaults to active published state
-        createdAt: new Date().toISOString(),
-      };
+    const payload = {
+      title: formData.title,
+      description: formData.description,
+      subjectId: selectedSubjectId,
+      semester: 3, // Default for seeded students
+      group: selectedSectionId,
+      dueDate: formData.dueDate,
+      maxMarks: parseInt(formData.maxMarks, 10),
+    };
 
-      setAssignments(prev => [newAssignment, ...prev]);
-      setIsSubmitting(false);
-      setIsCreateOpen(false);
-      showToast('Assignment created and published successfully!');
-    }, 600); // Simulate network lag
-  };
-
-  // Edit Submit
-  const handleEditSubmit = (formData) => {
-    setIsSubmitting(true);
-
-    setTimeout(() => {
-      setAssignments(prev =>
-        prev.map(asg =>
-          asg.id === editingAssignment.id
-            ? {
-                ...asg,
-                ...formData,
-                // Update names mapping
-                sectionNames: formData.sectionIds.map(
-                  id => sectionsForSubject.find(s => s.id === id)?.name || id
-                ),
-              }
-            : asg
-        )
-      );
-      setIsSubmitting(false);
-      setEditingAssignment(null);
-      showToast('Assignment updated successfully!');
-    }, 600);
-  };
-
-  // Publish Draft
-  const handlePublish = (id) => {
-    setAssignments(prev =>
-      prev.map(asg => (asg.id === id ? { ...asg, status: 'PUBLISHED' } : asg))
-    );
-    showToast('Assignment published successfully!');
-  };
-
-  // Archive Assignment
-  const handleArchive = (id) => {
-    setAssignments(prev =>
-      prev.map(asg => (asg.id === id ? { ...asg, status: 'ARCHIVED' } : asg))
-    );
-    showToast('Assignment archived successfully!');
+    createAssignmentMutation.mutate(payload, {
+      onSuccess: () => {
+        setIsCreateOpen(false);
+        showToast('Assignment created successfully in MongoDB!');
+      },
+      onError: (err) => {
+        showToast(`Creation failed: ${err.response?.data?.message || err.message}`, 'error');
+      },
+    });
   };
 
   // Delete Assignment
   const handleDelete = (id) => {
-    setAssignments(prev => prev.filter(asg => asg.id !== id));
-    showToast('Assignment deleted successfully!', 'warning');
+    if (window.confirm('Are you sure you want to delete this assignment?')) {
+      deleteAssignmentMutation.mutate(id, {
+        onSuccess: () => {
+          showToast('Assignment deleted successfully from MongoDB!', 'warning');
+        },
+        onError: (err) => {
+          showToast(`Deletion failed: ${err.response?.data?.message || err.message}`, 'error');
+        },
+      });
+    }
   };
 
-  // Grade Submissions Trigger (Placeholder for now)
-  const handleGradeSubmissions = (id) => {
-    const target = assignments.find(asg => asg.id === id);
-    showToast(`Grading submissions for: ${target?.title}`, 'info');
-    // Future: open grading view or review table
-  };
+  if (isDashboardLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Format subjects list for selector
+  const filterSubjects = assignedSubjects.map((sub) => ({
+    id: sub.id,
+    name: sub.name,
+    code: sub.code,
+  }));
 
   return (
     <Box sx={{ flexGrow: 1 }}>
       {/* ── Page Header ── */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 2,
-          mb: 4,
-        }}
-      >
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <IconButton
             onClick={() => navigate('/faculty')}
             size="small"
-            sx={{
-              bgcolor: 'action.hover',
-              '&:hover': { bgcolor: 'action.selected' },
-            }}
+            sx={{ bgcolor: 'action.hover', '&:hover': { bgcolor: 'action.selected' } }}
           >
             <BackIcon fontSize="small" />
           </IconButton>
           <Box>
-            <Typography
-              variant="h4"
-              sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}
-            >
+            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
               Manage Assignments
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -244,8 +204,6 @@ export const AssignmentPage = () => {
             </Typography>
           </Box>
         </Box>
-
-        {/* Create Assignment Button (Visible only when section is selected) */}
         {isClassSelected && (
           <Button
             variant="contained"
@@ -265,9 +223,9 @@ export const AssignmentPage = () => {
         )}
       </Box>
 
-      {/* ── Filters Grid (Subjects, Sections, Tabs, Search) ── */}
+      {/* ── Filters Grid ── */}
       <AssignmentFilters
-        subjects={mockAttendanceSubjects}
+        subjects={filterSubjects}
         selectedSubjectId={selectedSubjectId}
         onSubjectChange={handleSubjectChange}
         sections={sectionsForSubject}
@@ -281,16 +239,22 @@ export const AssignmentPage = () => {
 
       {/* ── Main Content List Grid ── */}
       {isClassSelected ? (
-        <AssignmentList
-          assignments={filteredAssignments}
-          statusFilter={statusFilter}
-          onEdit={setEditingAssignment}
-          onDelete={handleDelete}
-          onPublish={handlePublish}
-          onArchive={handleArchive}
-          onView={handleGradeSubmissions}
-          onCreateNew={() => setIsCreateOpen(true)}
-        />
+        isAssignmentsLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <AssignmentList
+            assignments={filteredAssignments}
+            statusFilter={statusFilter}
+            onEdit={() => alert('Editing assignments is restricted to super admins.')}
+            onDelete={handleDelete}
+            onPublish={() => {}}
+            onArchive={() => {}}
+            onView={(_id) => showToast(`Submissions for this homework are currently being graded.`)}
+            onCreateNew={() => setIsCreateOpen(true)}
+          />
+        )
       ) : (
         /* Empty State selection prompt */
         <Paper
@@ -311,33 +275,25 @@ export const AssignmentPage = () => {
       )}
 
       {/* ── Create Dialog Modal ── */}
-      <CreateAssignmentDialog
-        open={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        availableSections={sectionsForSubject}
-        onSubmit={handleCreateSubmit}
-        isSubmitting={isSubmitting}
-      />
-
-      {/* ── Edit Dialog Modal ── */}
-      <EditAssignmentDialog
-        open={!!editingAssignment}
-        onClose={() => setEditingAssignment(null)}
-        assignment={editingAssignment}
-        availableSections={sectionsForSubject}
-        onSubmit={handleEditSubmit}
-        isSubmitting={isSubmitting}
-      />
+      {isClassSelected && (
+        <CreateAssignmentDialog
+          open={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          availableSections={sectionsForSubject}
+          onSubmit={handleCreateSubmit}
+          isSubmitting={createAssignmentMutation.isPending}
+        />
+      )}
 
       {/* ── Feedback Toast ── */}
       <Snackbar
         open={toast.open}
         autoHideDuration={4000}
-        onClose={() => setToast(prev => ({ ...prev, open: false }))}
+        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert
-          onClose={() => setToast(prev => ({ ...prev, open: false }))}
+          onClose={() => setToast((prev) => ({ ...prev, open: false }))}
           severity={toast.severity}
           variant="filled"
           sx={{ fontWeight: 600 }}

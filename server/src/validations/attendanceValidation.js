@@ -11,8 +11,8 @@ const submitAttendanceSchema = z.object({
   records: z.array(
     z.object({
       studentId: z.string({ required_error: 'Student ID is required' }).regex(/^[0-9a-fA-F]{24}$/, 'Invalid Student ID format'),
-      status: z.enum(['PRESENT', 'ABSENT', 'LATE'], {
-        error_map: () => ({ message: "Status must be: PRESENT, ABSENT, or LATE" }),
+      status: z.enum(['PRESENT', 'ABSENT', 'LATE', 'MEDICAL_LEAVE', 'DUTY_LEAVE'], {
+        error_map: () => ({ message: "Status must be: PRESENT, ABSENT, LATE, MEDICAL_LEAVE, or DUTY_LEAVE" }),
       }),
     })
   ).min(1, 'At least one student attendance record must be submitted'),

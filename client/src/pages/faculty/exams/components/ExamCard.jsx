@@ -34,13 +34,15 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import StatusChip from '../../components/StatusChip';
-import { EXAM_STATUS_OPTIONS, EXAM_TYPE_OPTIONS } from '../mockData';
+import { EXAM_STATUS_OPTIONS, EXAM_TYPE_OPTIONS } from '../examConstants';
 
 /**
  * Format date string to reader-friendly local string.
  */
 const formatExamDate = (dateString) => {
+  if (!dateString) return 'N/A';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return 'N/A';
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',

@@ -26,6 +26,9 @@ router
     facultyController.createFaculty
   );
 
+router.get('/dashboard/stats', roleMiddleware('FACULTY'), facultyController.getFacultyDashboard);
+router.get('/analytics/dashboard', roleMiddleware('FACULTY'), facultyController.getFacultyAnalytics);
+
 router
   .route('/:id')
   .get(facultyController.getFacultyById) // Get single faculty profile details

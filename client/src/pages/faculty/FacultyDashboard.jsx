@@ -1,29 +1,9 @@
 // client/src/pages/faculty/FacultyDashboard.jsx
 //
-// Main Faculty Dashboard page — the container that assembles all dashboard
-// components into a cohesive layout. This is what renders at the /faculty route.
-//
-// Architecture:
-//   AppLayout (sidebar + AppBar)
-//     └── <Outlet />
-//           └── FacultyDashboard (this file)
-//                 ├── WelcomeCard
-//                 ├── StatCard × 4
-//                 ├── ProfileCard
-//                 ├── AssignedSubjects
-//                 ├── TodaysSchedule
-//                 ├── NoticesAndEvents
-//                 ├── WeeklySchedule
-//                 └── QuickActions
-//
-// Data: All data comes from mockData.js for now.
-// Future: Replace mock imports with React Query hooks that fetch from
-//         GET /api/v1/faculty/:id, GET /api/v1/timetable, etc.
-//
-// Layout follows the exact same Grid pattern as Home.jsx (Admin Dashboard).
+// Main Faculty Dashboard page with backend integration.
 
 import React from 'react';
-import { Box, Grid } from '@mui/material';
+import { Box, Grid, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import {
   MenuBook as SubjectsIcon,
@@ -48,24 +28,9 @@ import NoticesAndEvents from './components/NoticesAndEvents';
 import WeeklySchedule from './components/WeeklySchedule';
 import QuickActions from './components/QuickActions';
 
-// Mock data — will be replaced by React Query hooks in Phase 5.2+
-import {
-  mockFacultyProfile,
-  mockAssignedSubjects,
-  mockTodaysClasses,
-  mockQuickStats,
-  mockRecentNotices,
-  mockUpcomingEvents,
-  mockWeeklySchedule,
-} from './mockData';
+// Import backend hook
+import { useFacultyDashboardQuery } from '../../queries/facultyQueries';
 
-/**
- * Stat card configuration.
- *
- * mockQuickStats provides { title, value } but icons and colors are UI
- * concerns — they belong here in the page component, not in the data file.
- * React elements (icons) should never be stored in data/mock files.
- */
 const statCardConfig = [
   { icon: <SubjectsIcon sx={{ fontSize: 40 }} />, color: '#4f46e5' },
   { icon: <ClassesIcon sx={{ fontSize: 40 }} />, color: '#06b6d4' },
@@ -75,12 +40,8 @@ const statCardConfig = [
 
 export const FacultyDashboard = () => {
   const navigate = useNavigate();
+  const { data, isLoading, error } = useFacultyDashboardQuery();
 
-  /**
-   * Quick action shortcuts for faculty.
-   * Defined inside the component so onClick can use navigate().
-   * Other actions will get onClick handlers as their modules are built.
-   */
   const quickActionsConfig = [
     { id: 'attendance', label: 'Mark Attendance', description: 'Daily class attendance', icon: <MarkAttendanceIcon />, color: '#4f46e5', onClick: () => navigate('/attendance') },
     { id: 'assignment', label: 'Create Assignment', description: 'New assignment', icon: <CreateAssignmentIcon />, color: '#06b6d4', onClick: () => navigate('/assignments') },
@@ -90,17 +51,33 @@ export const FacultyDashboard = () => {
     { id: 'leave', label: 'Apply Leave', description: 'Leave request', icon: <LeaveIcon />, color: '#ef4444' },
   ];
 
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        Failed to load dashboard data. Please try again.
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ flexGrow: 1 }}>
       {/* ── Row 1: Welcome Header ── */}
       <WelcomeCard
-        facultyName={mockFacultyProfile.name}
-        designation={mockFacultyProfile.designation}
+        facultyName={data.facultyName}
+        designation={data.designation}
       />
 
       {/* ── Row 2: Quick Statistics ── */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        {mockQuickStats.map((stat, index) => (
+        {data.stats.map((stat, index) => (
           <Grid item xs={12} sm={6} md={3} key={stat.title}>
             <StatCard
               title={stat.title}
@@ -116,24 +93,24 @@ export const FacultyDashboard = () => {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* Left: Faculty Profile Card */}
         <Grid item xs={12} md={4}>
-          <ProfileCard profile={mockFacultyProfile} />
+          <ProfileCard profile={data.profile} />
         </Grid>
 
         {/* Right: Assigned Subjects List */}
         <Grid item xs={12} md={8}>
-          <AssignedSubjects subjects={mockAssignedSubjects} />
+          <AssignedSubjects subjects={data.assignedSubjects} />
         </Grid>
       </Grid>
 
       {/* ── Row 4: Today's Schedule + Notices & Events ── */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={6}>
-          <TodaysSchedule classes={mockTodaysClasses} />
+          <TodaysSchedule classes={data.todaysClasses} />
         </Grid>
         <Grid item xs={12} md={6}>
           <NoticesAndEvents
-            notices={mockRecentNotices}
-            events={mockUpcomingEvents}
+            notices={data.recentNotices}
+            events={data.upcomingEvents}
           />
         </Grid>
       </Grid>
@@ -141,7 +118,7 @@ export const FacultyDashboard = () => {
       {/* ── Row 5: Weekly Schedule ── */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12}>
-          <WeeklySchedule schedule={mockWeeklySchedule} />
+          <WeeklySchedule schedule={data.weeklySchedule} />
         </Grid>
       </Grid>
 

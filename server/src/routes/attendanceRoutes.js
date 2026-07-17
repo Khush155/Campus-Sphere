@@ -53,11 +53,16 @@ router.patch(
   asyncHandler(attendanceController.approveMedicalLeave)
 );
 
-// Raw records / retrieve existing attendance sheet
+// Retrieve existing attendance sheet (dispatch based on group parameter)
 router.get(
   '/',
   roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY, ROLES.STUDENT),
-  asyncHandler(attendanceController.getAttendance)
+  asyncHandler(async (req, res, next) => {
+    if (req.query.group) {
+      return attendanceController.getAttendanceSheet(req, res, next);
+    }
+    return attendanceController.getAttendance(req, res, next);
+  })
 );
 
 module.exports = router;

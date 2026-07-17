@@ -51,10 +51,8 @@ import { Reports } from '../pages/admin/Reports/Reports';
 
 // Newly added Expanded Faculty pages
 import MaterialsPage from '../pages/faculty/materials/MaterialsPage';
-import ProfilePage from '../pages/faculty/profile/ProfilePage';
 import AnalyticsPage from '../pages/faculty/analytics/AnalyticsPage';
 import NotificationPage from '../pages/faculty/notifications/NotificationPage';
-import SearchPage from '../pages/faculty/search/SearchPage';
 import SettingsPage from '../pages/faculty/settings/SettingsPage';
 
 // Guard for authenticated sections

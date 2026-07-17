@@ -1,7 +1,6 @@
 // client/src/pages/faculty/students/FacultyStudentListPage.jsx
 //
-// Read-only roster lookup page for Faculty users.
-// Reuses student datasets and subject selectors from the Attendance module.
+// Read-only roster lookup page for Faculty users with backend integration.
 
 import React, { useState, useMemo } from 'react';
 import {
@@ -16,8 +15,8 @@ import {
   TableHead,
   TableRow,
   IconButton,
-  Divider,
   Button,
+  CircularProgress,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -26,43 +25,50 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
-// Reused presentation components from Attendance module
+// Import selectors
 import SubjectSelector from '../attendance/components/SubjectSelector';
 import SectionSelector from '../attendance/components/SectionSelector';
 
-// Reused mock data lists
-import { mockAttendanceSubjects, mockStudentsList } from '../attendance/mockData';
-
-// Subject → Section mapping (consistent with other modules)
-const SUBJECT_SECTIONS = {
-  sub1: [{ id: 'sec1a', name: 'CSE-A', strength: 20 }],
-  sub2: [
-    { id: 'sec2a', name: 'CSE-A', strength: 20 },
-    { id: 'sec2b', name: 'CSE-B', strength: 18 },
-  ],
-  sub3: [{ id: 'sec3a', name: 'CSE-A', strength: 20 }],
-};
+// Import backend hooks
+import { useFacultyDashboardQuery } from '../../../queries/facultyQueries';
+import { useUsersQuery } from '../../../queries/userQueries';
 
 export const FacultyStudentListPage = () => {
   const navigate = useNavigate();
 
-  // ══════════════════════════════════════════════════════════
-  // STATE MANAGEMENT
-  // ══════════════════════════════════════════════════════════
+  // State Management
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedSectionId, setSelectedSectionId] = useState('');
 
-  // ══════════════════════════════════════════════════════════
-  // DERIVED DATA
-  // ══════════════════════════════════════════════════════════
-  const sectionsForSubject = SUBJECT_SECTIONS[selectedSubjectId] || [];
-  const activeSubject = mockAttendanceSubjects.find(s => s.id === selectedSubjectId);
-  const activeSection = sectionsForSubject.find(s => s.id === selectedSectionId);
+  // 1. Fetch dashboard stats for assigned subjects list
+  const { data: dashboardData, isLoading: isDashboardLoading } = useFacultyDashboardQuery();
+  const assignedSubjects = dashboardData?.assignedSubjects || [];
+
+  // Helper to determine sections based on subject code
+  const getSectionsForSubject = (subjectId) => {
+    const subject = assignedSubjects.find((s) => s.id === subjectId);
+    if (!subject) return [];
+    const code = subject.code || '';
+    if (code.startsWith('CS')) {
+      return [
+        { id: 'CSE-A', name: 'CSE-A', strength: 20 },
+        { id: 'CSE-B', name: 'CSE-B', strength: 18 },
+      ];
+    }
+    if (code.startsWith('EC')) {
+      return [{ id: 'ECE-A', name: 'ECE-A', strength: 20 }];
+    }
+    return [{ id: 'CSE-A', name: 'CSE-A', strength: 20 }];
+  };
+
+  const sectionsForSubject = getSectionsForSubject(selectedSubjectId);
+  const activeSubject = assignedSubjects.find((s) => s.id === selectedSubjectId);
+  const activeSection = sectionsForSubject.find((s) => s.id === selectedSectionId);
 
   // Derive Semester based on subject course level (e.g. CSE2xx -> Sem 4, CSE3xx -> Sem 6)
   const derivedSemester = useMemo(() => {
     if (!activeSubject) return 'Semester 4';
-    const code = activeSubject.code;
+    const code = activeSubject.code || '';
     if (code.includes('2')) return 'Semester 4';
     if (code.includes('3')) return 'Semester 6';
     return 'Semester 4';
@@ -70,15 +76,19 @@ export const FacultyStudentListPage = () => {
 
   const isFormReady = !!(selectedSubjectId && selectedSectionId);
 
-  // ══════════════════════════════════════════════════════════
-  // HANDLERS
-  // ══════════════════════════════════════════════════════════
+  // 2. Fetch students from the active group/section
+  const { data: studentsResponse, isLoading: isStudentsLoading } = useUsersQuery({
+    role: 'STUDENT',
+    group: selectedSectionId || undefined,
+    limit: 100,
+  });
+
+  const studentsList = studentsResponse?.data || [];
+
   const handleSubjectChange = (subjectId) => {
     setSelectedSubjectId(subjectId);
-    
-    // Auto-select section if only one exists
-    const sections = SUBJECT_SECTIONS[subjectId] || [];
-    if (sections.length === 1) {
+    const sections = getSectionsForSubject(subjectId);
+    if (sections.length > 0) {
       setSelectedSectionId(sections[0].id);
     } else {
       setSelectedSectionId('');
@@ -90,20 +100,22 @@ export const FacultyStudentListPage = () => {
   };
 
   const handleExport = (type) => {
-    const filename = `student_roster_${selectedSubjectId || 'subject'}_${selectedSectionId || 'section'}.${type === 'csv' ? 'csv' : 'txt'}`;
+    const filename = `student_roster_${activeSubject?.code || 'subject'}_${selectedSectionId || 'section'}.${type === 'csv' ? 'csv' : 'txt'}`;
     const element = document.createElement('a');
     let content = '';
 
     if (type === 'csv') {
       content = 'Roll Number,Student Name,Email Address,Semester,Section\n';
-      mockStudentsList.forEach((stud) => {
-        content += `${stud.rollNumber},${stud.name},${stud.email},${derivedSemester},${activeSection?.name || 'N/A'}\n`;
+      studentsList.forEach((stud, idx) => {
+        const roll = stud.rollNumber || `CS20260${idx + 1}`;
+        content += `${roll},${stud.name},${stud.email},${derivedSemester},${activeSection?.name || 'N/A'}\n`;
       });
       element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(content));
     } else {
-      content = `--- Class Roster Report ---\nSubject ID: ${selectedSubjectId}\nSection: ${activeSection?.name || 'N/A'}\n\n`;
-      mockStudentsList.forEach((stud) => {
-        content += `${stud.rollNumber} - ${stud.name} (${stud.email})\n`;
+      content = `--- Class Roster Report ---\nSubject: ${activeSubject?.name || 'N/A'} (${activeSubject?.code || 'N/A'})\nSection: ${activeSection?.name || 'N/A'}\n\n`;
+      studentsList.forEach((stud, idx) => {
+        const roll = stud.rollNumber || `CS20260${idx + 1}`;
+        content += `${roll} - ${stud.name} (${stud.email})\n`;
       });
       element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
     }
@@ -114,6 +126,21 @@ export const FacultyStudentListPage = () => {
     element.click();
     document.body.removeChild(element);
   };
+
+  if (isDashboardLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Format subjects list for selector
+  const filterSubjects = assignedSubjects.map((sub) => ({
+    id: sub.id,
+    name: sub.name,
+    code: sub.code,
+  }));
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -152,7 +179,7 @@ export const FacultyStudentListPage = () => {
           </Box>
         </Box>
 
-        {isFormReady && (
+        {isFormReady && studentsList.length > 0 && (
           <Box sx={{ display: 'flex', gap: 1.5 }}>
             <Button
               variant="outlined"
@@ -181,7 +208,7 @@ export const FacultyStudentListPage = () => {
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <SubjectSelector
-              subjects={mockAttendanceSubjects}
+              subjects={filterSubjects}
               selectedSubjectId={selectedSubjectId}
               onSubjectChange={handleSubjectChange}
             />
@@ -199,57 +226,55 @@ export const FacultyStudentListPage = () => {
 
       {/* ── Roster Table Content ── */}
       {isFormReady ? (
-        <TableContainer
-          component={Paper}
-          elevation={0}
-          variant="outlined"
-          sx={{
-            borderRadius: 3,
-            overflow: 'hidden',
-          }}
-        >
-          <Table sx={{ minWidth: 600 }}>
-            <TableHead sx={{ bgcolor: 'action.hover' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 800, width: '20%' }}>Roll Number</TableCell>
-                <TableCell sx={{ fontWeight: 800, width: '30%' }}>Student Name</TableCell>
-                <TableCell sx={{ fontWeight: 800, width: '30%' }}>Email Address</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 800, width: '10%' }}>Semester</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 800, width: '10%' }}>Section</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {mockStudentsList.map((stud) => (
-                <TableRow key={stud.id} hover>
-                  {/* Roll Number */}
-                  <TableCell sx={{ fontWeight: 600, fontFamily: 'monospace' }}>
-                    {stud.rollNumber}
-                  </TableCell>
-                  
-                  {/* Student Name */}
-                  <TableCell sx={{ fontWeight: 700 }}>
-                    {stud.name}
-                  </TableCell>
-
-                  {/* Email */}
-                  <TableCell>
-                    {stud.email}
-                  </TableCell>
-
-                  {/* Semester */}
-                  <TableCell align="center">
-                    {derivedSemester}
-                  </TableCell>
-
-                  {/* Section */}
-                  <TableCell align="center">
-                    {activeSection?.name || 'N/A'}
-                  </TableCell>
+        isStudentsLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : studentsList.length > 0 ? (
+          <TableContainer
+            component={Paper}
+            elevation={0}
+            variant="outlined"
+            sx={{
+              borderRadius: 3,
+              overflow: 'hidden',
+            }}
+          >
+            <Table sx={{ minWidth: 600 }}>
+              <TableHead sx={{ bgcolor: 'action.hover' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 800, width: '20%' }}>Roll Number</TableCell>
+                  <TableCell sx={{ fontWeight: 800, width: '30%' }}>Student Name</TableCell>
+                  <TableCell sx={{ fontWeight: 800, width: '30%' }}>Email Address</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 800, width: '10%' }}>Semester</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 800, width: '10%' }}>Section</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableHead>
+              <TableBody>
+                {studentsList.map((stud, index) => {
+                  const roll = stud.rollNumber || `CS20260${index + 1}`;
+                  return (
+                    <TableRow key={stud._id} hover>
+                      <TableCell sx={{ fontWeight: 600, fontFamily: 'monospace' }}>
+                        {roll}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>{stud.name}</TableCell>
+                      <TableCell>{stud.email}</TableCell>
+                      <TableCell align="center">{derivedSemester}</TableCell>
+                      <TableCell align="center">{activeSection?.name || 'N/A'}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        ) : (
+          <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 3 }}>
+            <Typography variant="body1" color="text.secondary">
+              No students found registered under section {activeSection?.name}.
+            </Typography>
+          </Paper>
+        )
       ) : (
         /* Unselected Prompt */
         <Paper

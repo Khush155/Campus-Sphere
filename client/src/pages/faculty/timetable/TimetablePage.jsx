@@ -1,19 +1,37 @@
 // client/src/pages/faculty/timetable/TimetablePage.jsx
 //
-// Container page orchestrating the Faculty Timetable module.
-// Consumes mock timetable data and forwards it to the presentation grid.
+// Container page orchestrating the Faculty Timetable module with backend integration.
 
-import React from 'react';
-import { Box, Typography, IconButton } from '@mui/material';
+import React, { useMemo } from 'react';
+import { Box, Typography, IconButton, CircularProgress } from '@mui/material';
 import { ArrowBack as BackIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 // Child components
 import TimetableGrid from './components/TimetableGrid';
-import { mockTimetable } from './mockData';
+import { useTimetableQuery } from '../../../queries/timetableQueries';
 
 export const TimetablePage = () => {
   const navigate = useNavigate();
+
+  // Fetch timetable slots specifically for Faculty
+  const { data: rawTimetable = [], isLoading } = useTimetableQuery({ isFaculty: true });
+
+  // Map backend timetable slots to display format expectations
+  const formattedTimetable = useMemo(() => {
+    return rawTimetable.map((s) => ({
+      id: s._id,
+      dayOfWeek: s.dayOfWeek,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      room: s.room || 'LH-201',
+      group: s.group || 'CSE-A',
+      subjectId: s.subjectId?._id || s.subjectId,
+      subjectCode: s.subjectId?.code || 'CS301',
+      subjectName: s.subjectId?.name || 'Assigned Subject',
+      classType: 'LECTURE',
+    }));
+  }, [rawTimetable]);
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -50,7 +68,13 @@ export const TimetablePage = () => {
       </Box>
 
       {/* ── Weekly Schedule Grid ── */}
-      <TimetableGrid timetableData={mockTimetable} />
+      {isLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TimetableGrid timetableData={formattedTimetable} />
+      )}
     </Box>
   );
 };

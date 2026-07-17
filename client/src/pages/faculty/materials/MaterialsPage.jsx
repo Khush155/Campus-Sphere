@@ -1,7 +1,6 @@
 // client/src/pages/faculty/materials/MaterialsPage.jsx
 //
-// Page component for managing Faculty Course Materials.
-// Supports listing, filtering, mocking uploads, and deletion of notes, PDFs, PPTs, and links.
+// Page component for managing Faculty Course Materials with backend integration.
 
 import React, { useState } from 'react';
 import {
@@ -23,6 +22,8 @@ import {
   Paper,
   Snackbar,
   Alert,
+  Divider,
+  CircularProgress,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -39,20 +40,13 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
-// Reused components & mock lists from other modules
-import SubjectSelector from '../attendance/components/SubjectSelector';
-import SectionSelector from '../attendance/components/SectionSelector';
-import { mockAttendanceSubjects } from '../attendance/mockData';
-import { mockMaterialsList } from './mockMaterials';
-
-const SUBJECT_SECTIONS = {
-  sub1: [{ id: 'sec1a', name: 'CSE-A' }],
-  sub2: [
-    { id: 'sec2a', name: 'CSE-A' },
-    { id: 'sec2b', name: 'CSE-B' },
-  ],
-  sub3: [{ id: 'sec3a', name: 'CSE-A' }],
-};
+// Import backend hooks
+import {
+  useFacultyDashboardQuery,
+  useMaterialsQuery,
+  useUploadMaterialMutation,
+  useDeleteMaterialMutation,
+} from '../../../queries/facultyQueries';
 
 export const MaterialsPage = () => {
   const navigate = useNavigate();
@@ -60,9 +54,8 @@ export const MaterialsPage = () => {
   // State Management
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedSectionId, setSelectedSectionId] = useState('');
-  const [materials, setMaterials] = useState(mockMaterialsList);
 
-  // Dialog States
+  // Dialog & Toast States
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isToastOpen, setIsToastOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
@@ -75,33 +68,60 @@ export const MaterialsPage = () => {
     description: '',
   });
 
-  // Filters Cascade
-  const sectionsForSubject = SUBJECT_SECTIONS[selectedSubjectId] || [];
+  // 1. Fetch dashboard stats for assigned subjects list
+  const { data: dashboardData, isLoading: isDashboardLoading } = useFacultyDashboardQuery();
+
+  const assignedSubjects = dashboardData?.assignedSubjects || [];
+
+  // Helper to determine sections based on subject code
+  const getSectionsForSubject = (subjectId) => {
+    const subject = assignedSubjects.find((s) => s.id === subjectId);
+    if (!subject) return [];
+    const code = subject.code || '';
+    if (code.startsWith('CS')) {
+      return [
+        { id: 'CSE-A', name: 'CSE-A' },
+        { id: 'CSE-B', name: 'CSE-B' },
+      ];
+    }
+    if (code.startsWith('EC')) {
+      return [{ id: 'ECE-A', name: 'ECE-A' }];
+    }
+    return [{ id: 'CSE-A', name: 'CSE-A' }];
+  };
+
+  const sectionsForSubject = getSectionsForSubject(selectedSubjectId);
+
+  // 2. Fetch materials from backend filtered by active selections
+  const { data: materialsList = [], isLoading: isMaterialsLoading } = useMaterialsQuery({
+    subjectId: selectedSubjectId || undefined,
+    group: selectedSectionId || undefined,
+  });
+
+  const uploadMaterialMutation = useUploadMaterialMutation();
+  const deleteMaterialMutation = useDeleteMaterialMutation();
 
   const handleSubjectChange = (subjectId) => {
     setSelectedSubjectId(subjectId);
-    const sections = SUBJECT_SECTIONS[subjectId] || [];
-    if (sections.length === 1) {
+    const sections = getSectionsForSubject(subjectId);
+    if (sections.length > 0) {
       setSelectedSectionId(sections[0].id);
     } else {
       setSelectedSectionId('');
     }
   };
 
-  // Filtered Materials
-  const filteredMaterials = materials.filter((item) => {
-    const subMatch = !selectedSubjectId || item.subjectId === selectedSubjectId;
-    const secMatch = !selectedSectionId || item.sectionId === selectedSectionId;
-    return subMatch && secMatch;
-  });
+  const handleSectionChange = (sectionId) => {
+    setSelectedSectionId(sectionId);
+  };
 
   // Action handlers
   const handleUploadOpen = () => {
     setNewMaterial({
       title: '',
       type: 'PDF',
-      subjectId: selectedSubjectId,
-      sectionId: selectedSectionId,
+      subjectId: selectedSubjectId || (assignedSubjects[0]?.id || ''),
+      sectionId: selectedSectionId || (getSectionsForSubject(assignedSubjects[0]?.id || '')[0]?.id || ''),
       url: '',
       description: '',
     });
@@ -118,33 +138,41 @@ export const MaterialsPage = () => {
       return;
     }
 
-    const subObj = mockAttendanceSubjects.find(s => s.id === newMaterial.subjectId);
-    const secObj = (SUBJECT_SECTIONS[newMaterial.subjectId] || []).find(s => s.id === newMaterial.sectionId);
-
-    const created = {
-      id: `mat${Date.now()}`,
+    const payload = {
       title: newMaterial.title,
-      subjectId: newMaterial.subjectId,
-      subjectCode: subObj?.code || 'N/A',
-      sectionId: newMaterial.sectionId,
-      sectionName: secObj?.name || 'N/A',
       type: newMaterial.type,
-      url: newMaterial.type === 'NOTE' ? '' : newMaterial.url || 'https://campus.edu/files/resource',
-      fileSize: newMaterial.type === 'NOTE' ? '' : '1.5 MB',
+      subjectId: newMaterial.subjectId,
+      semester: 3, // Default for seeded students
+      group: newMaterial.sectionId,
+      url: newMaterial.type === 'NOTE' ? 'N/A' : newMaterial.url || 'https://campus.edu/files/resource',
       description: newMaterial.description,
-      uploadedAt: new Date().toISOString().split('T')[0],
+      fileSize: newMaterial.type === 'NOTE' ? '0 KB' : '1.5 MB',
     };
 
-    setMaterials([created, ...materials]);
-    setIsUploadOpen(false);
-    setToastMsg('Material uploaded successfully!');
-    setIsToastOpen(true);
+    uploadMaterialMutation.mutate(payload, {
+      onSuccess: () => {
+        setIsUploadOpen(false);
+        setToastMsg('Material uploaded successfully!');
+        setIsToastOpen(true);
+      },
+      onError: (err) => {
+        alert(`Upload failed: ${err.response?.data?.message || err.message}`);
+      },
+    });
   };
 
   const handleDeleteMaterial = (id) => {
-    setMaterials(materials.filter((m) => m.id !== id));
-    setToastMsg('Material deleted successfully.');
-    setIsToastOpen(true);
+    if (window.confirm('Are you sure you want to delete this resource?')) {
+      deleteMaterialMutation.mutate(id, {
+        onSuccess: () => {
+          setToastMsg('Material deleted successfully.');
+          setIsToastOpen(true);
+        },
+        onError: (err) => {
+          alert(`Delete failed: ${err.response?.data?.message || err.message}`);
+        },
+      });
+    }
   };
 
   // Render Format Icon Helper
@@ -162,6 +190,21 @@ export const MaterialsPage = () => {
         return <LinkIcon color="action" sx={{ fontSize: 32 }} />;
     }
   };
+
+  if (isDashboardLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Map backend subjects to filter components expectations
+  const filterSubjects = assignedSubjects.map((sub) => ({
+    id: sub.id,
+    name: sub.name,
+    code: sub.code,
+  }));
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -205,28 +248,56 @@ export const MaterialsPage = () => {
       <Paper sx={{ p: 3, mb: 3 }} elevation={0} variant="outlined">
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
-            <SubjectSelector
-              subjects={mockAttendanceSubjects}
-              selectedSubjectId={selectedSubjectId}
-              onSubjectChange={handleSubjectChange}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>Select Subject</Typography>
+              <TextField
+                select
+                fullWidth
+                value={selectedSubjectId}
+                onChange={(e) => handleSubjectChange(e.target.value)}
+                displayEmpty
+              >
+                <MenuItem value="">All Subjects</MenuItem>
+                {filterSubjects.map((sub) => (
+                  <MenuItem key={sub.id} value={sub.id}>
+                    {sub.code} - {sub.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Box>
           </Grid>
           <Grid item xs={12} md={6}>
-            <SectionSelector
-              sections={sectionsForSubject}
-              selectedSectionId={selectedSectionId}
-              onSectionChange={handleSectionChange}
-              disabled={!selectedSubjectId}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>Select Section</Typography>
+              <TextField
+                select
+                fullWidth
+                disabled={!selectedSubjectId}
+                value={selectedSectionId}
+                onChange={(e) => handleSectionChange(e.target.value)}
+                displayEmpty
+              >
+                <MenuItem value="">All Sections</MenuItem>
+                {sectionsForSubject.map((sec) => (
+                  <MenuItem key={sec.id} value={sec.id}>
+                    {sec.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Box>
           </Grid>
         </Grid>
       </Paper>
 
       {/* ── Materials Grid ── */}
-      {filteredMaterials.length > 0 ? (
+      {isMaterialsLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+          <CircularProgress />
+        </Box>
+      ) : materialsList.length > 0 ? (
         <Grid container spacing={3}>
-          {filteredMaterials.map((item) => (
-            <Grid item xs={12} sm={6} md={4} key={item.id}>
+          {materialsList.map((item) => (
+            <Grid item xs={12} sm={6} md={4} key={item._id}>
               <Card
                 variant="outlined"
                 sx={{
@@ -248,7 +319,7 @@ export const MaterialsPage = () => {
                         {item.title}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Uploaded on: {item.uploadedAt}
+                        Uploaded on: {new Date(item.createdAt).toLocaleDateString()}
                       </Typography>
                     </Box>
                   </Box>
@@ -266,8 +337,8 @@ export const MaterialsPage = () => {
 
                   {/* Subject and Section Chips */}
                   <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-                    <Chip label={item.subjectCode} size="small" variant="outlined" sx={{ fontWeight: 600 }} />
-                    <Chip label={item.sectionName} size="small" variant="outlined" sx={{ fontWeight: 600 }} />
+                    <Chip label={item.subjectId?.code || 'SUB'} size="small" variant="outlined" sx={{ fontWeight: 600 }} />
+                    <Chip label={item.group} size="small" variant="outlined" sx={{ fontWeight: 600 }} />
                   </Box>
                 </CardContent>
                 <Divider />
@@ -288,7 +359,7 @@ export const MaterialsPage = () => {
                   )}
 
                   {/* Delete Button */}
-                  <IconButton onClick={() => handleDeleteMaterial(item.id)} size="small" color="error">
+                  <IconButton onClick={() => handleDeleteMaterial(item._id)} size="small" color="error">
                     <DeleteIcon fontSize="small" />
                   </IconButton>
                 </CardActions>
@@ -363,14 +434,15 @@ export const MaterialsPage = () => {
                 value={newMaterial.subjectId}
                 onChange={(e) => {
                   const subId = e.target.value;
+                  const sections = getSectionsForSubject(subId);
                   setNewMaterial({
                     ...newMaterial,
                     subjectId: subId,
-                    sectionId: (SUBJECT_SECTIONS[subId] || [])[0]?.id || '',
+                    sectionId: sections[0]?.id || '',
                   });
                 }}
               >
-                {mockAttendanceSubjects.map((sub) => (
+                {assignedSubjects.map((sub) => (
                   <MenuItem key={sub.id} value={sub.id}>
                     {sub.code} - {sub.name}
                   </MenuItem>
@@ -389,7 +461,7 @@ export const MaterialsPage = () => {
                 value={newMaterial.sectionId}
                 onChange={(e) => setNewMaterial({ ...newMaterial, sectionId: e.target.value })}
               >
-                {(SUBJECT_SECTIONS[newMaterial.subjectId] || []).map((sec) => (
+                {getSectionsForSubject(newMaterial.subjectId).map((sec) => (
                   <MenuItem key={sec.id} value={sec.id}>
                     {sec.name}
                   </MenuItem>
@@ -432,8 +504,13 @@ export const MaterialsPage = () => {
           <Button onClick={handleUploadClose} color="inherit">
             Cancel
           </Button>
-          <Button onClick={handleSaveMaterial} variant="contained" sx={{ bgcolor: '#4f46e5' }}>
-            Upload
+          <Button
+            onClick={handleSaveMaterial}
+            variant="contained"
+            disabled={uploadMaterialMutation.isPending}
+            sx={{ bgcolor: '#4f46e5' }}
+          >
+            {uploadMaterialMutation.isPending ? 'Uploading...' : 'Upload'}
           </Button>
         </DialogActions>
       </Dialog>
