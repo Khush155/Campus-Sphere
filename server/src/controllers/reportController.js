@@ -8,12 +8,15 @@ const { successResponse } = require('../utils/apiResponse');
  * Returns registered report keys, descriptions, and filters specifications.
  */
 const getReportTypes = async (req, res, _next) => {
-  const types = Object.entries(reportService.REPORT_TYPES).map(([key, val]) => ({
+  let types = Object.entries(reportService.REPORT_TYPES).map(([key, val]) => ({
     key,
     label: val.label,
     description: val.description,
     filtersSchema: val.filtersSchema,
   }));
+  if (req.user.role === 'COLLEGE_ADMIN') {
+    types = types.filter((t) => t.key !== 'AUDIT_LOG_EXPORT');
+  }
   return successResponse(res, 200, 'Report types retrieved successfully.', types);
 };
 
@@ -29,6 +32,14 @@ const generateReport = async (req, res, _next) => {
       'Report type and format are required parameters.',
       400,
       ERROR_CODES.VALIDATION_ERROR
+    );
+  }
+
+  if (req.user.role === 'COLLEGE_ADMIN' && type === 'AUDIT_LOG_EXPORT') {
+    throw new AppError(
+      'College Admins do not have permission to access Audit Log reports.',
+      403,
+      ERROR_CODES.FORBIDDEN
     );
   }
 

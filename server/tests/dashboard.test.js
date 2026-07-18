@@ -10,6 +10,7 @@ const ROLES = require('../src/constants/roles');
 
 let mongoServer;
 let adminToken;
+let collegeAdminToken;
 let regularToken;
 
 beforeAll(async () => {
@@ -24,6 +25,14 @@ beforeAll(async () => {
     role: ROLES.SUPER_ADMIN,
   });
 
+  // Create COLLEGE_ADMIN
+  await User.create({
+    name: 'College Admin',
+    email: 'college-admin@campussphere.edu',
+    password: 'password123',
+    role: ROLES.COLLEGE_ADMIN,
+  });
+
   // Create non-admin for 403 checks
   await User.create({
     name: 'Regular Faculty',
@@ -36,6 +45,11 @@ beforeAll(async () => {
     .post('/api/v1/auth/login')
     .send({ email: 'dashboard-admin@campussphere.edu', password: 'password123' });
   adminToken = adminLogin.body.data.accessToken;
+
+  const collegeAdminLogin = await request(app)
+    .post('/api/v1/auth/login')
+    .send({ email: 'college-admin@campussphere.edu', password: 'password123' });
+  collegeAdminToken = collegeAdminLogin.body.data.accessToken;
 
   const regularLogin = await request(app)
     .post('/api/v1/auth/login')
@@ -100,25 +114,46 @@ describe('Dashboard API — empty database (fresh install) state', () => {
 // ─── Role Guard Tests ─────────────────────────────────────────────────────────
 
 describe('Dashboard API — role guard (non-admin → 403)', () => {
-  it('GET /stats returns 403 for non-SUPER_ADMIN', async () => {
+  it('GET /stats returns 403 for non-admins', async () => {
     const res = await request(app)
       .get('/api/v1/admin/dashboard/stats')
       .set('Authorization', `Bearer ${regularToken}`);
     expect(res.status).toBe(403);
   });
 
-  it('GET /department-distribution returns 403 for non-SUPER_ADMIN', async () => {
+  it('GET /stats returns 200 for COLLEGE_ADMIN', async () => {
+    const res = await request(app)
+      .get('/api/v1/admin/dashboard/stats')
+      .set('Authorization', `Bearer ${collegeAdminToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it('GET /department-distribution returns 403 for non-admins', async () => {
     const res = await request(app)
       .get('/api/v1/admin/dashboard/department-distribution')
       .set('Authorization', `Bearer ${regularToken}`);
     expect(res.status).toBe(403);
   });
 
-  it('GET /insights returns 403 for non-SUPER_ADMIN', async () => {
+  it('GET /department-distribution returns 200 for COLLEGE_ADMIN', async () => {
+    const res = await request(app)
+      .get('/api/v1/admin/dashboard/department-distribution')
+      .set('Authorization', `Bearer ${collegeAdminToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it('GET /insights returns 403 for non-admins', async () => {
     const res = await request(app)
       .get('/api/v1/admin/insights')
       .set('Authorization', `Bearer ${regularToken}`);
     expect(res.status).toBe(403);
+  });
+
+  it('GET /insights returns 200 for COLLEGE_ADMIN', async () => {
+    const res = await request(app)
+      .get('/api/v1/admin/insights')
+      .set('Authorization', `Bearer ${collegeAdminToken}`);
+    expect(res.status).toBe(200);
   });
 
   it('all dashboard endpoints return 401 when unauthenticated', async () => {
@@ -266,5 +301,32 @@ describe('Dashboard API — populated data state', () => {
     expect(pendingInsight).toBeTruthy();
     expect(pendingInsight.message).toMatch(/never logged in/);
     expect(pendingInsight.severity).toBe('info');
+  });
+
+  describe('COLLEGE_ADMIN Dashboard Restrictions & Notices Feed', () => {
+    it('should block COLLEGE_ADMIN from fetching raw system audit logs with 403', async () => {
+      const res = await request(app)
+        .get('/api/v1/audit-logs')
+        .set('Authorization', `Bearer ${collegeAdminToken}`);
+
+      expect(res.status).toBe(403);
+    });
+
+    it('should block COLLEGE_ADMIN from fetching users audit logs with 403', async () => {
+      const res = await request(app)
+        .get('/api/v1/users/audit-logs')
+        .set('Authorization', `Bearer ${collegeAdminToken}`);
+
+      expect(res.status).toBe(403);
+    });
+
+    it('should allow COLLEGE_ADMIN to fetch recent notices on the dashboard', async () => {
+      const res = await request(app)
+        .get('/api/v1/admin/dashboard/recent-notices')
+        .set('Authorization', `Bearer ${collegeAdminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
   });
 });

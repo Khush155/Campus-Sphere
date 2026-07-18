@@ -9,6 +9,7 @@ const { logAuditEvent } = require('../utils/auditLogger');
 const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
 const logger = require('../utils/logger');
+const { assertNoPrivilegeEscalation } = require('../utils/privilegeGuard');
 
 /**
  * Checks for HOD assignment conflicts within a department.
@@ -51,11 +52,17 @@ const checkHodConflict = async (departmentId, shift, excludeUserId = null) => {
 /**
  * Fetch a paginated, filtered, and searchable list of users.
  */
-const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, search }) => {
+const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, search }, actorRole) => {
   const filter = {};
 
   if (role) {
-    filter.role = role;
+    if (actorRole === 'COLLEGE_ADMIN' && ['SUPER_ADMIN', 'COLLEGE_ADMIN'].includes(role)) {
+      filter.role = 'NONE';
+    } else {
+      filter.role = role;
+    }
+  } else if (actorRole === 'COLLEGE_ADMIN') {
+    filter.role = { $nin: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] };
   }
 
   if (departmentId) {
@@ -124,11 +131,17 @@ const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, 
 /**
  * Update user profile parameters securely.
  */
-const updateUserDetails = async (userId, updateData, adminUserId, meta) => {
+const updateUserDetails = async (userId, updateData, adminUserId, meta, actorRole) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new AppError('User not found.', 404, ERROR_CODES.NOT_FOUND);
   }
+
+  assertNoPrivilegeEscalation({
+    actorRole,
+    targetCurrentRole: user.role,
+    targetNewRole: updateData.role,
+  });
 
   const before = user.toObject();
 
@@ -262,11 +275,16 @@ const updateUserDetails = async (userId, updateData, adminUserId, meta) => {
 /**
  * Deactivates (soft deletes) a user account.
  */
-const deleteUserAccount = async (userId, adminUserId, meta) => {
+const deleteUserAccount = async (userId, adminUserId, meta, actorRole) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new AppError('User not found.', 404, ERROR_CODES.NOT_FOUND);
   }
+
+  assertNoPrivilegeEscalation({
+    actorRole,
+    targetCurrentRole: user.role,
+  });
 
   const before = { status: user.status };
   user.status = 'INACTIVE';
@@ -381,7 +399,7 @@ const getInstitutionalInsights = async () => {
 /**
  * Retrieve details for a single user by ID.
  */
-const getUserDetails = async (userId) => {
+const getUserDetails = async (userId, actorRole) => {
   const u = await User.findById(userId)
     .select('-password -refreshTokens -resetPasswordToken -resetPasswordExpire')
     .populate('departmentId', 'name code')
@@ -390,6 +408,14 @@ const getUserDetails = async (userId) => {
   
   if (!u) {
     throw new AppError('User not found.', 404, ERROR_CODES.NOT_FOUND);
+  }
+
+  if (actorRole === 'COLLEGE_ADMIN' && ['SUPER_ADMIN', 'COLLEGE_ADMIN'].includes(u.role)) {
+    throw new AppError(
+      'College Admins cannot view Super Admin or College Admin details.',
+      403,
+      ERROR_CODES.FORBIDDEN
+    );
   }
 
   return {

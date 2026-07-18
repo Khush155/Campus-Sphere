@@ -6,6 +6,7 @@ const logger = require('../utils/logger');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const { checkHodConflict } = require('./userService');
+const { assertNoPrivilegeEscalation } = require('../utils/privilegeGuard');
 
 const MAX_CONCURRENT_SESSIONS = 5;
 
@@ -13,8 +14,10 @@ const MAX_CONCURRENT_SESSIONS = 5;
  * Register a new user in the system.
  * Typically invoked by SUPER_ADMIN or COLLEGE_ADMIN.
  */
-const registerUser = async (userData) => {
+const registerUser = async (userData, actorRole) => {
   const { name, email, password, role, departmentId, courseId, branchId, semester, shift } = userData;
+
+  assertNoPrivilegeEscalation({ actorRole, targetNewRole: role });
 
   // 1. Check if user already exists
   const existingUser = await User.findOne({ email });

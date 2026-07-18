@@ -265,4 +265,117 @@ describe('User Administration API tests', () => {
     expect(res.body.data[0]).toHaveProperty('actorName');
     expect(res.body.data[0]).toHaveProperty('action');
   });
+
+  describe('College Admin Access & Privilege Guards', () => {
+    let caToken;
+    let caUser;
+    let studentUser;
+    let superAdminUser;
+
+    beforeAll(async () => {
+      superAdminUser = await User.findOne({ role: ROLES.SUPER_ADMIN });
+
+      caUser = await User.create({
+        name: 'College Admin',
+        email: 'collegeadmin_test@campussphere.edu',
+        password: 'password123',
+        role: ROLES.COLLEGE_ADMIN,
+      });
+
+      studentUser = await User.create({
+        name: 'Test Student',
+        email: 'student_test@campussphere.edu',
+        password: 'password123',
+        role: ROLES.STUDENT,
+      });
+
+      const caLogin = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: caUser.email, password: 'password123' });
+      caToken = caLogin.body.data.accessToken;
+    });
+
+    it('should reject COLLEGE_ADMIN attempting to update a SUPER_ADMIN profile with 403', async () => {
+      const res = await request(app)
+        .put(`/api/v1/users/${superAdminUser._id}`)
+        .set('Authorization', `Bearer ${caToken}`)
+        .send({ name: 'Hacked Super Admin' });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain('College Admins cannot modify');
+    });
+
+    it('should reject COLLEGE_ADMIN attempting to register an admin-tier account with 403', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/register')
+        .set('Authorization', `Bearer ${caToken}`)
+        .send({
+          name: 'New College Admin',
+          email: 'newca@campussphere.edu',
+          password: 'password123',
+          role: ROLES.COLLEGE_ADMIN,
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain('College Admins cannot assign');
+    });
+
+    it('should reject COLLEGE_ADMIN attempting to promote a STUDENT to SUPER_ADMIN with 403', async () => {
+      const res = await request(app)
+        .put(`/api/v1/users/${studentUser._id}`)
+        .set('Authorization', `Bearer ${caToken}`)
+        .send({ role: ROLES.SUPER_ADMIN });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain('College Admins cannot assign');
+    });
+
+    it('should filter out SUPER_ADMIN and COLLEGE_ADMIN roles when COLLEGE_ADMIN lists users', async () => {
+      const res = await request(app)
+        .get('/api/v1/users')
+        .query({ role: ROLES.SUPER_ADMIN })
+        .set('Authorization', `Bearer ${caToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(0);
+    });
+
+    it('should reject COLLEGE_ADMIN requesting direct details of a SUPER_ADMIN with 403', async () => {
+      const res = await request(app)
+        .get(`/api/v1/users/${superAdminUser._id}`)
+        .set('Authorization', `Bearer ${caToken}`);
+
+      expect(res.status).toBe(403);
+    });
+
+    it('should allow legitimate COLLEGE_ADMIN operations like student creation and editing faculty', async () => {
+      // 1. Create student
+      const createRes = await request(app)
+        .post('/api/v1/auth/register')
+        .set('Authorization', `Bearer ${caToken}`)
+        .send({
+          name: 'Legit Student',
+          email: 'legit_student@campussphere.edu',
+          password: 'password123',
+          role: ROLES.STUDENT,
+        });
+
+      expect(createRes.status).toBe(201);
+
+      // 2. Edit faculty
+      const faculty = await User.create({
+        name: 'Faculty Teacher',
+        email: 'teacher@campussphere.edu',
+        password: 'password123',
+        role: ROLES.FACULTY,
+      });
+
+      const editRes = await request(app)
+        .put(`/api/v1/users/${faculty._id}`)
+        .set('Authorization', `Bearer ${caToken}`)
+        .send({ name: 'Faculty Professor' });
+
+      expect(editRes.status).toBe(200);
+    });
+  });
 });

@@ -7,9 +7,9 @@ const ROLES = require('../constants/roles');
 
 const router = express.Router();
 
-// All dashboard routes require authentication and SUPER_ADMIN role
+// All dashboard routes require authentication and SUPER_ADMIN or COLLEGE_ADMIN role
 router.use(authMiddleware);
-router.use(roleMiddleware(ROLES.SUPER_ADMIN));
+router.use(roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN));
 
 // KPI aggregation counts
 router.get('/dashboard/stats', asyncHandler(dashboardController.getStats));
@@ -19,5 +19,8 @@ router.get('/dashboard/department-distribution', asyncHandler(dashboardControlle
 
 // Institutional configuration insights / alerts
 router.get('/insights', asyncHandler(dashboardController.getInsights));
+
+// Recent notices for College Admin dashboard
+router.get('/dashboard/recent-notices', asyncHandler(dashboardController.getRecentNotices));
 
 module.exports = router;

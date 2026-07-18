@@ -42,6 +42,7 @@ import {
   useDashboardStatsQuery,
   useDepartmentDistributionQuery,
   useDashboardInsightsQuery,
+  useRecentNoticesQuery,
 } from '../../queries/dashboardQueries';
 import { useAuditLogsQuery } from '../../queries/auditLogQueries';
 import { useAuth } from '../../contexts/AuthContext';
@@ -239,11 +240,19 @@ export const AdminDashboard = () => {
     isError: errorInsights,
   } = useDashboardInsightsQuery();
 
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+
   const {
     data: auditLogs,
     isLoading: loadingAudits,
     isError: errorAudits,
-  } = useAuditLogsQuery({ limit: 8 });
+  } = useAuditLogsQuery({ limit: 8 }, { enabled: isSuperAdmin });
+
+  const {
+    data: recentNotices,
+    isLoading: loadingNotices,
+    isError: errorNotices,
+  } = useRecentNoticesQuery({ enabled: !isSuperAdmin });
 
   const { data: activeSession, isLoading: loadingSession } = useActiveSessionQuery();
 
@@ -659,7 +668,7 @@ export const AdminDashboard = () => {
         </Grid>
       </Grid>
 
-      {/* ── 5. Recent Activity ────────────────────────────────────────────── */}
+      {/* ── 5. Recent Activity / Notices ────────────────────────────────────────────── */}
       <Card
         sx={{
           p: 3,
@@ -670,79 +679,183 @@ export const AdminDashboard = () => {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-          <HistoryOutlined sx={{ color: theme.palette.primary.main }} />
+          {isSuperAdmin ? (
+            <HistoryOutlined sx={{ color: theme.palette.primary.main }} />
+          ) : (
+            <CampaignOutlined sx={{ color: theme.palette.primary.main }} />
+          )}
           <Typography
             variant="h6"
             sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, color: theme.palette.ink[900] }}
           >
-            Recent Activity
+            {isSuperAdmin ? 'Recent Activity' : 'Recent Announcements'}
           </Typography>
         </Box>
         <Divider sx={{ mb: 2 }} />
 
-        {loadingAudits ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {[...Array(4)].map((_, i) => (
-              <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Skeleton variant="text" width="65%" height={18} />
-                <Skeleton variant="text" width="10%" height={18} />
-              </Box>
-            ))}
-          </Box>
-        ) : errorAudits ? (
-          <Typography sx={{ color: theme.palette.signal.error, fontSize: '0.85rem', textAlign: 'center', py: 3 }}>
-            {"Couldn't load recent activity."}
-          </Typography>
-        ) : !auditLogs?.logs || auditLogs.logs.length === 0 ? (
-          <Typography sx={{ color: theme.palette.text.secondary, fontSize: '0.85rem', py: 3, textAlign: 'center' }}>
-            No activity yet — actions like user updates, session activations, and notice dispatches will appear here.
-          </Typography>
-        ) : (
-          <List sx={{ p: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {auditLogs.logs.map((log, idx) => (
-              <Box key={log._id || idx}>
-                {idx > 0 && <Divider sx={{ my: 2, opacity: 0.4 }} />}
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontFamily: theme.typography.body1.fontFamily,
-                        fontSize: '0.88rem',
-                        color: theme.palette.text.primary,
-                        fontWeight: 500,
-                      }}
-                    >
-                      {humanizeAuditAction(log)}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontFamily: theme.typography.mono.fontFamily,
-                        fontSize: '0.68rem',
-                        color: theme.palette.text.secondary,
-                        textTransform: 'uppercase',
-                        mt: 0.5,
-                      }}
-                    >
-                      {log.action}
-                    </Typography>
-                  </Box>
-                  <Tooltip title={new Date(log.timestamp).toLocaleString()} arrow>
-                    <Typography
-                      sx={{
-                        fontFamily: theme.typography.mono.fontFamily,
-                        fontSize: '0.72rem',
-                        color: theme.palette.text.secondary,
-                        whiteSpace: 'nowrap',
-                        cursor: 'default',
-                      }}
-                    >
-                      {getRelativeTime(log.timestamp)}
-                    </Typography>
-                  </Tooltip>
+        {isSuperAdmin ? (
+          loadingAudits ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {[...Array(4)].map((_, i) => (
+                <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Skeleton variant="text" width="65%" height={18} />
+                  <Skeleton variant="text" width="10%" height={18} />
                 </Box>
-              </Box>
-            ))}
-          </List>
+              ))}
+            </Box>
+          ) : errorAudits ? (
+            <Typography sx={{ color: theme.palette.signal.error, fontSize: '0.85rem', textAlign: 'center', py: 3 }}>
+              {"Couldn't load recent activity."}
+            </Typography>
+          ) : !auditLogs?.logs || auditLogs.logs.length === 0 ? (
+            <Typography sx={{ color: theme.palette.text.secondary, fontSize: '0.85rem', py: 3, textAlign: 'center' }}>
+              No activity yet — actions like user updates, session activations, and notice dispatches will appear here.
+            </Typography>
+          ) : (
+            <List sx={{ p: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {auditLogs.logs.map((log, idx) => (
+                <Box key={log._id || idx}>
+                  {idx > 0 && <Divider sx={{ my: 2, opacity: 0.4 }} />}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
+                    <Box>
+                      <Typography
+                        sx={{
+                          fontFamily: theme.typography.body1.fontFamily,
+                          fontSize: '0.88rem',
+                          color: theme.palette.text.primary,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {humanizeAuditAction(log)}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontFamily: theme.typography.mono.fontFamily,
+                          fontSize: '0.68rem',
+                          color: theme.palette.text.secondary,
+                          textTransform: 'uppercase',
+                          mt: 0.5,
+                        }}
+                      >
+                        {log.action}
+                      </Typography>
+                    </Box>
+                    <Tooltip title={new Date(log.timestamp).toLocaleString()} arrow>
+                      <Typography
+                        sx={{
+                          fontFamily: theme.typography.mono.fontFamily,
+                          fontSize: '0.72rem',
+                          color: theme.palette.text.secondary,
+                          whiteSpace: 'nowrap',
+                          cursor: 'default',
+                        }}
+                      >
+                        {getRelativeTime(log.timestamp)}
+                      </Typography>
+                    </Tooltip>
+                  </Box>
+                </Box>
+              ))}
+            </List>
+          )
+        ) : (
+          // College Admin layout showing recent notices
+          loadingNotices ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {[...Array(4)].map((_, i) => (
+                <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Skeleton variant="text" width="55%" height={18} />
+                  <Skeleton variant="text" width="15%" height={18} />
+                </Box>
+              ))}
+            </Box>
+          ) : errorNotices ? (
+            <Typography sx={{ color: theme.palette.signal.error, fontSize: '0.85rem', textAlign: 'center', py: 3 }}>
+              {"Couldn't load recent announcements."}
+            </Typography>
+          ) : !recentNotices || recentNotices.length === 0 ? (
+            <Typography sx={{ color: theme.palette.text.secondary, fontSize: '0.85rem', py: 3, textAlign: 'center' }}>
+              No notices published yet — announcements dispatched to the institution will appear here.
+            </Typography>
+          ) : (
+            <List sx={{ p: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {recentNotices.map((notice, idx) => (
+                <Box key={notice.id || idx}>
+                  {idx > 0 && <Divider sx={{ my: 2, opacity: 0.4 }} />}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
+                    <Box>
+                      <Typography
+                        sx={{
+                          fontFamily: theme.typography.body1.fontFamily,
+                          fontSize: '0.88rem',
+                          color: theme.palette.text.primary,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {notice.title}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontFamily: theme.typography.body2.fontFamily,
+                          fontSize: '0.78rem',
+                          color: theme.palette.text.secondary,
+                          mt: 0.5,
+                          maxWidth: '600px',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 1,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {notice.content}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                        <Typography
+                          sx={{
+                            fontFamily: theme.typography.mono.fontFamily,
+                            fontSize: '0.64rem',
+                            color: theme.palette.text.secondary,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          BY {notice.publishedByName}
+                        </Typography>
+                        <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: 'text.secondary' }} />
+                        <Typography
+                          sx={{
+                            fontFamily: theme.typography.mono.fontFamily,
+                            fontSize: '0.64rem',
+                            color:
+                              notice.priority === 'URGENT'
+                                ? theme.palette.signal.error
+                                : notice.priority === 'IMPORTANT'
+                                ? theme.palette.brass?.[500] || '#b8863e'
+                                : theme.palette.text.secondary,
+                            fontWeight: notice.priority !== 'NORMAL' ? 700 : 500,
+                          }}
+                        >
+                          {notice.priority} PRIORITY
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Tooltip title={new Date(notice.publishedAt).toLocaleString()} arrow>
+                      <Typography
+                        sx={{
+                          fontFamily: theme.typography.mono.fontFamily,
+                          fontSize: '0.72rem',
+                          color: theme.palette.text.secondary,
+                          whiteSpace: 'nowrap',
+                          cursor: 'default',
+                        }}
+                      >
+                        {getRelativeTime(notice.publishedAt)}
+                      </Typography>
+                    </Tooltip>
+                  </Box>
+                </Box>
+              ))}
+            </List>
+          )
         )}
       </Card>
     </Box>

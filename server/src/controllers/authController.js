@@ -22,7 +22,7 @@ const register = async (req, res, _next) => {
   // Validate request body against register Zod schema
   const validatedBody = registerSchema.parse(req.body);
 
-  const registeredUser = await authService.registerUser(validatedBody);
+  const registeredUser = await authService.registerUser(validatedBody, req.user.role);
 
   return successResponse(res, 201, 'User registered successfully.', registeredUser);
 };

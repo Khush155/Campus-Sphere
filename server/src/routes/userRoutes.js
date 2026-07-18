@@ -13,6 +13,12 @@ const superAdminGuard = [
   roleMiddleware(ROLES.SUPER_ADMIN),
 ];
 
+// Wide Admin access guard
+const adminGuard = [
+  authMiddleware,
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN),
+];
+
 /**
  * @openapi
  * /api/v1/users:
@@ -24,7 +30,7 @@ const superAdminGuard = [
  *       200:
  *         description: Users list.
  */
-router.get('/', superAdminGuard, asyncHandler(userController.getUsers));
+router.get('/', adminGuard, asyncHandler(userController.getUsers));
 
 /**
  * @openapi
@@ -52,7 +58,7 @@ router.get('/audit-logs', superAdminGuard, asyncHandler(userController.getAuditL
  */
 router.get('/insights', superAdminGuard, asyncHandler(userController.getInsights));
 
-router.get('/:id', superAdminGuard, asyncHandler(userController.getUser));
+router.get('/:id', adminGuard, asyncHandler(userController.getUser));
 
 /**
  * @openapi
@@ -65,7 +71,7 @@ router.get('/:id', superAdminGuard, asyncHandler(userController.getUser));
  *       200:
  *         description: User updated.
  */
-router.put('/:id', superAdminGuard, asyncHandler(userController.updateUser));
+router.put('/:id', adminGuard, asyncHandler(userController.updateUser));
 
 /**
  * @openapi
@@ -78,6 +84,6 @@ router.put('/:id', superAdminGuard, asyncHandler(userController.updateUser));
  *       200:
  *         description: User deactivated.
  */
-router.delete('/:id', superAdminGuard, asyncHandler(userController.deleteUser));
+router.delete('/:id', adminGuard, asyncHandler(userController.deleteUser));
 
 module.exports = router;

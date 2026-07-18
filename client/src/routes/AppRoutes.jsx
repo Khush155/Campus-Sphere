@@ -92,7 +92,7 @@ const PlaceholderView = ({ title }) => (
 
 const HomeRedirect = () => {
   const { user } = useAuth();
-  if (user?.role === 'SUPER_ADMIN') {
+  if (user?.role === 'SUPER_ADMIN' || user?.role === 'COLLEGE_ADMIN') {
     return <Navigate to="/admin/dashboard" replace />;
   }
   return <Home />;
@@ -119,7 +119,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/dashboard"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <AdminDashboard />
               </AdminSetupGuard>
@@ -137,7 +137,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/college-setup"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <Navigate to="/admin/college-setup/departments" replace />
             </RoleRoute>
           }
@@ -145,7 +145,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/college-setup/:tab"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <SetupHub />
             </RoleRoute>
           }
@@ -153,7 +153,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/users"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <UserRoster />
               </AdminSetupGuard>
@@ -219,7 +219,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/certificates"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <Certificates />
               </AdminSetupGuard>
@@ -230,7 +230,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/reports"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <Reports />
               </AdminSetupGuard>

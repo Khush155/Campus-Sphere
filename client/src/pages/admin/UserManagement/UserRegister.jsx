@@ -19,6 +19,7 @@ import {
   useBranchesQuery,
 } from '../../../queries/collegeQueries';
 import { useUsersQuery, useRegisterMutation } from '../../../queries/userQueries';
+import { useAuth } from '../../../contexts/AuthContext';
 
 // Validation Schema for Registration Form
 const registerFormSchema = z.object({
@@ -45,6 +46,7 @@ const registerFormSchema = z.object({
 
 export const UserRegister = ({ open, onClose }) => {
   const theme = useTheme();
+  const { user } = useAuth();
 
   // Queries & Mutations
   const { data: depts } = useDepartmentsQuery();
@@ -232,8 +234,8 @@ export const UserRegister = ({ open, onClose }) => {
               helperText={errors.role?.message}
             >
               <MenuItem value="">Choose Role...</MenuItem>
-              <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
-              <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>
+              {user?.role !== 'COLLEGE_ADMIN' && <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>}
+              {user?.role !== 'COLLEGE_ADMIN' && <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>}
               <MenuItem value="HOD">HOD (Dept. Head)</MenuItem>
               <MenuItem value="FACULTY">Faculty</MenuItem>
               <MenuItem value="STUDENT">Student</MenuItem>

@@ -11,6 +11,7 @@ const ROLES = require('../src/constants/roles');
 let mongoServer;
 let adminToken;
 let adminUser;
+let collegeAdminToken;
 let deptCS;
 let deptME;
 
@@ -30,6 +31,19 @@ beforeAll(async () => {
     .post('/api/v1/auth/login')
     .send({ email: 'admin@campussphere.edu', password: 'password123' });
   adminToken = loginRes.body.data.accessToken;
+
+  // Create college admin
+  await User.create({
+    name: 'College Admin',
+    email: 'ca_report@campussphere.edu',
+    password: 'password123',
+    role: ROLES.COLLEGE_ADMIN,
+  });
+
+  const caLoginRes = await request(app)
+    .post('/api/v1/auth/login')
+    .send({ email: 'ca_report@campussphere.edu', password: 'password123' });
+  collegeAdminToken = caLoginRes.body.data.accessToken;
 
   // Create departments
   deptCS = await Department.create({ name: 'Computer Science', code: 'CS' });
@@ -237,6 +251,26 @@ describe('Reports Export API Integration Tests', () => {
 
         expect(res.status).toBe(200);
         expect(res.headers['content-type']).toBe('application/pdf');
+      });
+    });
+
+    describe('COLLEGE_ADMIN Restrictions', () => {
+      it('should filter out AUDIT_LOG_EXPORT from report types returned', async () => {
+        const res = await request(app)
+          .get('/api/v1/reports/types')
+          .set('Authorization', `Bearer ${collegeAdminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.some((t) => t.key === 'AUDIT_LOG_EXPORT')).toBe(false);
+      });
+
+      it('should reject COLLEGE_ADMIN attempting to generate AUDIT_LOG_EXPORT with 403', async () => {
+        const res = await request(app)
+          .post('/api/v1/reports/generate')
+          .set('Authorization', `Bearer ${collegeAdminToken}`)
+          .send({ type: 'AUDIT_LOG_EXPORT', format: 'CSV' });
+
+        expect(res.status).toBe(403);
       });
     });
   });

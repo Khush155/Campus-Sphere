@@ -48,6 +48,7 @@ import Pagination from '../../../components/common/Pagination';
 import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
 import UserRegister from './UserRegister';
 import EmptyState from '../../../components/common/EmptyState';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const userEditSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters long').max(50, 'Name cannot exceed 50 characters').trim(),
@@ -96,6 +97,7 @@ const formatRelativeTime = (dateString) => {
 
 export const UserRoster = () => {
   const theme = useTheme();
+  const { user: currentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Search & Filter State
@@ -409,8 +411,8 @@ export const UserRoster = () => {
               sx={{ bgcolor: 'background.paper' }}
             >
               <MenuItem value="">All Roles</MenuItem>
-              <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
-              <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>
+              {currentUser?.role !== 'COLLEGE_ADMIN' && <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>}
+              {currentUser?.role !== 'COLLEGE_ADMIN' && <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>}
               <MenuItem value="HOD">HOD</MenuItem>
               <MenuItem value="FACULTY">Faculty</MenuItem>
               <MenuItem value="STUDENT">Student</MenuItem>
@@ -827,6 +829,7 @@ const EditUserForm = ({ userId, onClose, onSaveSuccess, depts, courses, branches
 
 const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, branches, allHods, theme }) => {
   const updateUser = useUpdateUserMutation();
+  const { user: currentUser } = useAuth();
 
   const {
     register,
@@ -1005,8 +1008,8 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
                   error={!!errors.role}
                   helperText={errors.role?.message}
                 >
-                  <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
-                  <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>
+                  {currentUser?.role !== 'COLLEGE_ADMIN' && <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>}
+                  {currentUser?.role !== 'COLLEGE_ADMIN' && <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>}
                   <MenuItem value="HOD">HOD</MenuItem>
                   <MenuItem value="FACULTY">Faculty</MenuItem>
                   <MenuItem value="STUDENT">Student</MenuItem>
