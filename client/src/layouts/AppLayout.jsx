@@ -37,6 +37,18 @@ import {
   BarChart as BarChartIcon,
   EventNote as EventNoteIcon,
   Campaign as CampaignIcon,
+  Person as PersonIcon,
+  MenuBook as MenuBookIcon,
+  Assignment as AssignmentIcon,
+  FactCheck as FactCheckIcon,
+  Article as ArticleIcon,
+  Folder as FolderIcon,
+  Work as WorkIcon,
+  LocalLibrary as LocalLibraryIcon,
+  Hotel as HotelIcon,
+  Description as DescriptionIcon,
+  ReportProblem as ReportProblemIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
@@ -112,14 +124,32 @@ export const AppLayout = () => {
           { text: 'Roster', icon: <PeopleIcon />, path: '/hod/roster', roles: ['HOD'] },
           { text: 'Reports', icon: <BarChartIcon />, path: '/hod/reports', roles: ['HOD'] },
         ]
+      : user?.role === 'STUDENT'
+      ? [
+          { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['STUDENT'] },
+          { text: 'Profile', icon: <PersonIcon />, path: '/student/profile', roles: ['STUDENT'] },
+          { text: 'Academics', icon: <MenuBookIcon />, path: '/student/academics', roles: ['STUDENT'] },
+          { text: 'Timetable', icon: <DateRangeIcon />, path: '/student/timetable', roles: ['STUDENT'] },
+          { text: 'Assignments', icon: <AssignmentIcon />, path: '/student/assignments', roles: ['STUDENT'] },
+          { text: 'Attendance', icon: <FactCheckIcon />, path: '/student/attendance', roles: ['STUDENT'] },
+          { text: 'Examinations', icon: <ArticleIcon />, path: '/student/examinations', roles: ['STUDENT'] },
+          { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['STUDENT'] },
+          { text: 'Notices', icon: <CampaignIcon />, path: '/notices', roles: ['STUDENT'] },
+          { text: 'Projects', icon: <FolderIcon />, path: '/student/projects', roles: ['STUDENT'] },
+          { text: 'Placements', icon: <WorkIcon />, path: '/student/placements', roles: ['STUDENT'] },
+          { text: 'Library', icon: <LocalLibraryIcon />, path: '/student/library', roles: ['STUDENT'] },
+          { text: 'Leave', icon: <HotelIcon />, path: '/student/leave', roles: ['STUDENT'] },
+          { text: 'Documents', icon: <DescriptionIcon />, path: '/student/documents', roles: ['STUDENT'] },
+          { text: 'Complaints', icon: <ReportProblemIcon />, path: '/student/complaints', roles: ['STUDENT'] },
+          { text: 'Notifications', icon: <NotificationsIcon />, path: '/student/notifications', roles: ['STUDENT'] },
+          { text: 'Settings', icon: <SettingsIcon />, path: '/student/settings', roles: ['STUDENT'] },
+        ]
       : [
-          { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },
+          { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN', 'FACULTY'] },
           { text: 'Students', icon: <PeopleIcon />, path: '/students', roles: ['COLLEGE_ADMIN'] },
           { text: 'Mark Attendance', icon: <EventNoteIcon />, path: '/faculty/attendance', roles: ['FACULTY'] },
-          { text: 'My Attendance', icon: <EventNoteIcon />, path: '/student/attendance', roles: ['STUDENT'] },
           { text: 'Fee Hub (Admin)', icon: <ReceiptLongIcon />, path: '/admin/fees', roles: ['COLLEGE_ADMIN'] },
-          { text: 'My Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['STUDENT'] },
-          { text: 'Notice Board', icon: <CampaignIcon />, path: '/notices', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },
+          { text: 'Notice Board', icon: <CampaignIcon />, path: '/notices', roles: ['COLLEGE_ADMIN', 'FACULTY'] },
         ];
 
   const visibleMenuItems = (user?.role === 'SUPER_ADMIN' || user?.role === 'HOD')

@@ -252,6 +252,20 @@ export const AppRoutes = () => {
             </RoleRoute>
           }
         />
+        <Route path="student/profile" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Student Profile" /></RoleRoute>} />
+        <Route path="student/academics" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Academics" /></RoleRoute>} />
+        <Route path="student/timetable" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Timetable" /></RoleRoute>} />
+        <Route path="student/assignments" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Assignments" /></RoleRoute>} />
+        <Route path="student/examinations" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Examinations" /></RoleRoute>} />
+        <Route path="student/projects" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Projects" /></RoleRoute>} />
+        <Route path="student/placements" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Placements" /></RoleRoute>} />
+        <Route path="student/library" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Library" /></RoleRoute>} />
+        <Route path="student/leave" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Leave Application" /></RoleRoute>} />
+        <Route path="student/documents" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Documents" /></RoleRoute>} />
+        <Route path="student/complaints" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Complaints / Grievances" /></RoleRoute>} />
+        <Route path="student/notifications" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Notifications" /></RoleRoute>} />
+        <Route path="student/settings" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Settings" /></RoleRoute>} />
+
         <Route path="students" element={<PlaceholderView title="Students" />} />
         <Route path="faculty" element={<PlaceholderView title="Faculty" />} />
         <Route path="attendance" element={<PlaceholderView title="Attendance" />} />

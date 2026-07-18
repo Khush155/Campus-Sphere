@@ -1,110 +1,245 @@
-import React from 'react';
-import { Box, Typography, Grid, Card, CardContent, Paper, LinearProgress, List, ListItem, ListItemText, Chip, Divider, Button } from '@mui/material';
-import { School, ReceiptLong, EventNote, Campaign, ArrowForward } from '@mui/icons-material';
+import React, { useState } from 'react';
+import { 
+  Box, Typography, Grid, Card, CardContent, Paper, 
+  LinearProgress, List, ListItem, ListItemText, Chip, 
+  Divider, Button, IconButton, Avatar, useTheme, alpha 
+} from '@mui/material';
+import { 
+  School, ReceiptLong, EventNote, Campaign, ArrowForward,
+  Assignment, Article, Notifications, MenuBook, Timeline,
+  FactCheck, StarBorder
+} from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStudentLedgerQuery } from '../../queries/feeQueries';
 import { useNavigate } from 'react-router-dom';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
+  BarChart, Bar, Legend
+} from 'recharts';
+
+const mockAttendanceTrend = [
+  { month: 'Jan', attendance: 92 },
+  { month: 'Feb', attendance: 88 },
+  { month: 'Mar', attendance: 85 },
+  { month: 'Apr', attendance: 90 },
+  { month: 'May', attendance: 89 },
+];
+
+const mockSubjectAttendance = [
+  { subject: 'DBMS', percentage: 85 },
+  { subject: 'OS', percentage: 92 },
+  { subject: 'Networks', percentage: 78 },
+  { subject: 'AI', percentage: 88 },
+  { subject: 'Maths', percentage: 95 },
+  { subject: 'Lab', percentage: 100 },
+];
+
+const StatCard = ({ title, value, icon, color, subtitle, onClick }) => (
+  <Card 
+    sx={{ 
+      height: '100%', 
+      cursor: onClick ? 'pointer' : 'default',
+      transition: 'all 0.2s ease-in-out', 
+      '&:hover': onClick ? { transform: 'translateY(-4px)', boxShadow: 4 } : {} 
+    }} 
+    onClick={onClick}
+    elevation={0}
+  >
+    <CardContent sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+        <Box sx={{ bgcolor: alpha(color, 0.15), color: color, p: 1.5, borderRadius: 3, display: 'flex' }}>
+          {icon}
+        </Box>
+      </Box>
+      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
+        {title}
+      </Typography>
+      <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', mb: subtitle ? 1 : 0 }}>
+        {value}
+      </Typography>
+      {subtitle && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 500 }}>
+          {subtitle}
+        </Typography>
+      )}
+    </CardContent>
+  </Card>
+);
 
 const StudentDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const theme = useTheme();
   const { data: ledgerData, isLoading: isLedgerLoading } = useStudentLedgerQuery(user?.id);
 
   const notices = [
-    { id: 1, title: 'End Semester Examinations Schedule', date: 'July 10, 2026', category: 'Exam', priority: 'high' },
-    { id: 2, title: 'Annual Cultural Fest - CampusSphere 2026 Registration', date: 'July 05, 2026', category: 'Event', priority: 'medium' },
+    { id: 1, title: 'End Semester Examinations Schedule Released', date: 'July 18, 2026', category: 'Exam', priority: 'high' },
+    { id: 2, title: 'Annual Cultural Fest - CampusSphere 2026 Registration', date: 'July 15, 2026', category: 'Event', priority: 'medium' },
+    { id: 3, title: 'Last date for Fee Payment (Even Semester)', date: 'July 12, 2026', category: 'Finance', priority: 'high' },
+  ];
+
+  const todayClasses = [
+    { id: 1, time: '09:00 AM - 10:00 AM', subject: 'Database Management Systems', room: 'LT-102', type: 'Lecture' },
+    { id: 2, time: '10:00 AM - 12:00 PM', subject: 'Operating Systems Lab', room: 'Lab-3', type: 'Lab' },
+    { id: 3, time: '01:00 PM - 02:00 PM', subject: 'Artificial Intelligence', room: 'LT-105', type: 'Lecture' },
   ];
 
   return (
     <Box sx={{ flexGrow: 1 }}>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: 'text.primary' }}>
-          Welcome back, {user?.name?.split(' ')[0] || 'Student'}!
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Student ID: {user?.customId || 'N/A'} • Semester {user?.semester || 'N/A'}
-        </Typography>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: 'text.primary' }}>
+            Welcome back, {user?.name?.split(' ')[0] || 'Student'} 👋
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            B.Tech Computer Science • Semester {user?.semester || '6'} • Roll: {user?.customId || 'CS2023001'}
+          </Typography>
+        </Box>
+        <Button variant="contained" color="primary" onClick={() => navigate('/student/profile')} sx={{ borderRadius: 2, fontWeight: 700 }}>
+          View Full Profile
+        </Button>
       </Box>
 
-      {/* Quick Stats Grid */}
+      {/* Summary Cards Grid */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard 
+            title="Attendance" 
+            value="88%" 
+            icon={<FactCheck sx={{ fontSize: 32 }} />} 
+            color="#10b981" 
+            subtitle="Target: 75% | Safe" 
+            onClick={() => navigate('/student/attendance')}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard 
+            title="Current SGPA" 
+            value="8.75" 
+            icon={<StarBorder sx={{ fontSize: 32 }} />} 
+            color="#8b5cf6" 
+            subtitle="Last Sem: 8.5"
+            onClick={() => navigate('/student/academics')}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard 
+            title="Pending Assignments" 
+            value="3" 
+            icon={<Assignment sx={{ fontSize: 32 }} />} 
+            color="#f59e0b" 
+            subtitle="1 Due Tomorrow"
+            onClick={() => navigate('/student/assignments')}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard 
+            title="Fee Due" 
+            value={isLedgerLoading ? '...' : `₹${ledgerData?.summary?.totalBalance?.toLocaleString() || 0}`} 
+            icon={<ReceiptLong sx={{ fontSize: 32 }} />} 
+            color={ledgerData?.summary?.totalBalance > 0 ? '#ef4444' : '#10b981'} 
+            subtitle={ledgerData?.summary?.totalBalance > 0 ? "Action Required" : "All clear"}
+            onClick={() => navigate('/fees')}
+          />
+        </Grid>
         
-        {/* Fee Status Card */}
-        <Grid item xs={12} sm={6} md={4}>
-          <Card sx={{ height: '100%', cursor: 'pointer', transition: '0.2s', '&:hover': { transform: 'translateY(-4px)', boxShadow: 4 } }} onClick={() => navigate('/fees')}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                <Box sx={{ bgcolor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', p: 1.5, borderRadius: 3 }}>
-                  <ReceiptLong sx={{ fontSize: 32 }} />
-                </Box>
-                <Chip label="View Ledger" size="small" variant="outlined" color="warning" />
-              </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
-                Outstanding Fees
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                {isLedgerLoading ? '...' : `$${ledgerData?.summary?.totalBalance?.toLocaleString() || 0}`}
-              </Typography>
-              {ledgerData?.summary?.totalBalance > 0 && (
-                <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-                  Action required: Please clear your dues.
-                </Typography>
-              )}
-            </CardContent>
-          </Card>
+        {/* Additional Stats Row */}
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard title="Upcoming Exams" value="2" icon={<Article sx={{ fontSize: 32 }} />} color="#3b82f6" onClick={() => navigate('/student/examinations')} />
         </Grid>
-
-        {/* Academic Profile Card */}
-        <Grid item xs={12} sm={6} md={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                <Box sx={{ bgcolor: 'rgba(79, 70, 229, 0.15)', color: '#4f46e5', p: 1.5, borderRadius: 3 }}>
-                  <School sx={{ fontSize: 32 }} />
-                </Box>
-                <Chip label="Active" size="small" color="success" sx={{ fontWeight: 700 }} />
-              </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
-                Current Enrollment
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.2, mb: 1 }}>
-                B.Tech Computer Science
-              </Typography>
-            </CardContent>
-          </Card>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard title="Total Subjects" value="6" icon={<MenuBook sx={{ fontSize: 32 }} />} color="#0ea5e9" onClick={() => navigate('/student/academics')} />
         </Grid>
-
-        {/* Attendance Summary Card (Static placeholder) */}
-        <Grid item xs={12} sm={6} md={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                <Box sx={{ bgcolor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', p: 1.5, borderRadius: 3 }}>
-                  <EventNote sx={{ fontSize: 32 }} />
-                </Box>
-              </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
-                Current Semester Attendance
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mb: 1 }}>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: '#10b981' }}>89%</Typography>
-                <Typography variant="caption" color="text.secondary">/ 75% required</Typography>
-              </Box>
-              <LinearProgress variant="determinate" value={89} color="success" sx={{ height: 6, borderRadius: 3 }} />
-            </CardContent>
-          </Card>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard title="Credits Completed" value="92" icon={<School sx={{ fontSize: 32 }} />} color="#ec4899" onClick={() => navigate('/student/academics')} />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard title="Notifications" value="5" icon={<Notifications sx={{ fontSize: 32 }} />} color="#64748b" onClick={() => navigate('/student/notifications')} />
         </Grid>
       </Grid>
 
-      {/* Bottom Section */}
+      {/* Charts Section */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={7}>
+          <Paper sx={{ p: 3, borderRadius: 3, height: 350 }} elevation={0}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>Monthly Attendance Trend</Typography>
+            <ResponsiveContainer width="100%" height="85%">
+              <AreaChart data={mockAttendanceTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor={theme.palette.primary.main} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                <YAxis axisLine={false} tickLine={false} domain={[0, 100]} />
+                <RechartsTooltip 
+                  contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Area type="monotone" dataKey="attendance" stroke={theme.palette.primary.main} fillOpacity={1} fill="url(#colorAttendance)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={5}>
+          <Paper sx={{ p: 3, borderRadius: 3, height: 350 }} elevation={0}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>Subject-wise Attendance</Typography>
+            <ResponsiveContainer width="100%" height="85%">
+              <BarChart data={mockSubjectAttendance} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                <XAxis type="number" domain={[0, 100]} hide />
+                <YAxis dataKey="subject" type="category" axisLine={false} tickLine={false} width={80} />
+                <RechartsTooltip cursor={{fill: 'transparent'}} />
+                <Bar dataKey="percentage" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      {/* Bottom Section (Lists) */}
       <Grid container spacing={3}>
+        {/* Today's Classes */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, height: '100%', borderRadius: 3, border: '1px solid', borderColor: 'divider' }} elevation={0}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <Campaign color="primary" />
-              <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                Recent Announcements
+          <Paper sx={{ p: 3, height: '100%', borderRadius: 3 }} elevation={0}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                Today's Classes
               </Typography>
+              <Button size="small" onClick={() => navigate('/student/timetable')}>View Timetable</Button>
+            </Box>
+            <Divider sx={{ mb: 2 }} />
+            <List disablePadding>
+              {todayClasses.map((cls, idx) => (
+                <ListItem key={cls.id} disableGutters sx={{ py: 1.5, borderBottom: idx !== todayClasses.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
+                  <Box sx={{ minWidth: 100, mr: 2 }}>
+                    <Typography variant="body2" fontWeight="700" color="primary.main">{cls.time.split(' - ')[0]}</Typography>
+                    <Typography variant="caption" color="text.secondary">{cls.time.split(' - ')[1]}</Typography>
+                  </Box>
+                  <ListItemText 
+                    primary={cls.subject} 
+                    secondary={`${cls.type} • ${cls.room}`}
+                    primaryTypographyProps={{ fontWeight: 600, color: 'text.primary' }}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Paper>
+        </Grid>
+
+        {/* Notices */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: '100%', borderRadius: 3 }} elevation={0}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Campaign color="primary" />
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Latest Notices
+                </Typography>
+              </Box>
+              <Button size="small" onClick={() => navigate('/notices')}>View All</Button>
             </Box>
             <Divider sx={{ mb: 2 }} />
             <List disablePadding>
@@ -113,32 +248,19 @@ const StudentDashboard = () => {
                   key={notice.id}
                   disableGutters
                   secondaryAction={
-                    <Chip label={notice.category} size="small" sx={{ fontSize: '0.7rem', fontWeight: 600, bgcolor: notice.priority === 'high' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(79, 70, 229, 0.1)', color: notice.priority === 'high' ? 'error.main' : 'primary.main' }} />
+                    <Chip label={notice.category} size="small" sx={{ fontSize: '0.7rem', fontWeight: 600, bgcolor: notice.priority === 'high' ? alpha('#ef4444', 0.1) : alpha(theme.palette.primary.main, 0.1), color: notice.priority === 'high' ? 'error.main' : 'primary.main' }} />
                   }
-                  sx={{ borderBottom: '1px solid', borderColor: 'divider', py: 1.5, '&:last-child': { borderBottom: 'none' } }}
+                  sx={{ py: 1.5, borderBottom: '1px solid', borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}
                 >
                   <ListItemText
                     primary={notice.title}
                     secondary={notice.date}
-                    primaryTypographyProps={{ variant: 'body2', fontWeight: 600, color: 'text.primary', sx: { mb: 0.5 } }}
+                    primaryTypographyProps={{ variant: 'body2', fontWeight: 600, color: 'text.primary', sx: { mb: 0.5, pr: 8 } }}
                     secondaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }}
                   />
                 </ListItem>
               ))}
             </List>
-            <Button variant="text" endIcon={<ArrowForward />} sx={{ mt: 2, fontWeight: 700 }}>
-              View All Notices
-            </Button>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, height: '100%', borderRadius: 3, border: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', bgcolor: '#f8fafc' }} elevation={0}>
-            <img src="https://illustrations.popsy.co/amber/student-going-to-school.svg" alt="Student" style={{ height: 180, marginBottom: 16 }} />
-            <Typography variant="h6" fontWeight="700" color="text.secondary" gutterBottom>Ready for your next class?</Typography>
-            <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ maxWidth: 300 }}>
-              Your timetable module will be available soon. Check back for your daily schedule and class links.
-            </Typography>
           </Paper>
         </Grid>
       </Grid>
