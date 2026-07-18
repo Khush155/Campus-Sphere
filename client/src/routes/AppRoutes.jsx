@@ -13,6 +13,9 @@ import AdmissionQueue from '../pages/admin/StudentManagement/AdmissionQueue';
 import FeeManagementHub from '../pages/admin/Finance/FeeManagementHub';
 import StudentFeePortal from '../pages/student/StudentFeePortal';
 import StudentDashboard from '../pages/student/StudentDashboard';
+import StudentProfile from '../pages/student/StudentProfile';
+import StudentAcademics from '../pages/student/StudentAcademics';
+import StudentTimetable from '../pages/student/StudentTimetable';
 import UserRoster from '../pages/admin/UserManagement/UserRoster';
 import SetupWizard from '../pages/admin/SetupWizard';
 import { useDepartmentsQuery } from '../queries/collegeQueries';
@@ -252,9 +255,9 @@ export const AppRoutes = () => {
             </RoleRoute>
           }
         />
-        <Route path="student/profile" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Student Profile" /></RoleRoute>} />
-        <Route path="student/academics" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Academics" /></RoleRoute>} />
-        <Route path="student/timetable" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Timetable" /></RoleRoute>} />
+        <Route path="student/profile" element={<RoleRoute allowedRoles={['STUDENT']}><StudentProfile /></RoleRoute>} />
+        <Route path="student/academics" element={<RoleRoute allowedRoles={['STUDENT']}><StudentAcademics /></RoleRoute>} />
+        <Route path="student/timetable" element={<RoleRoute allowedRoles={['STUDENT']}><StudentTimetable /></RoleRoute>} />
         <Route path="student/assignments" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Assignments" /></RoleRoute>} />
         <Route path="student/examinations" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Examinations" /></RoleRoute>} />
         <Route path="student/projects" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Projects" /></RoleRoute>} />
