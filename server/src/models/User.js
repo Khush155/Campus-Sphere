@@ -66,6 +66,12 @@ const userSchema = new mongoose.Schema(
       trim: true,
       required: false,
     },
+    socialLinks: {
+      github: { type: String, trim: true },
+      linkedin: { type: String, trim: true },
+      leetcode: { type: String, trim: true },
+      portfolio: { type: String, trim: true }
+    },
     refreshTokens: {
       type: [String],
       default: [],

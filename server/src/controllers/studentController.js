@@ -12,17 +12,17 @@ const User = require('../models/User');
 exports.getDashboardSummary = async (req, res) => {
   try {
     const studentId = req.user.id;
-    const student = await User.findById(studentId).populate('department');
+    const student = await User.findById(studentId).populate('departmentId');
 
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
 
-    const departmentId = student.department?._id;
+    const departmentId = student.departmentId?._id || student.departmentId;
     const semester = student.semester;
 
     // 1. Total Subjects & Credits
-    const subjects = await Subject.find({ department: departmentId, semester: semester });
+    const subjects = await Subject.find({ departmentId: departmentId, semester: semester });
     const totalSubjects = subjects.length;
     // For credits completed, we need all past passed subjects. As a simplified proxy, we'll calculate from all ExamResults > passing grade, or just mock it based on semester for now.
     const creditsCompleted = (semester - 1) * 20; // 20 credits per semester on average
@@ -60,6 +60,7 @@ exports.getDashboardSummary = async (req, res) => {
     // Map subject IDs to names
     const subjectWise = [];
     for (let s of subjectWiseAgg) {
+      if (!s._id) continue;
       const subjectDoc = subjects.find(sub => sub._id.toString() === s._id.toString());
       if (subjectDoc) {
         subjectWise.push({
@@ -87,16 +88,27 @@ exports.getDashboardSummary = async (req, res) => {
     const currentSgpa = 8.5; // Placeholder until calculation engine is built
 
     // 6. Notices
-    const recentNotices = await Notice.find({
-      $or: [
-        { targetRoles: 'STUDENT' },
-        { targetRoles: { $size: 0 } } // General notices
-      ],
-      $or: [
-        { targetDepartments: departmentId },
-        { targetDepartments: { $size: 0 } }
+    const noticeQuery = {
+      $and: [
+        {
+          $or: [
+            { targetRoles: 'STUDENT' },
+            { targetRoles: { $size: 0 } } // General notices
+          ]
+        }
       ]
-    }).sort({ date: -1 }).limit(3);
+    };
+    
+    if (departmentId) {
+      noticeQuery.$and.push({
+        $or: [
+          { targetDepartments: departmentId },
+          { targetDepartments: { $size: 0 } }
+        ]
+      });
+    }
+    
+    const recentNotices = await Notice.find(noticeQuery).sort({ date: -1 }).limit(3);
     const notificationsCount = recentNotices.length;
 
     // 7. Today's Classes
@@ -136,6 +148,108 @@ exports.getDashboardSummary = async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching dashboard summary:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.getTimetable = async (req, res) => {
+  try {
+    const student = await User.findById(req.user.id);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    const { departmentId, semester } = student;
+
+    const slots = await TimetableSlot.find({ departmentId, semester })
+      .populate('subjectId', 'name code')
+      .populate('facultyId', 'firstName lastName email')
+      .sort({ startTime: 1 });
+
+    res.status(200).json({
+      success: true,
+      data: slots
+    });
+  } catch (error) {
+    console.error('Error fetching timetable:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.getUpcomingExams = async (req, res) => {
+  try {
+    const student = await User.findById(req.user.id);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    const { departmentId, semester } = student;
+
+    const exams = await Examination.find({
+      departmentId,
+      semester,
+      date: { $gte: new Date() },
+      status: { $in: ['Scheduled'] }
+    })
+      .populate('subjectId', 'name code')
+      .sort({ date: 1 });
+
+    res.status(200).json({
+      success: true,
+      data: exams
+    });
+  } catch (error) {
+    console.error('Error fetching upcoming exams:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.getExamResults = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+
+    const results = await ExamResult.find({ studentId })
+      .populate({
+        path: 'examId',
+        select: 'title type date maxMarks passingMarks status semester',
+        populate: {
+          path: 'subjectId',
+          select: 'name code credits type'
+        }
+      })
+      .sort({ 'examId.date': -1 });
+
+    // Filter out results where the exam status is not 'Results Published'
+    const publishedResults = results.filter(r => r.examId && r.examId.status === 'Results Published');
+
+    res.status(200).json({
+      success: true,
+      data: publishedResults
+    });
+  } catch (error) {
+    console.error('Error fetching exam results:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.getAcademics = async (req, res) => {
+  try {
+    const student = await User.findById(req.user.id);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    const { departmentId, semester } = student;
+
+    const subjects = await Subject.find({ departmentId, semester })
+      .sort({ name: 1 });
+
+    res.status(200).json({
+      success: true,
+      data: subjects
+    });
+  } catch (error) {
+    console.error('Error fetching academics subjects:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
