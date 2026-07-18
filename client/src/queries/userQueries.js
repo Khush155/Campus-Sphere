@@ -4,7 +4,7 @@ import api from '../services/api';
 /**
  * Hook to fetch paginated and filtered users list.
  */
-export const useUsersQuery = (filters) => {
+export const useUsersQuery = (filters, options = {}) => {
   return useQuery({
     queryKey: ['users', filters],
     queryFn: async () => {
@@ -12,6 +12,7 @@ export const useUsersQuery = (filters) => {
       return response.data; // Shape: { success: true, data: Array, meta: Object }
     },
     keepPreviousData: true,
+    ...options,
   });
 };
 

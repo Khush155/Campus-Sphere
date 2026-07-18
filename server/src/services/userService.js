@@ -51,7 +51,7 @@ const checkHodConflict = async (departmentId, shift, excludeUserId = null) => {
 /**
  * Fetch a paginated, filtered, and searchable list of users.
  */
-const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, search }) => {
+const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, search, courseId, branchId, semester, group }) => {
   const filter = {};
 
   if (role) {
@@ -64,6 +64,22 @@ const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, 
 
   if (status) {
     filter.status = status;
+  }
+
+  if (courseId) {
+    filter.courseId = courseId;
+  }
+
+  if (branchId) {
+    filter.branchId = branchId;
+  }
+
+  if (semester) {
+    filter.semester = semester;
+  }
+
+  if (group) {
+    filter.group = group;
   }
 
   if (search && search.trim().length > 0) {
@@ -107,6 +123,7 @@ const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, 
       branch: u.branchId ? u.branchId.name : null,
       branchId: u.branchId ? u.branchId._id : null,
       semester: u.semester || null,
+      group: u.group || null,
       status: u.status,
       shift: u.shift || null,
       lastLoginAt: u.lastLoginAt || null,
@@ -185,6 +202,9 @@ const updateUserDetails = async (userId, updateData, adminUserId, meta) => {
   if (updateData.semester !== undefined) {
     user.semester = newRole === 'STUDENT' ? (updateData.semester || 1) : null;
   }
+  if (updateData.group !== undefined) {
+    user.group = newRole === 'STUDENT' ? (updateData.group || null) : null;
+  }
   if (updateData.shift !== undefined) {
     user.shift = newRole === 'HOD' ? updateData.shift : null;
   } else if (updateData.role !== undefined && updateData.role !== 'HOD') {
@@ -255,6 +275,7 @@ const updateUserDetails = async (userId, updateData, adminUserId, meta) => {
     courseId: user.courseId,
     branchId: user.branchId,
     semester: user.semester,
+    group: user.group,
     status: user.status,
   };
 };
@@ -404,6 +425,7 @@ const getUserDetails = async (userId) => {
     branch: u.branchId ? u.branchId.name : null,
     branchId: u.branchId ? u.branchId._id : null,
     semester: u.semester || null,
+    group: u.group || null,
     status: u.status,
     shift: u.shift || null,
     createdAt: u.createdAt,

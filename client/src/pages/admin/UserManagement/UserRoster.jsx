@@ -48,6 +48,7 @@ import Pagination from '../../../components/common/Pagination';
 import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
 import UserRegister from './UserRegister';
 import EmptyState from '../../../components/common/EmptyState';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const userEditSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters long').max(50, 'Name cannot exceed 50 characters').trim(),
@@ -66,6 +67,15 @@ const userEditSchema = z.object({
         code: z.ZodIssueCode.custom,
         message: 'Shift is required for HOD role and must be GENERAL, MORNING, or EVENING',
         path: ['shift'],
+      });
+    }
+  }
+  if (['HOD', 'FACULTY', 'STUDENT'].includes(data.role)) {
+    if (!data.departmentId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Department is required for this role',
+        path: ['departmentId'],
       });
     }
   }
@@ -96,6 +106,8 @@ const formatRelativeTime = (dateString) => {
 
 export const UserRoster = () => {
   const theme = useTheme();
+  const { user: authUser } = useAuth();
+  const isSuperAdmin = authUser?.role === 'SUPER_ADMIN';
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Search & Filter State
@@ -217,7 +229,7 @@ export const UserRoster = () => {
           // Reactivate account
           await updateUser.mutateAsync({
             id: userToDeactivate.id,
-            data: { name: userToDeactivate.name, role: userToDeactivate.role, status: 'ACTIVE' },
+            data: { status: 'ACTIVE' },
           });
           showToast(`${userToDeactivate.name}'s account reactivated.`);
         } else {
@@ -226,13 +238,17 @@ export const UserRoster = () => {
           showToast(`${userToDeactivate.name}'s account deactivated.`, () => async () => {
             await updateUser.mutateAsync({
               id: userToDeactivate.id,
-              data: { name: userToDeactivate.name, role: userToDeactivate.role, status: 'ACTIVE' },
+              data: { status: 'ACTIVE' },
             });
             showToast(`Reactivated ${userToDeactivate.name}'s account.`);
           });
         }
       } catch (err) {
-        // Handled globally
+        if (err.response?.data?.message) {
+          showToast(err.response.data.message);
+        } else {
+          showToast('An unexpected error occurred.', null, 'error');
+        }
       }
     }
   };
@@ -347,22 +363,24 @@ export const UserRoster = () => {
             </Button>
           )}
 
-          <Button
-            variant="contained"
-            startIcon={<AddOutlined />}
-            onClick={() => setRegisterOpen(true)}
-            sx={{
-              bgcolor: theme.palette.primary.main,
-              color: theme.palette.ink[900],
-              fontWeight: 700,
-              textTransform: 'none',
-              px: 2.5,
-              height: '40px',
-              '&:hover': { bgcolor: theme.palette.primary.light },
-            }}
-          >
-            Register User
-          </Button>
+          {isSuperAdmin && (
+            <Button
+              variant="contained"
+              startIcon={<AddOutlined />}
+              onClick={() => setRegisterOpen(true)}
+              sx={{
+                bgcolor: theme.palette.primary.main,
+                color: theme.palette.ink[900],
+                fontWeight: 700,
+                textTransform: 'none',
+                px: 2.5,
+                height: '40px',
+                '&:hover': { bgcolor: theme.palette.primary.light },
+              }}
+            >
+              Register User
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -626,10 +644,12 @@ export const UserRoster = () => {
 
       {/* 4. Action Dropdown Menu */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={handleEditClick}>Edit Profile</MenuItem>
-        <MenuItem onClick={handleDeactivateClick}>
-          {activeMenuUser?.status === 'INACTIVE' ? 'Activate Account' : 'Deactivate'}
-        </MenuItem>
+        {isSuperAdmin && <MenuItem onClick={handleEditClick}>Edit Profile</MenuItem>}
+        {isSuperAdmin && (
+          <MenuItem onClick={handleDeactivateClick}>
+            {activeMenuUser?.status === 'INACTIVE' ? 'Activate Account' : 'Deactivate'}
+          </MenuItem>
+        )}
         <MenuItem onClick={handleViewSessionsClick} sx={{ color: 'primary.main' }}>View Sessions</MenuItem>
         {['STUDENT', 'FACULTY', 'HOD'].includes(activeMenuUser?.role) && (
           <MenuItem onClick={handleGenerateIdCardClick}>Generate ID Card</MenuItem>
@@ -863,29 +883,42 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
   // Warn if assigning role HOD to a department that already has one
   useEffect(() => {
     if (user && editRoleValue === 'HOD' && editDeptValue && allHods?.data) {
-      const shift = editShiftValue || 'GENERAL';
       const deptObj = depts?.find((d) => String(d._id) === String(editDeptValue));
       const deptName = deptObj ? deptObj.name : 'this department';
 
-      if (shift === 'GENERAL') {
-        const existing = allHods.data.find(
-          (h) => String(h.departmentId) === String(editDeptValue) && String(h.id) !== String(user.id) && h.status === 'ACTIVE'
-        );
-        if (existing) {
-          setHodWarning(
-            `${deptName} already has an active HOD: ${existing.name} (${existing.shift || 'GENERAL'}). Assigning a General HOD will conflict.`
-          );
+      const existingInDept = allHods.data.filter(
+        (h) => String(h.departmentId) === String(editDeptValue) && String(h.id) !== String(user.id) && h.status === 'ACTIVE'
+      );
+
+      if (existingInDept.length === 0) {
+        setHodWarning('');
+        return;
+      }
+
+      if (!editShiftValue) {
+        const generalHod = existingInDept.find(h => h.shift === 'GENERAL');
+        if (generalHod) {
+          setHodWarning(`${deptName} already has a General HOD: ${generalHod.name}. You must reassign them before adding another HOD.`);
         } else {
-          setHodWarning('');
+          const shifts = existingInDept.map(h => `${h.name} (${h.shift})`).join(', ');
+          setHodWarning(`${deptName} already has active HOD(s): ${shifts}. Please choose an available shift.`);
         }
+        return;
+      }
+
+      if (editShiftValue === 'GENERAL') {
+        const existing = existingInDept[0];
+        setHodWarning(
+          `${deptName} already has an active HOD: ${existing.name} (${existing.shift || 'GENERAL'}). Assigning a General HOD will conflict.`
+        );
       } else {
-        const conflicting = allHods.data.find(
-          (h) => String(h.departmentId) === String(editDeptValue) && String(h.id) !== String(user.id) && h.status === 'ACTIVE' && (h.shift === 'GENERAL' || h.shift === shift)
+        const conflicting = existingInDept.find(
+          (h) => h.shift === 'GENERAL' || h.shift === editShiftValue
         );
         if (conflicting) {
           const reason = conflicting.shift === 'GENERAL'
-            ? `${deptName} currently has a General HOD (${conflicting.name}). Reassign or convert them to shift-specific before adding a ${shift} HOD.`
-            : `${deptName} already has a ${shift}-shift HOD: ${conflicting.name}.`;
+            ? `${deptName} currently has a General HOD (${conflicting.name}). Reassign them before adding a ${editShiftValue} HOD.`
+            : `${deptName} already has a ${editShiftValue}-shift HOD: ${conflicting.name}.`;
           setHodWarning(reason);
         } else {
           setHodWarning('');
@@ -894,7 +927,7 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
     } else {
       setHodWarning('');
     }
-  }, [editRoleValue, editDeptValue, editShiftValue, allHods, user, depts]);
+  }, [user, editRoleValue, editDeptValue, editShiftValue, allHods, depts]);
 
   // Progressive cascading selects filters for course lengths bounds
   const getActiveCourseSemesters = useCallback(() => {
@@ -951,7 +984,11 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
       await updateUser.mutateAsync({ id: user.id, data: payload });
       onSaveSuccess();
     } catch (err) {
-      // Handled globally
+      if (err.response?.data?.message) {
+        setHodWarning(err.response.data.message);
+      } else {
+        setHodWarning('An unexpected error occurred during update.');
+      }
     }
   };
 
