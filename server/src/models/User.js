@@ -72,6 +72,20 @@ const userSchema = new mongoose.Schema(
     activeBacklogs: { type: Number, min: 0, default: 0 }, // Used for placement eligibility
     profilePicUrl: { type: String },
     isActive: { type: Boolean, default: true }, // Soft-disable without deletion
+    academicStatus: {
+      type: String,
+      enum: ['ONGOING', 'GRADUATED'],
+      default: 'ONGOING',
+      index: true,
+    },
+    shift: {
+      type: String,
+      enum: ['GENERAL', 'MORNING', 'EVENING'],
+      default: undefined,
+      required: function () {
+        return this.role === 'HOD';
+      },
+    },
     refreshTokens: {
       type: [String],
       default: [],
@@ -83,6 +97,10 @@ const userSchema = new mongoose.Schema(
     resetPasswordExpire: {
       type: Date,
       select: false,
+    },
+    lastLoginAt: {
+      type: Date,
+      default: null,
     },
   },
   {

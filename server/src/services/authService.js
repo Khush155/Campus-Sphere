@@ -5,6 +5,7 @@ const ERROR_CODES = require('../constants/errorCodes');
 const logger = require('../utils/logger');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
+const { checkHodConflict } = require('./userService');
 
 const MAX_CONCURRENT_SESSIONS = 5;
 
@@ -13,12 +14,23 @@ const MAX_CONCURRENT_SESSIONS = 5;
  * Typically invoked by SUPER_ADMIN or COLLEGE_ADMIN.
  */
 const registerUser = async (userData) => {
-  const { name, email, password, role, departmentId, courseId, branchId, semester } = userData;
+  const { name, email, password, role, departmentId, courseId, branchId, semester, shift } = userData;
 
   // 1. Check if user already exists
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     throw new AppError('Email address is already in use.', 400, ERROR_CODES.DUPLICATE_ENTRY);
+  }
+
+  // Check HOD conflict if role is HOD
+  if (role === 'HOD') {
+    if (!departmentId) {
+      throw new AppError('An HOD must be assigned to a department.', 400, ERROR_CODES.VALIDATION_ERROR);
+    }
+    if (!shift) {
+      throw new AppError('An HOD must be assigned a shift scope.', 400, ERROR_CODES.VALIDATION_ERROR);
+    }
+    await checkHodConflict(departmentId, shift);
   }
 
   // 2. Create the user
@@ -31,6 +43,7 @@ const registerUser = async (userData) => {
     courseId: courseId || null,
     branchId: branchId || null,
     semester: role === 'STUDENT' ? (semester || 1) : null,
+    shift: role === 'HOD' ? shift : null,
   });
 
   logger.info(`[User Registered] ID: ${newUser._id} - Role: ${newUser.role} - Created By Admin`);
@@ -44,6 +57,7 @@ const registerUser = async (userData) => {
     courseId: newUser.courseId,
     branchId: newUser.branchId,
     semester: newUser.semester,
+    shift: newUser.shift,
     status: newUser.status,
   };
 };
@@ -73,6 +87,9 @@ const loginUser = async (email, password) => {
   // 4. Generate tokens
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
+
+  // Update last login timestamp
+  user.lastLoginAt = new Date();
 
   // 5. Manage active sessions list (FIFO eviction if count exceeds limit)
   if (user.refreshTokens.length >= MAX_CONCURRENT_SESSIONS) {

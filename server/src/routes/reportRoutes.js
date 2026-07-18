@@ -7,13 +7,14 @@ const ROLES = require('../constants/roles');
 
 const router = express.Router();
 
+// Enforce auth and SUPER_ADMIN roles across all reports endpoints
 router.use(authMiddleware);
+router.use(roleMiddleware(ROLES.SUPER_ADMIN));
 
-// HOD specific reports
-router.get(
-  '/hod',
-  roleMiddleware(ROLES.HOD),
-  asyncHandler(reportController.getHodMetrics)
-);
+// Retrieve available types
+router.get('/types', asyncHandler(reportController.getReportTypes));
+
+// Generate and stream report attachment
+router.post('/generate', asyncHandler(reportController.generateReport));
 
 module.exports = router;

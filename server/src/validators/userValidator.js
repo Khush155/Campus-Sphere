@@ -54,6 +54,17 @@ const updateUserSchema = z.object({
     .string()
     .min(3, 'A reasoning of at least 3 characters is required for updating student branches or semesters')
     .optional(),
+  shift: z.enum(['GENERAL', 'MORNING', 'EVENING']).optional().or(z.literal('')).or(z.null()).optional(),
+}).superRefine((data, ctx) => {
+  if (data.role === 'HOD') {
+    if (!data.shift || !['GENERAL', 'MORNING', 'EVENING'].includes(data.shift)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Shift is required for HOD role and must be GENERAL, MORNING, or EVENING',
+        path: ['shift'],
+      });
+    }
+  }
 });
 
 module.exports = {

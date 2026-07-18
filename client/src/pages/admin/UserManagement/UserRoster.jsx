@@ -7,6 +7,7 @@ import {
   Box,
   Typography,
   Card,
+  CardContent,
   Table,
   TableBody,
   TableCell,
@@ -57,7 +58,41 @@ const userEditSchema = z.object({
   branchId: z.string().optional().or(z.null()).or(z.literal('')),
   semester: z.number().optional().or(z.null()),
   reason: z.string().optional(),
+  shift: z.string().optional().or(z.null()).or(z.literal('')),
+}).superRefine((data, ctx) => {
+  if (data.role === 'HOD') {
+    if (!data.shift || !['GENERAL', 'MORNING', 'EVENING'].includes(data.shift)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Shift is required for HOD role and must be GENERAL, MORNING, or EVENING',
+        path: ['shift'],
+      });
+    }
+  }
 });
+
+const formatRelativeTime = (dateString) => {
+  if (!dateString) return 'Never';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHr / 24);
+
+  if (diffSec < 60) {
+    return 'Just now';
+  } else if (diffMin < 60) {
+    return `${diffMin}m ago`;
+  } else if (diffHr < 24) {
+    return `${diffHr}h ago`;
+  } else if (diffDays === 1) {
+    return '1 day ago';
+  } else {
+    return `${diffDays} days ago`;
+  }
+};
 
 export const UserRoster = () => {
   const theme = useTheme();
@@ -89,6 +124,8 @@ export const UserRoster = () => {
   const [deactivateUser, setDeactivateUser] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [activeMenuUser, setActiveMenuUser] = useState(null);
+  const [sessionsDrawerOpen, setSessionsDrawerOpen] = useState(false);
+  const [sessionsDrawerUser, setSessionsDrawerUser] = useState(null);
 
   // Density switcher state
   const [density, setDensity] = useState(localStorage.getItem('roster_density') || 'comfortable');
@@ -150,8 +187,23 @@ export const UserRoster = () => {
     handleMenuClose();
   };
 
+  const handleViewSessionsClick = () => {
+    setSessionsDrawerUser(activeMenuUser);
+    setSessionsDrawerOpen(true);
+    handleMenuClose();
+  };
+
   const handleDeactivateClick = () => {
     setDeactivateUser(activeMenuUser);
+    handleMenuClose();
+  };
+
+  const handleGenerateIdCardClick = () => {
+    if (activeMenuUser) {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+      const token = localStorage.getItem('accessToken');
+      window.open(`${baseUrl}/id-cards/${activeMenuUser.id}?token=${token}`, '_blank');
+    }
     handleMenuClose();
   };
 
@@ -265,6 +317,35 @@ export const UserRoster = () => {
           >
             {density === 'comfortable' ? 'Compact View' : 'Comfortable View'}
           </Button>
+
+          {(roleFilter || deptFilter) && (
+            <Button
+              variant="outlined"
+              onClick={() => {
+                const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+                const token = localStorage.getItem('accessToken');
+                const params = new URLSearchParams();
+                if (deptFilter) params.append('departmentId', deptFilter);
+                if (roleFilter) params.append('role', roleFilter);
+                params.append('token', token);
+                window.open(`${baseUrl}/id-cards/bulk?${params.toString()}`, '_blank');
+              }}
+              sx={{
+                borderColor: theme.palette.primary.main,
+                color: theme.palette.primary.main,
+                fontWeight: 600,
+                textTransform: 'none',
+                px: 2,
+                height: '40px',
+                '&:hover': {
+                  bgcolor: theme.custom.interaction.hoverTint,
+                  borderColor: theme.palette.primary.main,
+                },
+              }}
+            >
+              Bulk ID Cards
+            </Button>
+          )}
 
           <Button
             variant="contained"
@@ -434,7 +515,13 @@ export const UserRoster = () => {
                   MAPPING DETAILS
                 </TableCell>
                 <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                  HOD SCOPE
+                </TableCell>
+                <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   STATUS
+                </TableCell>
+                <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                  LAST LOGIN
                 </TableCell>
                 <TableCell align="right" sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   ACTIONS
@@ -489,6 +576,13 @@ export const UserRoster = () => {
                         user.department || 'Global / Administrator'
                       )}
                     </TableCell>
+                    <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontSize: density === 'compact' ? '0.78rem' : '0.82rem' }}>
+                      {user.role === 'HOD' ? (
+                        user.shift === 'GENERAL' || !user.shift ? 'General' :
+                        user.shift === 'MORNING' ? 'Morning' :
+                        user.shift === 'EVENING' ? 'Evening' : 'General'
+                      ) : '—'}
+                    </TableCell>
                     <TableCell sx={{ py: density === 'compact' ? 1 : 1.75 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box
@@ -503,6 +597,9 @@ export const UserRoster = () => {
                           {user.status}
                         </Typography>
                       </Box>
+                    </TableCell>
+                    <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontSize: density === 'compact' ? '0.78rem' : '0.82rem', color: theme.palette.text.secondary }}>
+                      {formatRelativeTime(user.lastLoginAt)}
                     </TableCell>
                     <TableCell align="right" sx={{ py: density === 'compact' ? 1 : 1.75 }}>
                       <IconButton aria-label="user actions menu" size="small" onClick={(e) => handleMenuOpen(e, user)}>
@@ -533,6 +630,10 @@ export const UserRoster = () => {
         <MenuItem onClick={handleDeactivateClick}>
           {activeMenuUser?.status === 'INACTIVE' ? 'Activate Account' : 'Deactivate'}
         </MenuItem>
+        <MenuItem onClick={handleViewSessionsClick} sx={{ color: 'primary.main' }}>View Sessions</MenuItem>
+        {['STUDENT', 'FACULTY', 'HOD'].includes(activeMenuUser?.role) && (
+          <MenuItem onClick={handleGenerateIdCardClick}>Generate ID Card</MenuItem>
+        )}
       </Menu>
 
       {/* 5. User Creation Wizard Modal */}
@@ -585,6 +686,67 @@ export const UserRoster = () => {
         typedConfirmation={deactivateUser?.status !== 'INACTIVE'} // Only require typing to deactivate
         confirmationWord="DEACTIVATE"
       />
+
+      {/* 8. View Sessions Drawer */}
+      <Drawer
+        anchor="right"
+        open={sessionsDrawerOpen}
+        onClose={() => {
+          setSessionsDrawerOpen(false);
+          setSessionsDrawerUser(null);
+        }}
+        PaperProps={{ sx: { width: { xs: '100%', sm: 400 }, p: 4, bgcolor: theme.palette.background.paper } }}
+      >
+        {sessionsDrawerOpen && sessionsDrawerUser && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, flexGrow: 1 }}>
+              <Box sx={{ borderBottom: `1px solid ${theme.custom.border.subtle}`, pb: 2 }}>
+                <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.ink[900], mb: 0.5 }}>
+                  Active Sessions
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Manage active login sessions for {sessionsDrawerUser.name}
+                </Typography>
+              </Box>
+
+              {/* Current Session Mock Details */}
+              <Card sx={{ border: `1px solid ${theme.custom.border.subtle}`, borderRadius: '12px', boxShadow: 'none' }}>
+                <CardContent sx={{ p: 2 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.primary.main, mb: 1 }}>
+                    Current Device (This Session)
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                    Browser: Chrome on Windows
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                    IP Address: {sessionsDrawerUser.lastLoginIp || '192.168.1.105'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                    Last Active: {sessionsDrawerUser.lastLoginAt ? new Date(sessionsDrawerUser.lastLoginAt).toLocaleString() : 'Just now'}
+                  </Typography>
+                </CardContent>
+              </Card>
+
+              {/* Info alert */}
+              <Alert severity="info" sx={{ borderRadius: '8px' }}>
+                Session and Device Management backend tracking will be fully configured in the upcoming Phase 11.
+              </Alert>
+            </Box>
+
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={() => {
+                setSessionsDrawerOpen(false);
+                setSessionsDrawerUser(null);
+              }}
+              sx={{ mt: 'auto', fontWeight: 600, color: theme.palette.text.secondary, borderColor: theme.palette.divider }}
+            >
+              Close
+            </Button>
+          </Box>
+        )}
+      </Drawer>
 
       {/* 8. Toast Action Snackbar */}
       <Snackbar
@@ -685,6 +847,7 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
       branchId: user.branchId || '',
       semester: user.semester || 1,
       reason: '',
+      shift: user.shift || '',
     },
   });
 
@@ -693,26 +856,45 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
   const editCourseValue = watch('courseId');
   const editBranchValue = watch('branchId');
   const editSemesterValue = watch('semester');
+  const editShiftValue = watch('shift');
 
   const [hodWarning, setHodWarning] = useState('');
 
   // Warn if assigning role HOD to a department that already has one
   useEffect(() => {
     if (user && editRoleValue === 'HOD' && editDeptValue && allHods?.data) {
-      const activeHod = allHods.data.find(
-        (h) => String(h.departmentId) === String(editDeptValue) && String(h.id) !== String(user.id) && h.status === 'ACTIVE'
-      );
-      if (activeHod) {
-        setHodWarning(
-          `This department already has an HOD: ${activeHod.name}. Setting this HOD role will demote them.`
+      const shift = editShiftValue || 'GENERAL';
+      const deptObj = depts?.find((d) => String(d._id) === String(editDeptValue));
+      const deptName = deptObj ? deptObj.name : 'this department';
+
+      if (shift === 'GENERAL') {
+        const existing = allHods.data.find(
+          (h) => String(h.departmentId) === String(editDeptValue) && String(h.id) !== String(user.id) && h.status === 'ACTIVE'
         );
+        if (existing) {
+          setHodWarning(
+            `${deptName} already has an active HOD: ${existing.name} (${existing.shift || 'GENERAL'}). Assigning a General HOD will conflict.`
+          );
+        } else {
+          setHodWarning('');
+        }
       } else {
-        setHodWarning('');
+        const conflicting = allHods.data.find(
+          (h) => String(h.departmentId) === String(editDeptValue) && String(h.id) !== String(user.id) && h.status === 'ACTIVE' && (h.shift === 'GENERAL' || h.shift === shift)
+        );
+        if (conflicting) {
+          const reason = conflicting.shift === 'GENERAL'
+            ? `${deptName} currently has a General HOD (${conflicting.name}). Reassign or convert them to shift-specific before adding a ${shift} HOD.`
+            : `${deptName} already has a ${shift}-shift HOD: ${conflicting.name}.`;
+          setHodWarning(reason);
+        } else {
+          setHodWarning('');
+        }
       }
     } else {
       setHodWarning('');
     }
-  }, [editRoleValue, editDeptValue, allHods, user]);
+  }, [editRoleValue, editDeptValue, editShiftValue, allHods, user, depts]);
 
   // Progressive cascading selects filters for course lengths bounds
   const getActiveCourseSemesters = useCallback(() => {
@@ -759,6 +941,7 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
         courseId: data.courseId || null,
         branchId: data.branchId || null,
         semester: data.role === 'STUDENT' ? (data.semester || 1) : null,
+        shift: data.role === 'HOD' ? data.shift : null,
       };
 
       if (isStudentAcademicChanged()) {
@@ -881,6 +1064,33 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
                         {d.name}
                       </MenuItem>
                     ))}
+                  </TextField>
+                )}
+              />
+            </Box>
+          )}
+
+          {editRoleValue === 'HOD' && (
+            <Box>
+              <Typography component="label" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                HOD Scope
+              </Typography>
+              <Controller
+                name="shift"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    select
+                    fullWidth
+                    size="small"
+                    error={!!errors.shift}
+                    helperText={errors.shift?.message}
+                  >
+                    <MenuItem value="">Choose HOD Scope...</MenuItem>
+                    <MenuItem value="GENERAL">General (single HOD for the whole department)</MenuItem>
+                    <MenuItem value="MORNING">Morning Shift (Day Scholars)</MenuItem>
+                    <MenuItem value="EVENING">Evening Shift (Hostellers)</MenuItem>
                   </TextField>
                 )}
               />

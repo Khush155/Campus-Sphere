@@ -28,6 +28,10 @@ const authMiddleware = async (req, res, next) => {
     else if (req.cookies && req.cookies.accessToken) {
       token = req.cookies.accessToken;
     }
+    // 3. Check query parameters (for direct window.open PDF downloads)
+    else if (req.query && req.query.token) {
+      token = req.query.token;
+    }
 
     if (!token) {
       return next(new AppError('Authentication required. Please log in.', 401, ERROR_CODES.UNAUTHORIZED));
@@ -65,6 +69,7 @@ const authMiddleware = async (req, res, next) => {
         email: currentUser.email,
         role: currentUser.role,
         departmentId: currentUser.departmentId,
+        semester: currentUser.semester,
       };
     }
 

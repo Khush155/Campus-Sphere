@@ -1,88 +1,78 @@
-const Notice = require('../models/Notice');
-const AppError = require('../utils/AppError');
+const noticeService = require('../services/noticeService');
+const { noticeSchema } = require('../validators/noticeValidator');
+const { successResponse } = require('../utils/apiResponse');
 
 /**
- * POST /api/v1/notices
- * Create a notice with audience targeting and future-only expiry validation.
+ * Controller to create a new notice profile.
  */
-exports.createNotice = async (req, res) => {
-  const { title, content, priority, expiresAt, targetAudience } = req.body;
-
-  if (!title || !content) throw new AppError('title and content are required.', 400);
-
-  if (expiresAt && new Date(expiresAt) <= new Date()) {
-    throw new AppError('expiresAt must be a future date.', 400);
-  }
-
-  const notice = await Notice.create({
-    title,
-    content,
-    departmentId: req.user.departmentId || null,
-    authorId: req.user.id,
-    priority: priority || 'MEDIUM',
-    expiresAt: expiresAt ? new Date(expiresAt) : null,
-    targetAudience: targetAudience || 'ALL',
-  });
-
-  res.status(201).json({ success: true, data: notice });
+const createNotice = async (req, res, _next) => {
+  const validatedBody = noticeSchema.parse(req.body);
+  const newNotice = await noticeService.createNotice(validatedBody, req.user.id);
+  return successResponse(res, 201, 'Notice created successfully.', newNotice);
 };
 
 /**
- * GET /api/v1/notices
- * List active (non-expired) notices sorted by priority then recency.
+ * Controller to fetch paginated notice listing for admins.
  */
-exports.getNotices = async (req, res) => {
-  const { departmentId, priority, targetAudience, page = 1, limit = 30 } = req.query;
-  const now = new Date();
+const getNotices = async (req, res, _next) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 20;
+  const { status, priority, search } = req.query;
 
-  const filters = {
-    $and: [
-      // Only active (non-expired) notices
-      { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
-      // Department filter: include global notices OR department-specific
-      departmentId
-        ? { $or: [{ departmentId }, { departmentId: null }] }
-        : {},
-    ],
-  };
-
-  if (priority) filters.priority = priority;
-  if (targetAudience && targetAudience !== 'ALL') {
-    filters.$and.push({ $or: [{ targetAudience }, { targetAudience: 'ALL' }] });
-  }
-
-  const PRIORITY_ORDER = { HIGH: 0, MEDIUM: 1, LOW: 2 };
-
-  const skip = (parseInt(page) - 1) * parseInt(limit);
-  const [notices, total] = await Promise.all([
-    Notice.find(filters)
-      .populate('authorId', 'name role')
-      .sort({ priority: -1, createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit)),
-    Notice.countDocuments(filters),
-  ]);
-
-  // Sort in-memory by priority enum order
-  notices.sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3));
-
-  res.status(200).json({
-    success: true,
-    data: notices,
-    meta: { total, page: parseInt(page), limit: parseInt(limit) },
+  const result = await noticeService.getNoticesList({
+    page,
+    limit,
+    status,
+    priority,
+    search,
   });
+
+  return successResponse(res, 200, 'Notices retrieved successfully.', result.notices, result.meta);
 };
 
 /**
- * DELETE /api/v1/notices/:id
- * HOD/Admin can remove their own notices.
+ * Controller to fetch notice details by ID.
  */
-exports.deleteNotice = async (req, res) => {
-  const notice = await Notice.findById(req.params.id);
-  if (!notice) throw new AppError('Notice not found.', 404);
-  if (notice.authorId.toString() !== req.user.id && req.user.role !== 'SUPER_ADMIN') {
-    throw new AppError('You can only delete your own notices.', 403);
-  }
-  await notice.deleteOne();
-  res.status(200).json({ success: true, message: 'Notice deleted.' });
+const getNoticeById = async (req, res, _next) => {
+  const notice = await noticeService.getNoticeDetails(req.params.id);
+  return successResponse(res, 200, 'Notice details retrieved successfully.', notice);
+};
+
+/**
+ * Controller to update notice attributes.
+ */
+const updateNotice = async (req, res, _next) => {
+  const validatedBody = noticeSchema.partial().parse(req.body);
+  const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
+  const updated = await noticeService.updateNoticeDetails(req.params.id, validatedBody, req.user.id, meta);
+  return successResponse(res, 200, 'Notice updated successfully.', updated);
+};
+
+/**
+ * Controller to archive / soft delete notice.
+ */
+const archiveNotice = async (req, res, _next) => {
+  const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
+  await noticeService.archiveNoticeDetails(req.params.id, req.user.id, meta);
+  return successResponse(res, 200, 'Notice archived successfully.');
+};
+
+/**
+ * Controller to fetch user notice feed.
+ */
+const getFeed = async (req, res, _next) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 20;
+
+  const result = await noticeService.getFeedList(req.user, { page, limit });
+  return successResponse(res, 200, 'Notice feed retrieved successfully.', result.notices, result.meta);
+};
+
+module.exports = {
+  createNotice,
+  getNotices,
+  getNoticeById,
+  updateNotice,
+  archiveNotice,
+  getFeed,
 };

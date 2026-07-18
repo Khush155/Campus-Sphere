@@ -32,7 +32,14 @@ import HodDocumentsHub from '../pages/hod/DocumentsHub/HodDocumentsHub';
 import HodMeetingsHub from '../pages/hod/MeetingsHub/HodMeetingsHub';
 import HodOpportunitiesHub from '../pages/hod/OpportunitiesHub/HodOpportunitiesHub';
 import HodFeedbackHub from '../pages/hod/FeedbackHub/HodFeedbackHub';
-// HOD pages now loaded via HodDashboard tabs
+
+import NoticeBoard from '../pages/admin/NoticeBoard/NoticeBoard';
+import { AcademicCalendar } from '../pages/admin/AcademicCalendar/AcademicCalendar';
+import { CollegeProfile } from '../pages/admin/CollegeProfile/CollegeProfile';
+import { AuditLogViewer } from '../pages/admin/AuditLog/AuditLogViewer';
+import { BulkPromotion } from '../pages/admin/BulkPromotion/BulkPromotion';
+import { Certificates } from '../pages/admin/Certificates/Certificates';
+import { Reports } from '../pages/admin/Reports/Reports';
 
 // Guard for authenticated sections
 const ProtectedRoute = ({ children }) => {
@@ -199,6 +206,83 @@ export const AppRoutes = () => {
         <Route path="hod/documents" element={<RoleRoute allowedRoles={['HOD']}><HodDocumentsHub /></RoleRoute>} />
         <Route path="hod/meetings" element={<RoleRoute allowedRoles={['HOD']}><HodMeetingsHub /></RoleRoute>} />
         <Route path="hod/opportunities" element={<RoleRoute allowedRoles={['HOD']}><HodOpportunitiesHub /></RoleRoute>} />
+
+        <Route
+          path="admin/notices"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AdminSetupGuard>
+                <NoticeBoard />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/academic-calendar"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <AcademicCalendar />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/college-profile"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <CollegeProfile />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/audit-logs"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <AuditLogViewer />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/bulk-promotion"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <BulkPromotion />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/certificates"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <Certificates />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/reports"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+              <AdminSetupGuard>
+                <Reports />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
 
         <Route path="students" element={<PlaceholderView title="Students" />} />
         <Route path="faculty" element={<PlaceholderView title="Faculty" />} />

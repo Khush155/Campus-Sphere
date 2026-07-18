@@ -32,6 +32,7 @@ import {
   Logout as LogoutIcon,
   Palette as PaletteIcon,
   Search as SearchIcon,
+<<<<<<< HEAD
   AssignmentInd as AssignmentIndIcon,
   SwapHoriz as SwapHorizIcon,
   BarChart as BarChartIcon,
@@ -45,11 +46,19 @@ import {
   Folder as FolderIcon,
   Groups as GroupsIcon,
   Public as PublicIcon,
+=======
+  AccountBalance as AccountBalanceIcon,
+  History as HistoryIcon,
+  Autorenew as AutorenewIcon,
+  CardMembership as CardMembershipIcon,
+  Assessment as AssessmentIcon,
+>>>>>>> c04743e0d08ee922b509673d3aeb767888717eec
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../contexts/AuthContext';
 import CommandPalette from '../components/common/CommandPalette';
+import { useCollegeProfileQuery } from '../queries/collegeProfileQueries';
 
 const drawerWidth = 240;
 
@@ -63,6 +72,8 @@ export const AppLayout = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [presetAnchorEl, setPresetAnchorEl] = useState(null);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+
+  const { data: profile } = useCollegeProfileQuery();
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -106,6 +117,13 @@ export const AppLayout = () => {
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard', roles: ['SUPER_ADMIN'] },
         { text: 'College Setup', icon: <SchoolIcon />, path: '/admin/college-setup/departments', roles: ['SUPER_ADMIN'] },
         { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users', roles: ['SUPER_ADMIN'] },
+        { text: 'Notice Board', icon: <NotificationsIcon />, path: '/admin/notices', roles: ['SUPER_ADMIN'] },
+        { text: 'Academic Calendar', icon: <DateRangeIcon />, path: '/admin/academic-calendar', roles: ['SUPER_ADMIN'] },
+        { text: 'Bulk Promotion', icon: <AutorenewIcon />, path: '/admin/bulk-promotion', roles: ['SUPER_ADMIN'] },
+        { text: 'Certificates', icon: <CardMembershipIcon />, path: '/admin/certificates', roles: ['SUPER_ADMIN'] },
+        { text: 'Reports Export', icon: <AssessmentIcon />, path: '/admin/reports', roles: ['SUPER_ADMIN'] },
+        { text: 'College Profile', icon: <AccountBalanceIcon />, path: '/admin/college-profile', roles: ['SUPER_ADMIN'] },
+        { text: 'Audit Logs', icon: <HistoryIcon />, path: '/admin/audit-logs', roles: ['SUPER_ADMIN'] },
       ]
     : user?.role === 'HOD'
     ? [
@@ -129,16 +147,36 @@ export const AppLayout = () => {
         { text: 'Opportunities', icon: <PublicIcon />, path: '/hod/opportunities', roles: ['HOD'] },
         { text: 'Feedback', icon: <ReportProblemIcon />, path: '/hod/feedback', roles: ['HOD'] },
       ]
+    : user?.role === 'STUDENT'
+    ? [
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['STUDENT'] },
+        { text: 'Profile', icon: <PersonIcon />, path: '/student/profile', roles: ['STUDENT'] },
+        { text: 'Academics', icon: <MenuBookIcon />, path: '/student/academics', roles: ['STUDENT'] },
+        { text: 'Timetable', icon: <DateRangeIcon />, path: '/student/timetable', roles: ['STUDENT'] },
+        { text: 'Assignments', icon: <AssignmentIcon />, path: '/student/assignments', roles: ['STUDENT'] },
+        { text: 'Attendance', icon: <FactCheckIcon />, path: '/student/attendance', roles: ['STUDENT'] },
+        { text: 'Examinations', icon: <ArticleIcon />, path: '/student/examinations', roles: ['STUDENT'] },
+        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['STUDENT'] },
+        { text: 'Notices', icon: <CampaignIcon />, path: '/notices', roles: ['STUDENT'] },
+        { text: 'Projects', icon: <FolderIcon />, path: '/student/projects', roles: ['STUDENT'] },
+        { text: 'Placements', icon: <WorkIcon />, path: '/student/placements', roles: ['STUDENT'] },
+        { text: 'Library', icon: <LocalLibraryIcon />, path: '/student/library', roles: ['STUDENT'] },
+        { text: 'Leave', icon: <EventNoteIcon />, path: '/student/leave', roles: ['STUDENT'] },
+        { text: 'Portfolio & Resume', icon: <MenuBookIcon />, path: '/student/portfolio', roles: ['STUDENT'] },
+        { text: 'Documents', icon: <FolderIcon />, path: '/student/documents', roles: ['STUDENT'] },
+        { text: 'Complaints', icon: <ReportProblemIcon />, path: '/student/complaints', roles: ['STUDENT'] },
+        { text: 'Notifications', icon: <NotificationsIcon />, path: '/student/notifications', roles: ['STUDENT'] },
+      ]
     : [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN', 'FACULTY'] },
         { text: 'Students', icon: <PeopleIcon />, path: '/students', roles: ['COLLEGE_ADMIN'] },
         { text: 'Faculty', icon: <SchoolIcon />, path: '/faculty', roles: ['COLLEGE_ADMIN'] },
-        { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },
-        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['COLLEGE_ADMIN', 'STUDENT'] },
-        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['COLLEGE_ADMIN', 'FACULTY', 'STUDENT'] },
+        { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['COLLEGE_ADMIN', 'FACULTY'] },
+        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['COLLEGE_ADMIN'] },
+        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['COLLEGE_ADMIN', 'FACULTY'] },
       ];
 
-  const visibleMenuItems = (user?.role === 'SUPER_ADMIN' || user?.role === 'HOD')
+  const visibleMenuItems = (user?.role === 'SUPER_ADMIN' || user?.role === 'HOD' || user?.role === 'STUDENT')
     ? menuItems
     : menuItems.filter(item => item.roles.includes(user?.role));
 
@@ -147,21 +185,45 @@ export const AppLayout = () => {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
+  const getFullLogoUrl = (relativeUrl) => {
+    if (!relativeUrl) return null;
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+    const rootUrl = baseUrl.replace('/api/v1', '');
+    return `${rootUrl}${relativeUrl}`;
+  };
+
+  const hasCustomProfile = profile && profile.name && profile.name !== 'My College';
+
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Toolbar sx={{ justifyContent: 'center', py: 2 }}>
+      <Toolbar sx={{ justifyContent: 'center', py: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        {hasCustomProfile && profile.logoUrl ? (
+          <Box
+            component="img"
+            src={getFullLogoUrl(profile.logoUrl)}
+            alt="College Logo"
+            sx={{ width: 32, height: 32, objectFit: 'contain' }}
+          />
+        ) : null}
         <Typography
-          variant="h5"
+          variant="h6"
           component="div"
           sx={{
             fontWeight: 800,
-            background: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
             letterSpacing: '0.5px',
+            maxWidth: 180,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            color: theme.palette.text.primary,
+            ...(!hasCustomProfile && {
+              background: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }),
           }}
         >
-          CampusSphere
+          {hasCustomProfile ? profile.name : 'CampusSphere'}
         </Typography>
       </Toolbar>
       <Divider />
