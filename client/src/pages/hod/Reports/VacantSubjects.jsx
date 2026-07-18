@@ -34,7 +34,7 @@ const VacantSubjects = ({ data }) => {
           </TableHead>
           <TableBody>
             {data.map((subject) => (
-              <TableRow key={subject._id} hover>
+              <TableRow key={subject._id || subject.code} hover>
                 <TableCell>
                   <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
                     {subject.code}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { expect, describe, it, vi } from 'vitest';
+import '@testing-library/jest-dom';
 import AssignFacultyDrawer from '../src/pages/hod/FacultyAssignment/AssignFacultyDrawer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 

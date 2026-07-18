@@ -47,7 +47,31 @@ const generateReport = async (req, res, _next) => {
   await reportService.exportReport({ type, format, filters }, res);
 };
 
+/**
+ * GET /api/v1/reports/hod
+ * Fetch HOD Overview & Reports metrics
+ */
+const getHodReports = async (req, res, _next) => {
+  // Dummy data for now until fully implemented in the service
+  const workloadDistribution = [
+    { subject: 'Computer Networks', hours: 15 },
+    { subject: 'Operating Systems', hours: 12 },
+    { subject: 'Data Structures', hours: 18 },
+  ];
+  
+  const vacantSubjects = [
+    { name: 'Machine Learning', code: 'CS501', requiredFaculty: 2 },
+    { name: 'Cloud Computing', code: 'CS502', requiredFaculty: 1 },
+  ];
+
+  return successResponse(res, 200, 'HOD reports retrieved successfully.', {
+    workloadDistribution,
+    vacantSubjects,
+  });
+};
+
 module.exports = {
   getReportTypes,
   generateReport,
+  getHodReports,
 };

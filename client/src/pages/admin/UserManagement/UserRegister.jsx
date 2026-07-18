@@ -41,6 +41,15 @@ const registerFormSchema = z.object({
       });
     }
   }
+  if (['HOD', 'FACULTY', 'STUDENT'].includes(data.role)) {
+    if (!data.departmentId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Department is required for this role',
+        path: ['departmentId'],
+      });
+    }
+  }
 });
 
 export const UserRegister = ({ open, onClose }) => {
@@ -95,32 +104,45 @@ export const UserRegister = ({ open, onClose }) => {
     }
   }, [selectedRole, setValue]);
 
-  // HOD check warning
+  // HOD check warning  // Warn if assigning role HOD to a department that already has one
   useEffect(() => {
     if (selectedRole === 'HOD' && selectedDept && hodsData?.data) {
-      const shift = selectedShift || 'GENERAL';
       const deptObj = depts?.find((d) => String(d._id) === String(selectedDept));
       const deptName = deptObj ? deptObj.name : 'this department';
 
-      if (shift === 'GENERAL') {
-        const existing = hodsData.data.find(
-          (h) => String(h.departmentId) === String(selectedDept) && h.status === 'ACTIVE'
-        );
-        if (existing) {
-          setHodWarning(
-            `${deptName} already has an active HOD: ${existing.name} (${existing.shift || 'GENERAL'}). Assigning a General HOD will conflict.`
-          );
+      const existingInDept = hodsData.data.filter(
+        (h) => String(h.departmentId) === String(selectedDept) && h.status === 'ACTIVE'
+      );
+
+      if (existingInDept.length === 0) {
+        setHodWarning('');
+        return;
+      }
+
+      if (!selectedShift) {
+        const generalHod = existingInDept.find(h => h.shift === 'GENERAL');
+        if (generalHod) {
+          setHodWarning(`${deptName} already has a General HOD: ${generalHod.name}. You must reassign them before adding another HOD.`);
         } else {
-          setHodWarning('');
+          const shifts = existingInDept.map(h => `${h.name} (${h.shift})`).join(', ');
+          setHodWarning(`${deptName} already has active HOD(s): ${shifts}. Please choose an available shift.`);
         }
+        return;
+      }
+
+      if (selectedShift === 'GENERAL') {
+        const existing = existingInDept[0];
+        setHodWarning(
+          `${deptName} already has an active HOD: ${existing.name} (${existing.shift || 'GENERAL'}). Assigning a General HOD will conflict.`
+        );
       } else {
-        const conflicting = hodsData.data.find(
-          (h) => String(h.departmentId) === String(selectedDept) && h.status === 'ACTIVE' && (h.shift === 'GENERAL' || h.shift === shift)
+        const conflicting = existingInDept.find(
+          (h) => h.shift === 'GENERAL' || h.shift === selectedShift
         );
         if (conflicting) {
           const reason = conflicting.shift === 'GENERAL'
-            ? `${deptName} currently has a General HOD (${conflicting.name}). Reassign or convert them to shift-specific before adding a ${shift} HOD.`
-            : `${deptName} already has a ${shift}-shift HOD: ${conflicting.name}.`;
+            ? `${deptName} currently has a General HOD (${conflicting.name}). Reassign them before adding a ${selectedShift} HOD.`
+            : `${deptName} already has a ${selectedShift}-shift HOD: ${conflicting.name}.`;
           setHodWarning(reason);
         } else {
           setHodWarning('');
@@ -184,7 +206,11 @@ export const UserRegister = ({ open, onClose }) => {
       setHodWarning('');
       onClose();
     } catch (err) {
-      // Handled globally
+      if (err.response?.data?.message) {
+        setHodWarning(err.response.data.message);
+      } else {
+        setHodWarning('An unexpected error occurred during registration.');
+      }
     }
   };
 

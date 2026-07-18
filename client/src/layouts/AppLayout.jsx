@@ -32,7 +32,6 @@ import {
   Logout as LogoutIcon,
   Palette as PaletteIcon,
   Search as SearchIcon,
-<<<<<<< HEAD
   AssignmentInd as AssignmentIndIcon,
   SwapHoriz as SwapHorizIcon,
   BarChart as BarChartIcon,
@@ -44,15 +43,20 @@ import {
   EventNote as EventNoteIcon,
   ReportProblem as ReportProblemIcon,
   Folder as FolderIcon,
+  Person as PersonIcon,
+  Assignment as AssignmentIcon,
+  Campaign as CampaignIcon,
+  LocalLibrary as LocalLibraryIcon,
+  Hotel as HotelIcon,
+  Description as DescriptionIcon,
+  Settings as SettingsIcon,
   Groups as GroupsIcon,
   Public as PublicIcon,
-=======
   AccountBalance as AccountBalanceIcon,
   History as HistoryIcon,
   Autorenew as AutorenewIcon,
   CardMembership as CardMembershipIcon,
   Assessment as AssessmentIcon,
->>>>>>> c04743e0d08ee922b509673d3aeb767888717eec
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
