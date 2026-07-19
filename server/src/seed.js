@@ -150,7 +150,7 @@ const seedDatabase = async () => {
       name: 'Data Structures & Algorithms Lab',
       code: 'CS301L',
       credits: 2,
-      type: 'LAB',
+      type: 'PRACTICAL',
       branchId: cseBranch._id,
       departmentId: cseDept._id,
       semester: 3,
