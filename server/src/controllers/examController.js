@@ -128,10 +128,14 @@ const calculateStudentGPA = asyncHandler(async (req, res, next) => {
   // 2. Loop through results and calculate sum of (GradePoints * Credits)
   for (const result of publishedResults) {
     const exam = result.examId;
-    if (!exam) continue;
+    if (!exam) {
+      continue;
+    }
 
     const subject = exam.subjectId;
-    if (!subject) continue; // Safety guard if subject is somehow missing
+    if (!subject) {
+      continue; // Safety guard if subject is somehow missing
+    }
 
     const credits = subject.credits;
     const gradePoint = result.gradePoint;
@@ -169,7 +173,7 @@ const calculateStudentGPA = asyncHandler(async (req, res, next) => {
  * @route   GET /api/v1/exams
  * @access  Private
  */
-const getExams = asyncHandler(async (req, res, next) => {
+const getExams = asyncHandler(async (req, res, _next) => {
   const { subjectId } = req.query;
   const filter = {};
   
@@ -187,7 +191,7 @@ const getExams = asyncHandler(async (req, res, next) => {
  * @route   GET /api/v1/exams/:examId/results
  * @access  Private/Faculty/Admin
  */
-const getExamResults = asyncHandler(async (req, res, next) => {
+const getExamResults = asyncHandler(async (req, res, _next) => {
   const { examId } = req.params;
   const results = await ExamResult.find({ examId }).populate('studentId', 'name email');
   return successResponse(res, 200, 'Exam results retrieved successfully', results);

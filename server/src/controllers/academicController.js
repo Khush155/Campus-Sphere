@@ -8,7 +8,7 @@ const asyncHandler = require('../middlewares/asyncHandler');
  * @route   GET /api/v1/academics/departments
  * @access  Private
  */
-const getAllDepartments = asyncHandler(async (req, res, next) => {
+const getAllDepartments = asyncHandler(async (req, res, _next) => {
   const departments = await Department.find({});
   return successResponse(res, 200, 'Departments retrieved successfully', departments);
 });
@@ -18,7 +18,7 @@ const getAllDepartments = asyncHandler(async (req, res, next) => {
  * @route   GET /api/v1/academics/subjects
  * @access  Private
  */
-const getAllSubjects = asyncHandler(async (req, res, next) => {
+const getAllSubjects = asyncHandler(async (req, res, _next) => {
   const { departmentId } = req.query;
   const filter = {};
 

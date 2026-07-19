@@ -278,7 +278,7 @@ export const MarksEntryTable = ({
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Provide custom comments, improvement notes, or observations about this student's grade.
+          Provide custom comments, improvement notes, or observations about this student&apos;s grade.
         </Typography>
         <TextField
           autoFocus

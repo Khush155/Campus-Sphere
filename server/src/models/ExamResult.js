@@ -48,7 +48,9 @@ examResultSchema.index({ examId: 1, studentId: 1 }, { unique: true });
 examResultSchema.pre('save', async function (next) {
   try {
     // If marksObtained wasn't modified, skip calculation
-    if (!this.isModified('marksObtained')) return next();
+    if (!this.isModified('marksObtained')) {
+      return next();
+    }
 
     // Fetch the Exam metadata to get the maxMarks
     const Exam = mongoose.model('Exam');

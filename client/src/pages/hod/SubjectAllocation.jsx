@@ -147,7 +147,7 @@ const SubjectAllocation = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredSubjects.map((sub, index) => {
+              {filteredSubjects.map((sub) => {
                 const assignedFacultyName = sub.facultyId?.name;
                 return (
                   <TableRow key={sub._id || sub.id} hover>

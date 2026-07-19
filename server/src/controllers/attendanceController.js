@@ -1,6 +1,5 @@
 const Attendance = require('../models/Attendance');
 const Faculty = require('../models/Faculty');
-const Subject = require('../models/Subject');
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');

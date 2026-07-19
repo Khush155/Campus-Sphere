@@ -166,7 +166,7 @@ const seedDatabase = async () => {
       semester: 3,
     });
 
-    const digitalSignalsSubject = await Subject.create({
+    await Subject.create({
       name: 'Digital Signal Processing',
       code: 'EC204',
       credits: 4,

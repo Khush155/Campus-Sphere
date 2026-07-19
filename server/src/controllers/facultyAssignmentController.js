@@ -43,12 +43,16 @@ const createAssignment = asyncHandler(async (req, res, next) => {
  * @route   GET /api/v1/faculty-assignments
  * @access  Private
  */
-const getAssignments = asyncHandler(async (req, res, next) => {
+const getAssignments = asyncHandler(async (req, res, _next) => {
   const { subjectId, group } = req.query;
   const filter = {};
 
-  if (subjectId) filter.subjectId = subjectId;
-  if (group) filter.group = group;
+  if (subjectId) {
+    filter.subjectId = subjectId;
+  }
+  if (group) {
+    filter.group = group;
+  }
 
   const assignments = await Assignment.find(filter)
     .populate('subjectId', 'name code')

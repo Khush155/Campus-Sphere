@@ -1,11 +1,9 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Box, TextField, MenuItem, Grid, useTheme } from '@mui/material';
 import { useBranchesQuery } from '../../../queries/collegeQueries';
-import { useAuth } from '../../../contexts/AuthContext';
 
 const AssignmentFilters = ({ filters, onFilterChange }) => {
   const theme = useTheme();
-  const { user } = useAuth();
   
   // We can fetch branches for the HOD's department
   // Assume useCollegeMetadata or useBranchesQuery fetches branches for a dept.

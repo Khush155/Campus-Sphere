@@ -45,12 +45,16 @@ const createMaterial = asyncHandler(async (req, res, next) => {
  * @route   GET /api/v1/materials
  * @access  Private/Faculty/Student/Admin
  */
-const getMaterials = asyncHandler(async (req, res, next) => {
+const getMaterials = asyncHandler(async (req, res, _next) => {
   const { subjectId, group } = req.query;
   const filter = {};
 
-  if (subjectId) filter.subjectId = subjectId;
-  if (group) filter.group = group;
+  if (subjectId) {
+    filter.subjectId = subjectId;
+  }
+  if (group) {
+    filter.group = group;
+  }
 
   const materials = await Material.find(filter)
     .populate('subjectId', 'name code')

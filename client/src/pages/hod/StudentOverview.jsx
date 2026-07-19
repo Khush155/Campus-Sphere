@@ -100,7 +100,7 @@ const StudentOverview = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {usersData.data.map((user, index) => {
+              {usersData.data.map((user) => {
                 const isInactive = user.status === 'INACTIVE';
                 return (
                   <TableRow key={user.id} hover sx={{ opacity: isInactive ? 0.6 : 1 }}>

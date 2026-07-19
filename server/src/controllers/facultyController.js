@@ -74,7 +74,7 @@ const createFaculty = asyncHandler(async (req, res, next) => {
  * @route   GET /api/v1/faculty
  * @access  Private
  */
-const getAllFaculty = asyncHandler(async (req, res, next) => {
+const getAllFaculty = asyncHandler(async (req, res, _next) => {
   const { departmentId } = req.query;
   const filter = {};
 
@@ -129,7 +129,9 @@ const updateFaculty = asyncHandler(async (req, res, next) => {
   // 1. Update User fields if provided
   if (name || email) {
     const userUpdate = {};
-    if (name) userUpdate.name = name;
+    if (name) {
+      userUpdate.name = name;
+    }
     if (email) {
       // Check if email is already taken by someone else
       const emailTaken = await User.findOne({ email, _id: { $ne: faculty.userId } });
@@ -143,10 +145,18 @@ const updateFaculty = asyncHandler(async (req, res, next) => {
 
   // 2. Update Faculty fields
   const facultyUpdate = {};
-  if (designation) facultyUpdate.designation = designation;
-  if (phoneNumber !== undefined) facultyUpdate.phoneNumber = phoneNumber;
-  if (officeHours !== undefined) facultyUpdate.officeHours = officeHours;
-  if (subjects) facultyUpdate.subjects = subjects;
+  if (designation) {
+    facultyUpdate.designation = designation;
+  }
+  if (phoneNumber !== undefined) {
+    facultyUpdate.phoneNumber = phoneNumber;
+  }
+  if (officeHours !== undefined) {
+    facultyUpdate.officeHours = officeHours;
+  }
+  if (subjects) {
+    facultyUpdate.subjects = subjects;
+  }
 
   const updatedFaculty = await Faculty.findByIdAndUpdate(req.params.id, facultyUpdate, {
     new: true, // Returns the updated document instead of the old one
@@ -217,7 +227,7 @@ const assignSubjects = asyncHandler(async (req, res, next) => {
  * @route   GET /api/v1/faculty/dashboard/stats
  * @access  Private/Faculty
  */
-const getFacultyDashboard = asyncHandler(async (req, res, next) => {
+const getFacultyDashboard = asyncHandler(async (req, res, _next) => {
   const faculty = await Faculty.findOne({ userId: req.user.id })
     .populate('subjects')
     .populate('departmentId');

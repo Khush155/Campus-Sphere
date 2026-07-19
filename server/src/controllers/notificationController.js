@@ -9,7 +9,7 @@ const asyncHandler = require('../middlewares/asyncHandler');
  * @route   GET /api/v1/notifications
  * @access  Private
  */
-const getNotifications = asyncHandler(async (req, res, next) => {
+const getNotifications = asyncHandler(async (req, res, _next) => {
   const filter = { recipientId: req.user.id };
   const { category, unreadOnly } = req.query;
 
@@ -54,7 +54,7 @@ const markNotificationRead = asyncHandler(async (req, res, next) => {
  * @route   PATCH /api/v1/notifications/read-all
  * @access  Private
  */
-const markAllRead = asyncHandler(async (req, res, next) => {
+const markAllRead = asyncHandler(async (req, res, _next) => {
   await Notification.updateMany(
     { recipientId: req.user.id, isRead: false },
     { $set: { isRead: true } }

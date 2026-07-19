@@ -13,7 +13,7 @@ import {
   useTheme,
   Box
 } from '@mui/material';
-import { AssignmentIndOutlined, CancelOutlined } from '@mui/icons-material';
+import { CancelOutlined } from '@mui/icons-material';
 import Pagination from '../../../components/common/Pagination';
 import EmptyState from '../../../components/common/EmptyState';
 
