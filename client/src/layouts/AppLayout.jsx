@@ -186,7 +186,6 @@ export const AppLayout = () => {
         { text: 'Materials', icon: <MenuBookIcon />, path: '/materials', roles: ['FACULTY'] },
         { text: 'Analytics', icon: <BarChartIcon />, path: '/analytics', roles: ['FACULTY'] },
         { text: 'Notifications', icon: <NotificationsIcon />, path: '/notifications', roles: ['FACULTY'] },
-        { text: 'Search Directory', icon: <SearchIcon />, path: '/search', roles: ['FACULTY'] },
         { text: 'Settings', icon: <SettingsIcon />, path: '/settings', roles: ['FACULTY'] },
       ]
     : [

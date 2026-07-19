@@ -305,10 +305,8 @@ export const AppRoutes = () => {
         <Route path="marks" element={<RoleRoute allowedRoles={['FACULTY']}><MarksPage /></RoleRoute>} />
         <Route path="timetable" element={<RoleRoute allowedRoles={['FACULTY']}><TimetablePage /></RoleRoute>} />
         <Route path="materials" element={<RoleRoute allowedRoles={['FACULTY']}><MaterialsPage /></RoleRoute>} />
-        <Route path="profile" element={<RoleRoute allowedRoles={['FACULTY']}><ProfilePage /></RoleRoute>} />
         <Route path="analytics" element={<RoleRoute allowedRoles={['FACULTY']}><AnalyticsPage /></RoleRoute>} />
         <Route path="notifications" element={<RoleRoute allowedRoles={['FACULTY']}><NotificationPage /></RoleRoute>} />
-        <Route path="search" element={<RoleRoute allowedRoles={['FACULTY']}><SearchPage /></RoleRoute>} />
         <Route path="settings" element={<RoleRoute allowedRoles={['FACULTY']}><SettingsPage /></RoleRoute>} />
         <Route path="fees" element={<PlaceholderView title="Fees" />} />
         <Route path="notices" element={<PlaceholderView title="Notice Board" />} />
