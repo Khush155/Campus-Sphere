@@ -1,14 +1,184 @@
 const Attendance = require('../models/Attendance');
+const Faculty = require('../models/Faculty');
+const User = require('../models/User');
 const AppError = require('../utils/AppError');
+const ERROR_CODES = require('../constants/errorCodes');
+const { successResponse } = require('../utils/apiResponse');
+const asyncHandler = require('../middlewares/asyncHandler');
+const mongoose = require('mongoose');
 
 const ATTENDANCE_AT_RISK_THRESHOLD = 75; // %
 
 /**
- * POST /api/v1/attendance/bulk
- * Bulk mark attendance for an entire class in a single API call.
- * Body: { subjectId, date, sessionType, records: [{ studentId, status, remarks }] }
+ * @desc    Submit or update bulk attendance for a subject on a date (Faculty)
+ * @route   POST /api/v1/attendance
+ * @access  Private/Faculty
  */
-exports.bulkMarkAttendance = async (req, res) => {
+const submitAttendance = asyncHandler(async (req, res, next) => {
+  const { subjectId, date, records } = req.body;
+
+  // 1. Identify the Faculty member submitting this request
+  const faculty = await Faculty.findOne({ userId: req.user.id });
+  if (!faculty) {
+    return next(new AppError('Only registered Faculty members can submit attendance', 403, ERROR_CODES.FORBIDDEN));
+  }
+
+  // 2. Normalize the date (strip time details to set it to UTC Midnight)
+  const normalizedDate = new Date(date);
+  normalizedDate.setUTCHours(0, 0, 0, 0);
+
+  // 3. Prepare the bulk write operations array
+  const bulkOperations = records.map((record) => {
+    return {
+      updateOne: {
+        filter: {
+          studentId: record.studentId,
+          subjectId: subjectId,
+          date: normalizedDate,
+        },
+        update: {
+          $set: {
+            facultyId: req.user.id,
+            status: record.status,
+          },
+        },
+        upsert: true, // If it doesn't exist, create it; if it does, update it
+      },
+    };
+  });
+
+  // 4. Execute the bulk database operation
+  try {
+    const result = await Attendance.bulkWrite(bulkOperations);
+    return successResponse(res, 200, 'Attendance records processed successfully', {
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount,
+      upsertedCount: result.upsertedCount,
+    });
+  } catch (error) {
+    return next(new AppError(`Attendance submission failed: ${error.message}`, 400, ERROR_CODES.BAD_REQUEST));
+  }
+});
+
+/**
+ * @desc    Get attendance sheet for a subject, group, and date
+ * @route   GET /api/v1/attendance
+ * @access  Private/Faculty
+ */
+const getAttendanceSheet = asyncHandler(async (req, res, next) => {
+  const { subjectId, date, group } = req.query;
+
+  if (!subjectId || !date || !group) {
+    return next(new AppError('Subject ID, Date, and Group/Section are required', 400, ERROR_CODES.VALIDATION_ERROR));
+  }
+
+  // 1. Find all students in this group/section
+  const students = await User.find({ role: 'STUDENT', group });
+  const studentIds = students.map((s) => s._id);
+
+  // 2. Normalize date to midnight UTC
+  const normalizedDate = new Date(date);
+  normalizedDate.setUTCHours(0, 0, 0, 0);
+
+  // 3. Find attendance records
+  const records = await Attendance.find({
+    subjectId: new mongoose.Types.ObjectId(subjectId),
+    date: normalizedDate,
+    studentId: { $in: studentIds },
+  });
+
+  return successResponse(res, 200, 'Attendance sheet retrieved successfully', records);
+});
+
+/**
+ * @desc    Get attendance percentages for a student across all subjects (Faculty)
+ * @route   GET /api/v1/attendance/student/:studentId
+ * @access  Private
+ */
+const getStudentAttendanceSummary = asyncHandler(async (req, res, next) => {
+  const { studentId } = req.params;
+
+  // Verify that the student exists in the system
+  const student = await User.findById(studentId);
+  if (!student) {
+    return next(new AppError('Student not found', 404, ERROR_CODES.NOT_FOUND));
+  }
+
+  // MongoDB Aggregation Pipeline
+  const summary = await Attendance.aggregate([
+    // Stage 1: Filter to only include this student's records
+    {
+      $match: { studentId: new mongoose.Types.ObjectId(studentId) },
+    },
+    
+    // Stage 2: Group records by subjectId
+    {
+      $group: {
+        _id: '$subjectId',
+        totalClasses: { $sum: 1 },
+        // Count as attended if status is PRESENT or LATE
+        attendedClasses: {
+          $sum: {
+            $cond: [{ $in: ['$status', ['PRESENT', 'LATE']] }, 1, 0],
+          },
+        },
+      },
+    },
+
+    // Stage 3: Perform a join (lookup) with the subjects collection to get subject details
+    {
+      $lookup: {
+        from: 'subjects', // Name of the MongoDB collection
+        localField: '_id',
+        foreignField: '_id',
+        as: 'subjectInfo',
+      },
+    },
+
+    // Stage 4: Flatten the lookup result array
+    {
+      $unwind: '$subjectInfo',
+    },
+
+    // Stage 5: Project (format) the final output shape and compute attendance percentage
+    {
+      $project: {
+        _id: 0,
+        subjectId: '$_id',
+        subjectName: '$subjectInfo.name',
+        subjectCode: '$subjectInfo.code',
+        totalClasses: 1,
+        attendedClasses: 1,
+        attendancePercentage: {
+          $round: [
+            {
+              $multiply: [
+                { $divide: ['$attendedClasses', '$totalClasses'] },
+                100,
+              ],
+            },
+            1, // Round to 1 decimal place (e.g., 85.5%)
+          ],
+        },
+      },
+    },
+  ]);
+
+  return successResponse(res, 200, 'Student attendance summary calculated', {
+    student: {
+      id: student._id,
+      name: student.name,
+      email: student.email,
+    },
+    summary,
+  });
+});
+
+/**
+ * POST /api/v1/attendance/bulk (HOD)
+ * Bulk mark attendance for an entire class in a single API call.
+ */
+const bulkMarkAttendance = async (req, res) => {
   const { subjectId, date, sessionType = 'LECTURE', records } = req.body;
 
   if (!subjectId || !date || !Array.isArray(records) || records.length === 0) {
@@ -50,9 +220,9 @@ exports.bulkMarkAttendance = async (req, res) => {
 };
 
 /**
- * POST /api/v1/attendance (legacy single-student endpoint — kept for backward compat)
+ * POST /api/v1/attendance (legacy HOD single-student endpoint)
  */
-exports.markAttendance = async (req, res) => {
+const markAttendance = async (req, res) => {
   const { studentId, subjectId, date, sessionType = 'LECTURE', status, remarks } = req.body;
 
   if (!studentId || !subjectId || !date || !status) {
@@ -69,10 +239,10 @@ exports.markAttendance = async (req, res) => {
 };
 
 /**
- * GET /api/v1/attendance
+ * GET /api/v1/attendance (HOD)
  * Raw attendance records with filters and pagination.
  */
-exports.getAttendance = async (req, res) => {
+const getAttendance = async (req, res) => {
   const { studentId, subjectId, date, sessionType, page = 1, limit = 50 } = req.query;
   const filters = {};
   if (studentId) {filters.studentId = studentId;}
@@ -100,21 +270,17 @@ exports.getAttendance = async (req, res) => {
 };
 
 /**
- * GET /api/v1/attendance/summary
- * Returns per-student attendance summary for a subject:
- * { studentId, name, present, absent, excused, medical, total, percentage, isAtRisk }
- * isAtRisk = true if attendance < 75%
- *
- * Also flags students who need to be "summoned" if attendance is dropping.
+ * GET /api/v1/attendance/summary (HOD)
+ * Returns per-student attendance summary for a subject
  */
-exports.getAttendanceSummary = async (req, res) => {
+const getAttendanceSummary = async (req, res) => {
   const { subjectId } = req.query;
 
   if (!subjectId) {throw new AppError('subjectId is required.', 400);}
 
   // Aggregate attendance stats per student for this subject
   const summary = await Attendance.aggregate([
-    { $match: { subjectId: new (require('mongoose').Types.ObjectId)(subjectId) } },
+    { $match: { subjectId: new mongoose.Types.ObjectId(subjectId) } },
     {
       $group: {
         _id: '$studentId',
@@ -144,7 +310,7 @@ exports.getAttendanceSummary = async (req, res) => {
         excused: 1,
         medicalLeave: 1,
         total: 1,
-        // Effective sessions = total - approved medical (don't penalize medical leave)
+        // Effective sessions = total - approved medical
         effectiveTotal: { $subtract: ['$total', { $cond: [{ $eq: ['$student.medicalApproved', true] }, '$medicalLeave', 0] }] },
         percentage: {
           $round: [
@@ -162,7 +328,6 @@ exports.getAttendanceSummary = async (req, res) => {
     {
       $addFields: {
         isAtRisk: { $lt: ['$percentage', ATTENDANCE_AT_RISK_THRESHOLD] },
-        // "Summon" flag: absent > 3 consecutive or overall % < threshold
         requiresSummon: { $lt: ['$percentage', ATTENDANCE_AT_RISK_THRESHOLD] },
       },
     },
@@ -186,11 +351,10 @@ exports.getAttendanceSummary = async (req, res) => {
 };
 
 /**
- * PATCH /api/v1/attendance/:id/approve-medical
- * HOD approves medical leave — marks the absence as MEDICAL_LEAVE (excused).
- * This ensures student's attendance % is not penalized.
+ * PATCH /api/v1/attendance/:id/approve-medical (HOD)
+ * HOD approves medical leave
  */
-exports.approveMedicalLeave = async (req, res) => {
+const approveMedicalLeave = async (req, res) => {
   const { id } = req.params;
   const record = await Attendance.findById(id);
   if (!record) {throw new AppError('Attendance record not found.', 404);}
@@ -201,4 +365,15 @@ exports.approveMedicalLeave = async (req, res) => {
   await record.save();
 
   res.status(200).json({ success: true, data: record });
+};
+
+module.exports = {
+  submitAttendance,
+  getAttendanceSheet,
+  getStudentAttendanceSummary,
+  bulkMarkAttendance,
+  markAttendance,
+  getAttendance,
+  getAttendanceSummary,
+  approveMedicalLeave,
 };

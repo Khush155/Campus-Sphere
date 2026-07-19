@@ -58,6 +58,8 @@ import {
   Autorenew as AutorenewIcon,
   CardMembership as CardMembershipIcon,
   Assessment as AssessmentIcon,
+  CalendarToday as CalendarTodayIcon,
+  MenuBook as BookIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
@@ -172,16 +174,29 @@ export const AppLayout = () => {
         { text: 'Complaints', icon: <ReportProblemIcon />, path: '/student/complaints', roles: ['STUDENT'] },
         { text: 'Notifications', icon: <NotificationsIcon />, path: '/student/notifications', roles: ['STUDENT'] },
       ]
+    : user?.role === 'FACULTY'
+    ? [
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['FACULTY'] },
+        { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['FACULTY'] },
+        { text: 'Assignments', icon: <AssignmentIcon />, path: '/assignments', roles: ['FACULTY'] },
+        { text: 'Exams', icon: <AssessmentIcon />, path: '/exams', roles: ['FACULTY'] },
+        { text: 'Marks', icon: <FactCheckIcon />, path: '/marks', roles: ['FACULTY'] },
+        { text: 'Timetable', icon: <CalendarTodayIcon />, path: '/timetable', roles: ['FACULTY'] },
+        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['FACULTY'] },
+        { text: 'Materials', icon: <MenuBookIcon />, path: '/materials', roles: ['FACULTY'] },
+        { text: 'Analytics', icon: <BarChartIcon />, path: '/analytics', roles: ['FACULTY'] },
+        { text: 'Notifications', icon: <NotificationsIcon />, path: '/notifications', roles: ['FACULTY'] },
+        { text: 'Settings', icon: <SettingsIcon />, path: '/settings', roles: ['FACULTY'] },
+      ]
     : [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN', 'FACULTY'] },
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN'] },
         { text: 'Students', icon: <PeopleIcon />, path: '/students', roles: ['COLLEGE_ADMIN'] },
         { text: 'Faculty', icon: <SchoolIcon />, path: '/faculty', roles: ['COLLEGE_ADMIN'] },
-        { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['COLLEGE_ADMIN', 'FACULTY'] },
+        { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['COLLEGE_ADMIN'] },
         { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['COLLEGE_ADMIN'] },
-        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['COLLEGE_ADMIN', 'FACULTY'] },
+        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['COLLEGE_ADMIN'] },
       ];
-
-  const visibleMenuItems = (user?.role === 'SUPER_ADMIN' || user?.role === 'HOD' || user?.role === 'STUDENT')
+  const visibleMenuItems = (user?.role === 'SUPER_ADMIN' || user?.role === 'HOD' || user?.role === 'STUDENT' || user?.role === 'FACULTY')
     ? menuItems
     : menuItems.filter(item => item.roles.includes(user?.role));
 
@@ -458,8 +473,8 @@ export const AppLayout = () => {
                 />
               </Box>
               <Divider />
-              <MenuItem onClick={handleProfileMenuClose}>Profile</MenuItem>
-              <MenuItem onClick={handleProfileMenuClose}>Settings</MenuItem>
+              <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/'); }}>Profile</MenuItem>
+              <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/settings'); }}>Settings</MenuItem>
               <Divider />
               <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
                 <ListItemIcon sx={{ color: 'error.main', minWidth: 30 }}>

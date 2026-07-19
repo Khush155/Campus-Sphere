@@ -18,11 +18,15 @@ const createSlot = async (req, res) => {
     departmentId,
   };
 
-  const slot = await timetableService.createSlot(slotData, req.user._id, req);
+  const slot = await timetableService.createSlot(slotData, req.user.id, req);
   return successResponse(res, 201, 'Timetable slot created successfully', slot);
 };
 
 const getSlotsForBatch = async (req, res) => {
+  if (req.user.role === 'FACULTY') {
+    const slots = await timetableService.getSlotsForFaculty(req.user.id);
+    return successResponse(res, 200, 'Timetable fetched successfully', slots);
+  }
   const departmentId = req.user.departmentId;
   const slots = await timetableService.getSlotsForBatch(departmentId, req.query);
   return successResponse(res, 200, 'Timetable fetched successfully', slots);

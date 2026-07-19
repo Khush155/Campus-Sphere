@@ -67,8 +67,25 @@ const registerUser = async (userData) => {
  * Generates and returns access & refresh tokens.
  */
 const loginUser = async (email, password) => {
-  // 1. Find user and explicitly select password field
-  const user = await User.findOne({ email }).select('+password');
+  // 1. Find user by email, rollNumber (students), or employeeId (faculty)
+  if (!email) {
+    throw new AppError('Email, Roll Number, or Employee ID is required.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+  const normalized = email.trim().toLowerCase();
+  let user = await User.findOne({ email: normalized }).select('+password');
+
+  if (!user) {
+    user = await User.findOne({ rollNumber: email.trim() }).select('+password');
+  }
+
+  if (!user) {
+    const Faculty = require('../models/Faculty');
+    const facultyProfile = await Faculty.findOne({ employeeId: email.trim() });
+    if (facultyProfile) {
+      user = await User.findById(facultyProfile.userId).select('+password');
+    }
+  }
+
   if (!user) {
     throw new AppError('Invalid email or password.', 401, ERROR_CODES.UNAUTHORIZED);
   }
@@ -238,7 +255,20 @@ const detectUserRole = async (identifier) => {
     return null;
   }
   const normalized = identifier.trim().toLowerCase();
-  const user = await User.findOne({ email: normalized });
+  let user = await User.findOne({ email: normalized });
+
+  if (!user) {
+    user = await User.findOne({ rollNumber: identifier.trim() });
+  }
+
+  if (!user) {
+    const Faculty = require('../models/Faculty');
+    const facultyProfile = await Faculty.findOne({ employeeId: identifier.trim() });
+    if (facultyProfile) {
+      user = await User.findById(facultyProfile.userId);
+    }
+  }
+
   return user ? user.role : null;
 };
 

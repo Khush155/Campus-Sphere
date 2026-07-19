@@ -18,6 +18,13 @@ import RosterHub from '../pages/hod/Roster/RosterHub';
 import ReportsHub from '../pages/hod/Reports/ReportsHub';
 import TimetableHub from '../pages/hod/Timetable/TimetableHub';
 import RequestHub from '../pages/hod/CrossDeptRequests/RequestHub';
+import FacultyDashboard from '../pages/faculty/FacultyDashboard';
+import AttendancePage from '../pages/faculty/attendance/AttendancePage';
+import AssignmentPage from '../pages/faculty/assignments/AssignmentPage';
+import ExamPage from '../pages/faculty/exams/ExamPage';
+import MarksPage from '../pages/faculty/marks/MarksPage';
+import TimetablePage from '../pages/faculty/timetable/TimetablePage';
+import FacultyStudentListPage from '../pages/faculty/students/FacultyStudentListPage';
 
 import HodFacultyHub from '../pages/hod/Faculty/HodFacultyHub';
 import HodStudentsHub from '../pages/hod/Students/HodStudentsHub';
@@ -41,6 +48,12 @@ import { AuditLogViewer } from '../pages/admin/AuditLog/AuditLogViewer';
 import { BulkPromotion } from '../pages/admin/BulkPromotion/BulkPromotion';
 import { Certificates } from '../pages/admin/Certificates/Certificates';
 import { Reports } from '../pages/admin/Reports/Reports';
+
+// Newly added Expanded Faculty pages
+import MaterialsPage from '../pages/faculty/materials/MaterialsPage';
+import AnalyticsPage from '../pages/faculty/analytics/AnalyticsPage';
+import NotificationPage from '../pages/faculty/notifications/NotificationPage';
+import SettingsPage from '../pages/faculty/settings/SettingsPage';
 
 // Guard for authenticated sections
 const ProtectedRoute = ({ children }) => {
@@ -120,6 +133,12 @@ const HomeRedirect = () => {
   }
   if (user?.role === 'HOD') {
     return <Navigate to="/hod/overview" replace />;
+  }
+  if (user?.role === 'FACULTY') {
+    return <Navigate to="/faculty" replace />;
+  }
+  if (user?.role === 'STUDENT') {
+    return <PlaceholderView title="Student Dashboard" />;
   }
   return <Home />;
 };
@@ -218,7 +237,6 @@ export const AppRoutes = () => {
             </RoleRoute>
           }
         />
-
         <Route
           path="admin/academic-calendar"
           element={
@@ -285,9 +303,17 @@ export const AppRoutes = () => {
           }
         />
 
-        <Route path="students" element={<PlaceholderView title="Students" />} />
-        <Route path="faculty" element={<PlaceholderView title="Faculty" />} />
-        <Route path="attendance" element={<PlaceholderView title="Attendance" />} />
+        <Route path="students" element={<RoleRoute allowedRoles={['FACULTY']}><FacultyStudentListPage /></RoleRoute>} />
+        <Route path="faculty" element={<RoleRoute allowedRoles={['FACULTY']}><FacultyDashboard /></RoleRoute>} />
+        <Route path="attendance" element={<RoleRoute allowedRoles={['FACULTY']}><AttendancePage /></RoleRoute>} />
+        <Route path="assignments" element={<RoleRoute allowedRoles={['FACULTY']}><AssignmentPage /></RoleRoute>} />
+        <Route path="exams" element={<RoleRoute allowedRoles={['FACULTY']}><ExamPage /></RoleRoute>} />
+        <Route path="marks" element={<RoleRoute allowedRoles={['FACULTY']}><MarksPage /></RoleRoute>} />
+        <Route path="timetable" element={<RoleRoute allowedRoles={['FACULTY']}><TimetablePage /></RoleRoute>} />
+        <Route path="materials" element={<RoleRoute allowedRoles={['FACULTY']}><MaterialsPage /></RoleRoute>} />
+        <Route path="analytics" element={<RoleRoute allowedRoles={['FACULTY']}><AnalyticsPage /></RoleRoute>} />
+        <Route path="notifications" element={<RoleRoute allowedRoles={['FACULTY']}><NotificationPage /></RoleRoute>} />
+        <Route path="settings" element={<RoleRoute allowedRoles={['FACULTY']}><SettingsPage /></RoleRoute>} />
         <Route path="fees" element={<PlaceholderView title="Fees" />} />
         <Route path="notices" element={<PlaceholderView title="Notice Board" />} />
       </Route>

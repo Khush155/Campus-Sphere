@@ -66,6 +66,7 @@ const authMiddleware = async (req, res, next) => {
       // Overwrite req.user with actual DB user document details for downstream usage
       req.user = {
         id: currentUser._id,
+        name: currentUser.name,
         email: currentUser.email,
         role: currentUser.role,
         departmentId: currentUser.departmentId,

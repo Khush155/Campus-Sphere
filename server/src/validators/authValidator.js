@@ -6,11 +6,9 @@ const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
 const loginSchema = z.object({
   email: z
-    .string({ required_error: 'Email is required' })
-    .min(1, 'Email cannot be empty')
-    .email('Invalid email address format')
-    .trim()
-    .toLowerCase(),
+    .string({ required_error: 'Email, Roll Number, or Employee ID is required' })
+    .min(1, 'Identifier cannot be empty')
+    .trim(),
   password: z
     .string({ required_error: 'Password is required' })
     .min(6, 'Password must be at least 6 characters long'),

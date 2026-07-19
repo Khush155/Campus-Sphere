@@ -18,7 +18,7 @@ const superAdminGuard = [
 // Admin and HOD access guard for read operations
 const adminAndHodGuard = [
   authMiddleware,
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY),
 ];
 
 /**
@@ -33,7 +33,6 @@ const adminAndHodGuard = [
  *         description: Users list.
  */
 router.get('/', adminAndHodGuard, asyncHandler(userController.getUsers));
-
 router.post('/import-students', adminAndHodGuard, upload.single('file'), asyncHandler(userController.importStudents));
 
 /**
