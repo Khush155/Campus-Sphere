@@ -81,7 +81,6 @@ export const CommandPalette = ({ open, onClose }) => {
     }
   });
 
-  const { user } = useAuth();
   
   // Live records data queries
   const canFetchUsers = user?.role === 'SUPER_ADMIN' || user?.role === 'COLLEGE_ADMIN' || user?.role === 'HOD';
