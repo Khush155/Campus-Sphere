@@ -134,6 +134,12 @@ const HomeRedirect = () => {
   if (user?.role === 'HOD') {
     return <Navigate to="/hod/overview" replace />;
   }
+  if (user?.role === 'FACULTY') {
+    return <Navigate to="/faculty" replace />;
+  }
+  if (user?.role === 'STUDENT') {
+    return <PlaceholderView title="Student Dashboard" />;
+  }
   return <Home />;
 };
 
