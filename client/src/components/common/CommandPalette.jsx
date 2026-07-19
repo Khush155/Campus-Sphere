@@ -22,6 +22,7 @@ import {
 } from '@mui/icons-material';
 import { useUsersQuery } from '../../queries/userQueries';
 import { useSubjectsQuery } from '../../queries/collegeQueries';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Maps dynamic icons based on item category
 const getIconForType = (type) => {
@@ -56,8 +57,11 @@ export const CommandPalette = ({ open, onClose }) => {
     }
   });
 
+  const { user } = useAuth();
+  
   // Live records data queries
-  const { data: usersData } = useUsersQuery({ limit: 50 });
+  const canFetchUsers = user?.role === 'SUPER_ADMIN' || user?.role === 'COLLEGE_ADMIN' || user?.role === 'HOD';
+  const { data: usersData } = useUsersQuery({ limit: 50 }, { enabled: !!canFetchUsers });
   const { data: subjectsData } = useSubjectsQuery();
 
   // Focus input automatically on open

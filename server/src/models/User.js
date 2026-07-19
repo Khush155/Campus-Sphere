@@ -61,6 +61,17 @@ const userSchema = new mongoose.Schema(
       type: Number,
       required: false,
     },
+    group: {
+      type: String,
+      trim: true,
+      required: false,
+    },
+    // Academic profile fields (primarily for STUDENT role)
+    rollNumber: { type: String, trim: true },
+    cgpa: { type: Number, min: 0, max: 10 }, // Used for placement eligibility
+    activeBacklogs: { type: Number, min: 0, default: 0 }, // Used for placement eligibility
+    profilePicUrl: { type: String },
+    isActive: { type: Boolean, default: true }, // Soft-disable without deletion
     academicStatus: {
       type: String,
       enum: ['ONGOING', 'GRADUATED'],

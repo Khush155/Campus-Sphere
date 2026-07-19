@@ -118,14 +118,27 @@ app.get('/', (req, res) => {
 app.use('/api/v1/auth', require('./routes/authRoutes'));
 app.use('/api/v1/college', require('./routes/collegeRoutes'));
 app.use('/api/v1/users', require('./routes/userRoutes'));
+app.use('/api/v1/assignments', require('./routes/assignmentRoutes'));
+app.use('/api/v1/reports', require('./routes/reportRoutes'));
+app.use('/api/v1/timetable', require('./routes/timetableRoutes'));
+app.use('/api/v1/cross-dept-requests', require('./routes/requestRoutes'));
+app.use('/api/v1/examinations', require('./routes/examinationRoutes'));
+app.use('/api/v1/projects', require('./routes/projectRoutes'));
+app.use('/api/v1/placements', require('./routes/placementRoutes'));
+app.use('/api/v1/leaves', require('./routes/leaveRoutes'));
 app.use('/api/v1/notices', require('./routes/noticeRoutes'));
+app.use('/api/v1/complaints', require('./routes/complaintRoutes'));
+app.use('/api/v1/documents', require('./routes/documentRoutes'));
+app.use('/api/v1/meetings', require('./routes/meetingRoutes'));
+app.use('/api/v1/attendance', require('./routes/attendanceRoutes'));
+app.use('/api/v1/opportunities', require('./routes/opportunityRoutes'));
+app.use('/api/v1/feedback', require('./routes/feedbackRoutes'));
 app.use('/api/v1/academic-sessions', require('./routes/academicSessionRoutes'));
 app.use('/api/v1/college-profile', require('./routes/collegeProfileRoutes'));
 app.use('/api/v1/audit-logs', require('./routes/auditLogRoutes'));
 app.use('/api/v1/admin', require('./routes/dashboardRoutes'));
 app.use('/api/v1/promotions', require('./routes/promotionRoutes'));
 app.use('/api/v1', require('./routes/pdfRoutes'));
-app.use('/api/v1/reports', require('./routes/reportRoutes'));
 
 // Catch-all for unhandled routes
 app.all('*', (req, res, next) => {

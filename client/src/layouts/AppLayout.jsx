@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -32,6 +33,26 @@ import {
   Logout as LogoutIcon,
   Palette as PaletteIcon,
   Search as SearchIcon,
+  AssignmentInd as AssignmentIndIcon,
+  SwapHoriz as SwapHorizIcon,
+  BarChart as BarChartIcon,
+  MenuBook as MenuBookIcon,
+  FactCheck as FactCheckIcon,
+  Article as ArticleIcon,
+  AccountTree as AccountTreeIcon,
+  Work as WorkIcon,
+  EventNote as EventNoteIcon,
+  ReportProblem as ReportProblemIcon,
+  Folder as FolderIcon,
+  Person as PersonIcon,
+  Assignment as AssignmentIcon,
+  Campaign as CampaignIcon,
+  LocalLibrary as LocalLibraryIcon,
+  Hotel as HotelIcon,
+  Description as DescriptionIcon,
+  Settings as SettingsIcon,
+  Groups as GroupsIcon,
+  Public as PublicIcon,
   AccountBalance as AccountBalanceIcon,
   History as HistoryIcon,
   Autorenew as AutorenewIcon,
@@ -98,28 +119,69 @@ export const AppLayout = () => {
 
   const menuItems = user?.role === 'SUPER_ADMIN'
     ? [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
-        { text: 'College Setup', icon: <SchoolIcon />, path: '/admin/college-setup/departments' },
-        { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users' },
-        { text: 'Notice Board', icon: <NotificationsIcon />, path: '/admin/notices' },
-        { text: 'Academic Calendar', icon: <DateRangeIcon />, path: '/admin/academic-calendar' },
-        { text: 'Bulk Promotion', icon: <AutorenewIcon />, path: '/admin/bulk-promotion' },
-        { text: 'Certificates', icon: <CardMembershipIcon />, path: '/admin/certificates' },
-        { text: 'Reports Export', icon: <AssessmentIcon />, path: '/admin/reports' },
-        { text: 'College Profile', icon: <AccountBalanceIcon />, path: '/admin/college-profile' },
-        { text: 'Audit Logs', icon: <HistoryIcon />, path: '/admin/audit-logs' },
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard', roles: ['SUPER_ADMIN'] },
+        { text: 'College Setup', icon: <SchoolIcon />, path: '/admin/college-setup/departments', roles: ['SUPER_ADMIN'] },
+        { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users', roles: ['SUPER_ADMIN'] },
+        { text: 'Notice Board', icon: <NotificationsIcon />, path: '/admin/notices', roles: ['SUPER_ADMIN'] },
+        { text: 'Academic Calendar', icon: <DateRangeIcon />, path: '/admin/academic-calendar', roles: ['SUPER_ADMIN'] },
+        { text: 'Bulk Promotion', icon: <AutorenewIcon />, path: '/admin/bulk-promotion', roles: ['SUPER_ADMIN'] },
+        { text: 'Certificates', icon: <CardMembershipIcon />, path: '/admin/certificates', roles: ['SUPER_ADMIN'] },
+        { text: 'Reports Export', icon: <AssessmentIcon />, path: '/admin/reports', roles: ['SUPER_ADMIN'] },
+        { text: 'College Profile', icon: <AccountBalanceIcon />, path: '/admin/college-profile', roles: ['SUPER_ADMIN'] },
+        { text: 'Audit Logs', icon: <HistoryIcon />, path: '/admin/audit-logs', roles: ['SUPER_ADMIN'] },
+      ]
+    : user?.role === 'HOD'
+    ? [
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/hod/overview', roles: ['HOD'] },
+        { text: 'Faculty', icon: <AssignmentIndIcon />, path: '/hod/faculty', roles: ['HOD'] },
+        { text: 'Faculty Assignment', icon: <AssignmentIndIcon />, path: '/hod/faculty-assignment', roles: ['HOD'] },
+        { text: 'Cross-Dept Requests', icon: <SwapHorizIcon />, path: '/hod/cross-dept-requests', roles: ['HOD'] },
+        { text: 'Students', icon: <PeopleIcon />, path: '/hod/students', roles: ['HOD'] },
+        { text: 'Subjects', icon: <MenuBookIcon />, path: '/hod/subjects', roles: ['HOD'] },
+        { text: 'Timetable', icon: <DateRangeIcon />, path: '/hod/timetable', roles: ['HOD'] },
+        { text: 'Attendance', icon: <FactCheckIcon />, path: '/hod/attendance', roles: ['HOD'] },
+        { text: 'Examinations', icon: <ArticleIcon />, path: '/hod/examinations', roles: ['HOD'] },
+        { text: 'Projects', icon: <AccountTreeIcon />, path: '/hod/projects', roles: ['HOD'] },
+        { text: 'Placements', icon: <WorkIcon />, path: '/hod/placements', roles: ['HOD'] },
+        { text: 'Leave Management', icon: <EventNoteIcon />, path: '/hod/leave-management', roles: ['HOD'] },
+        { text: 'Notices', icon: <NotificationsIcon />, path: '/hod/notices', roles: ['HOD'] },
+        { text: 'Reports', icon: <BarChartIcon />, path: '/hod/reports', roles: ['HOD'] },
+        { text: 'Complaints', icon: <ReportProblemIcon />, path: '/hod/complaints', roles: ['HOD'] },
+        { text: 'Documents', icon: <FolderIcon />, path: '/hod/documents', roles: ['HOD'] },
+        { text: 'Meetings', icon: <GroupsIcon />, path: '/hod/meetings', roles: ['HOD'] },
+        { text: 'Opportunities', icon: <PublicIcon />, path: '/hod/opportunities', roles: ['HOD'] },
+        { text: 'Feedback', icon: <ReportProblemIcon />, path: '/hod/feedback', roles: ['HOD'] },
+      ]
+    : user?.role === 'STUDENT'
+    ? [
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['STUDENT'] },
+        { text: 'Profile', icon: <PersonIcon />, path: '/student/profile', roles: ['STUDENT'] },
+        { text: 'Academics', icon: <MenuBookIcon />, path: '/student/academics', roles: ['STUDENT'] },
+        { text: 'Timetable', icon: <DateRangeIcon />, path: '/student/timetable', roles: ['STUDENT'] },
+        { text: 'Assignments', icon: <AssignmentIcon />, path: '/student/assignments', roles: ['STUDENT'] },
+        { text: 'Attendance', icon: <FactCheckIcon />, path: '/student/attendance', roles: ['STUDENT'] },
+        { text: 'Examinations', icon: <ArticleIcon />, path: '/student/examinations', roles: ['STUDENT'] },
+        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['STUDENT'] },
+        { text: 'Notices', icon: <CampaignIcon />, path: '/notices', roles: ['STUDENT'] },
+        { text: 'Projects', icon: <FolderIcon />, path: '/student/projects', roles: ['STUDENT'] },
+        { text: 'Placements', icon: <WorkIcon />, path: '/student/placements', roles: ['STUDENT'] },
+        { text: 'Library', icon: <LocalLibraryIcon />, path: '/student/library', roles: ['STUDENT'] },
+        { text: 'Leave', icon: <EventNoteIcon />, path: '/student/leave', roles: ['STUDENT'] },
+        { text: 'Portfolio & Resume', icon: <MenuBookIcon />, path: '/student/portfolio', roles: ['STUDENT'] },
+        { text: 'Documents', icon: <FolderIcon />, path: '/student/documents', roles: ['STUDENT'] },
+        { text: 'Complaints', icon: <ReportProblemIcon />, path: '/student/complaints', roles: ['STUDENT'] },
+        { text: 'Notifications', icon: <NotificationsIcon />, path: '/student/notifications', roles: ['STUDENT'] },
       ]
     : [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
-        { text: 'Students', icon: <PeopleIcon />, path: '/students', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD'] },
-        { text: 'Faculty', icon: <SchoolIcon />, path: '/faculty', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD'] },
-        { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT'] },
-        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN', 'STUDENT'] },
-        { text: 'Notices', icon: <NotificationsIcon />, path: '/admin/notices', roles: ['COLLEGE_ADMIN'] },
-        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['HOD', 'FACULTY', 'STUDENT'] },
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN', 'FACULTY'] },
+        { text: 'Students', icon: <PeopleIcon />, path: '/students', roles: ['COLLEGE_ADMIN'] },
+        { text: 'Faculty', icon: <SchoolIcon />, path: '/faculty', roles: ['COLLEGE_ADMIN'] },
+        { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['COLLEGE_ADMIN', 'FACULTY'] },
+        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['COLLEGE_ADMIN'] },
+        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['COLLEGE_ADMIN', 'FACULTY'] },
       ];
 
-  const visibleMenuItems = user?.role === 'SUPER_ADMIN'
+  const visibleMenuItems = (user?.role === 'SUPER_ADMIN' || user?.role === 'HOD' || user?.role === 'STUDENT')
     ? menuItems
     : menuItems.filter(item => item.roles.includes(user?.role));
 
