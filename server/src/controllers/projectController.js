@@ -1,24 +1,44 @@
-const Project = require('../models/Project');
-const { createProjectSchema } = require('../validators/projectValidator');
-const AppError = require('../utils/AppError');
+const projectService = require('../services/projectService');
+const { successResponse } = require('../utils/apiResponse');
+const asyncHandler = require('../middlewares/asyncHandler');
 
-exports.createProject = async (req, res) => {
-  const validatedData = createProjectSchema.parse(req.body);
-  const project = await Project.create(validatedData);
-  res.status(201).json({ success: true, data: project });
-};
+/**
+ * @desc    Create a new project
+ * @route   POST /api/v1/projects
+ * @access  Private/SuperAdmin/HOD/Faculty
+ */
+const createProject = asyncHandler(async (req, res) => {
+  const project = await projectService.createProject(req.body, req.user);
+  return successResponse(res, 201, 'Project created successfully', project);
+});
 
-exports.getProjects = async (req, res) => {
-  const filters = {};
-  if (req.query.departmentId) {filters.departmentId = req.query.departmentId;}
-  const projects = await Project.find(filters).populate('guideId students');
-  res.status(200).json({ success: true, data: projects });
-};
+/**
+ * @desc    List projects
+ * @route   GET /api/v1/projects
+ * @access  Private/SuperAdmin/HOD/Faculty/Student
+ */
+const getProjects = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
+  const result = await projectService.getProjects(req.query, req.user);
+  return successResponse(res, 200, 'Projects retrieved successfully', result.data, {
+    total: result.meta.total,
+    page: parseInt(page),
+    limit: parseInt(limit)
+  });
+});
 
-exports.updateProjectStatus = async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
-  const project = await Project.findByIdAndUpdate(id, { status }, { new: true });
-  if (!project) {throw new AppError('Project not found', 404);}
-  res.status(200).json({ success: true, data: project });
+/**
+ * @desc    Update project status
+ * @route   PATCH /api/v1/projects/:id/status
+ * @access  Private/SuperAdmin/HOD
+ */
+const updateProjectStatus = asyncHandler(async (req, res) => {
+  const project = await projectService.updateProjectStatus(req.params.id, req.body.status, req.user, req);
+  return successResponse(res, 200, 'Project status updated successfully', project);
+});
+
+module.exports = {
+  createProject,
+  getProjects,
+  updateProjectStatus,
 };

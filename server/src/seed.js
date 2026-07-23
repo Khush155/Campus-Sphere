@@ -1,13 +1,13 @@
 /* eslint-disable no-console */
 const dns = require('dns');
-// Direct programmatic override to bypass restrictive local campus DNS servers blocking SRV lookups
+// Direct programmatic override to bypass restrictive local DNS servers
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const path = require('path');
 
-// Load environment configurations
+// Load env
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const User = require('./models/User');
@@ -24,6 +24,7 @@ const TimetableSlot = require('./models/TimetableSlot');
 const Material = require('./models/Material');
 const Notification = require('./models/Notification');
 const Assignment = require('./models/Assignment');
+const FacultyAssignment = require('./models/FacultyAssignment');
 const ROLES = require('./constants/roles');
 
 const seedDatabase = async () => {
@@ -39,581 +40,307 @@ const seedDatabase = async () => {
     await mongoose.connect(mongoUri);
     console.log('✅ Connected successfully!');
 
-    // 1. Purge existing entries to prevent duplication key errors
-    console.log('🧹 Purging old collections...');
-    await User.deleteMany({});
-    await Department.deleteMany({});
-    await Course.deleteMany({});
-    await Branch.deleteMany({});
-    await Subject.deleteMany({});
-    await Faculty.deleteMany({});
-    await Attendance.deleteMany({});
-    await Exam.deleteMany({});
-    await ExamResult.deleteMany({});
-    await AuditLog.deleteMany({});
-    await TimetableSlot.deleteMany({});
-    await Material.deleteMany({});
-    await Notification.deleteMany({});
-    await Assignment.deleteMany({});
-    console.log('✅ Collections purged.');
+    // 1. Purge old collections
+    console.log('🧹 Purging all old collections...');
+    await Promise.all([
+      User.deleteMany({}),
+      Department.deleteMany({}),
+      Course.deleteMany({}),
+      Branch.deleteMany({}),
+      Subject.deleteMany({}),
+      Faculty.deleteMany({}),
+      Attendance.deleteMany({}),
+      Exam.deleteMany({}),
+      ExamResult.deleteMany({}),
+      AuditLog.deleteMany({}),
+      TimetableSlot.deleteMany({}),
+      Material.deleteMany({}),
+      Notification.deleteMany({}),
+      Assignment.deleteMany({}),
+      FacultyAssignment.deleteMany({}),
+    ]);
+    console.log('✅ All collections purged.');
 
-    // 2. Seed default Super Admin
-    console.log('👤 Seeding default Super Admin...');
+    // 2. Super Admin
+    console.log('👤 Seeding Super Admin...');
     const adminUser = await User.create({
       name: 'System Administrator',
       email: 'admin@campussphere.edu',
       password: 'admin123',
       role: ROLES.SUPER_ADMIN,
     });
-    console.log(`✅ Super Admin created: email: ${adminUser.email}, password: admin123`);
 
-    // 3. Seed Departments
-    console.log('🏢 Seeding Departments...');
-    const cseDept = await Department.create({
-      name: 'Computer Science and Engineering Department',
-      code: 'CSE-DEPT',
-      description: 'Department responsible for computer architecture, software development, and systems logic',
-    });
-    const eceDept = await Department.create({
-      name: 'Electronics and Communication Engineering Department',
-      code: 'ECE-DEPT',
-      description: 'Department responsible for electronics and communication systems',
-    });
-    console.log(`✅ Departments created: ${cseDept.code}, ${eceDept.code}`);
+    // 3. Departments
+    console.log('🏢 Seeding 3 Departments...');
+    const cseDept = await Department.create({ name: 'Computer Science & Engineering', code: 'CSE-DEPT', description: 'Computing, software systems, and network security.' });
+    const eceDept = await Department.create({ name: 'Electronics & Communication', code: 'ECE-DEPT', description: 'Telecommunication, microprocessors, and signals.' });
+    const meDept = await Department.create({ name: 'Mechanical Engineering', code: 'ME-DEPT', description: 'Thermal systems, mechanics, and design tools.' });
 
-    // 4. Seed Course
-    console.log('🎓 Seeding B.Tech Course...');
-    const course = await Course.create({
-      name: 'Bachelor of Technology',
-      code: 'B.TECH',
-      durationYears: 4,
-    });
-    console.log(`✅ Course created: ${course.code} (Duration: ${course.durationYears} Years)`);
+    // 4. HODs
+    console.log('👤 Seeding 3 HOD accounts...');
+    await User.create({ name: 'Dr. John von Neumann', email: 'hod.cs@campussphere.edu', password: 'password123', role: ROLES.HOD, departmentId: cseDept._id, shift: 'GENERAL' });
+    await User.create({ name: 'Dr. Nikola Tesla', email: 'hod.ece@campussphere.edu', password: 'password123', role: ROLES.HOD, departmentId: eceDept._id, shift: 'GENERAL' });
+    await User.create({ name: 'Dr. James Watt', email: 'hod.me@campussphere.edu', password: 'password123', role: ROLES.HOD, departmentId: meDept._id, shift: 'GENERAL' });
 
-    // 5. Seed Branches
-    console.log('🌿 Seeding Branches under B.Tech...');
-    const cseBranch = await Branch.create({
-      name: 'Computer Science & Engineering',
-      code: 'CSE',
-      courseId: course._id,
-    });
-    const eceBranch = await Branch.create({
-      name: 'Electronics & Communication Engineering',
-      code: 'ECE',
-      courseId: course._id,
-    });
-    console.log(`✅ Branches created: ${cseBranch.code}, ${eceBranch.code}`);
-
-    // 6. Seed Subjects
-    console.log('📘 Seeding Subjects...');
-    const dsSubject = await Subject.create({
-      name: 'Data Structures and Algorithms',
-      code: 'CS301',
-      credits: 4,
-      type: 'THEORY',
-      branchId: cseBranch._id,
-      departmentId: cseDept._id,
-      semester: 3,
-    });
-
-    const osSubject = await Subject.create({
-      name: 'Operating Systems',
-      code: 'CS401',
-      credits: 4,
-      type: 'THEORY',
-      branchId: cseBranch._id,
-      departmentId: cseDept._id,
-      semester: 3,
-    });
-
-    const webDevSubject = await Subject.create({
-      name: 'Full Stack Web Development',
-      code: 'CS302',
-      credits: 3,
-      type: 'THEORY',
-      branchId: cseBranch._id,
-      departmentId: cseDept._id,
-      semester: 3,
-    });
-
-    const dbmsSubject = await Subject.create({
-      name: 'Database Management Systems',
-      code: 'CS303',
-      credits: 4,
-      type: 'THEORY',
-      branchId: cseBranch._id,
-      departmentId: cseDept._id,
-      semester: 3,
-    });
-
-    const dsLabSubject = await Subject.create({
-      name: 'Data Structures & Algorithms Lab',
-      code: 'CS301L',
-      credits: 2,
-      type: 'PRACTICAL',
-      branchId: cseBranch._id,
-      departmentId: cseDept._id,
-      semester: 3,
-    });
-
-    const projectGuidanceSubject = await Subject.create({
-      name: 'Project Guidance',
-      code: 'CS499',
-      credits: 3,
-      type: 'THEORY',
-      branchId: cseBranch._id,
-      departmentId: cseDept._id,
-      semester: 3,
-    });
-
-    await Subject.create({
-      name: 'Digital Signal Processing',
-      code: 'EC204',
-      credits: 4,
-      type: 'THEORY',
-      branchId: eceBranch._id,
-      departmentId: eceDept._id,
-      semester: 4,
-    });
-    console.log(`✅ Subjects created: ${dsSubject.code}, ${osSubject.code}, ${webDevSubject.code}, ${dbmsSubject.code}, ${dsLabSubject.code}, ${projectGuidanceSubject.code}`);
-
-    // 7. Seed Faculty & Student Users
-    console.log('🌱 Creating user accounts...');
-    const facultyUser1 = await User.create({
-      name: 'Dr. Alan Turing',
-      email: 'alan.turing@campussphere.com',
-      password: 'password123',
-      role: ROLES.FACULTY,
-      departmentId: cseDept._id,
-    });
-
-    const facultyUser2 = await User.create({
-      name: 'Dr. Grace Hopper',
-      email: 'grace.hopper@campussphere.com',
-      password: 'password123',
-      role: ROLES.FACULTY,
-      departmentId: cseDept._id,
-    });
-
-    // 20 Student Users (10 CSE-A, 10 CSE-B)
-    const studentData = [
-      // CSE-A
-      { name: 'Alice Smith', email: 'alice.student@campussphere.com', rollNumber: 'CS202601', group: 'CSE-A' },
-      { name: 'Bob Jones', email: 'bob.student@campussphere.com', rollNumber: 'CS202602', group: 'CSE-A' },
-      { name: 'Evelyn Miller', email: 'evelyn.student@campussphere.com', rollNumber: 'CS202603', group: 'CSE-A' },
-      { name: 'Frank Davis', email: 'frank.student@campussphere.com', rollNumber: 'CS202604', group: 'CSE-A' },
-      { name: 'Grace Taylor', email: 'grace.student@campussphere.com', rollNumber: 'CS202605', group: 'CSE-A' },
-      { name: 'Henry Wilson', email: 'henry.student@campussphere.com', rollNumber: 'CS202606', group: 'CSE-A' },
-      { name: 'Ivy Thomas', email: 'ivy.student@campussphere.com', rollNumber: 'CS202607', group: 'CSE-A' },
-      { name: 'Jack Anderson', email: 'jack.student@campussphere.com', rollNumber: 'CS202608', group: 'CSE-A' },
-      { name: 'Karen White', email: 'karen.student@campussphere.com', rollNumber: 'CS202609', group: 'CSE-A' },
-      { name: 'Leo Martin', email: 'leo.student@campussphere.com', rollNumber: 'CS202610', group: 'CSE-A' },
-      // CSE-B
-      { name: 'Charlie Brown', email: 'charlie.student@campussphere.com', rollNumber: 'CS202611', group: 'CSE-B' },
-      { name: 'Diana Prince', email: 'diana.student@campussphere.com', rollNumber: 'CS202612', group: 'CSE-B' },
-      { name: 'Michael Scott', email: 'michael.student@campussphere.com', rollNumber: 'CS202613', group: 'CSE-B' },
-      { name: 'Dwight Schrute', email: 'dwight.student@campussphere.com', rollNumber: 'CS202614', group: 'CSE-B' },
-      { name: 'Jim Halpert', email: 'jim.student@campussphere.com', rollNumber: 'CS202615', group: 'CSE-B' },
-      { name: 'Pam Beesly', email: 'pam.student@campussphere.com', rollNumber: 'CS202616', group: 'CSE-B' },
-      { name: 'Ryan Howard', email: 'ryan.student@campussphere.com', rollNumber: 'CS202617', group: 'CSE-B' },
-      { name: 'Kelly Kapoor', email: 'kelly.student@campussphere.com', rollNumber: 'CS202618', group: 'CSE-B' },
-      { name: 'Toby Flenderson', email: 'toby.student@campussphere.com', rollNumber: 'CS202619', group: 'CSE-B' },
-      { name: 'Angela Martin', email: 'angela.student@campussphere.com', rollNumber: 'CS202620', group: 'CSE-B' },
+    // 5. Courses
+    console.log('🎓 Seeding 4 Courses...');
+    const courses = [
+      await Course.create({ name: 'Bachelor of Technology', code: 'B.TECH', durationYears: 4 }),
+      await Course.create({ name: 'Master of Technology', code: 'M.TECH', durationYears: 2 }),
+      await Course.create({ name: 'Master of Business Administration', code: 'MBA', durationYears: 2 }),
+      await Course.create({ name: 'Bachelor of Science', code: 'B.SC', durationYears: 3 })
     ];
 
-    const studentUsers = [];
-    for (const item of studentData) {
+    // 6. Branches
+    console.log('🌿 Seeding Branches...');
+    const branches = [
+      // BTech (Semesters 1-8)
+      await Branch.create({ name: 'Computer Science', code: 'CSE', courseId: courses[0]._id }),
+      await Branch.create({ name: 'Electronics & Comm', code: 'ECE', courseId: courses[0]._id }),
+      await Branch.create({ name: 'Mechanical Engineering', code: 'MECH', courseId: courses[0]._id }),
+      // MTech (Semesters 1-4)
+      await Branch.create({ name: 'Advanced Computing', code: 'MTECH-CS', courseId: courses[1]._id }),
+      await Branch.create({ name: 'VLSI Design', code: 'VLSI', courseId: courses[1]._id }),
+      // MBA (Semesters 1-4)
+      await Branch.create({ name: 'Human Resource', code: 'MBA-HR', courseId: courses[2]._id }),
+      await Branch.create({ name: 'Finance Management', code: 'FIN', courseId: courses[2]._id }),
+      // BSc (Semesters 1-6)
+      await Branch.create({ name: 'Physics Science', code: 'PHYS', courseId: courses[3]._id }),
+      await Branch.create({ name: 'Mathematical Science', code: 'MATHS', courseId: courses[3]._id })
+    ];
+
+    // 7. Faculty members (10 total)
+    console.log('👥 Seeding 10 Faculty members...');
+    const facultiesData = [
+      { name: 'Dr. Alan Turing', email: 'alan.turing@campussphere.com', dept: cseDept, desig: 'Professor', qual: 'Ph.D. in Mathematics' },
+      { name: 'Dr. Grace Hopper', email: 'grace.hopper@campussphere.com', dept: cseDept, desig: 'Associate Professor', qual: 'Ph.D. in Computer Science' },
+      { name: 'Dr. Donald Knuth', email: 'donald.knuth@campussphere.com', dept: cseDept, desig: 'Professor', qual: 'Ph.D. in Math' },
+      { name: 'Dr. Ada Lovelace', email: 'ada.lovelace@campussphere.com', dept: cseDept, desig: 'Assistant Professor', qual: 'M.Tech in CS' },
+      { name: 'Dr. Claude Shannon', email: 'claude.shannon@campussphere.com', dept: eceDept, desig: 'Professor', qual: 'Ph.D. in ECE' },
+      { name: 'Dr. Richard Feynman', email: 'richard.feynman@campussphere.com', dept: eceDept, desig: 'Associate Professor', qual: 'Ph.D. in Electronics' },
+      { name: 'Dr. Gordon Moore', email: 'gordon.moore@campussphere.com', dept: eceDept, desig: 'Assistant Professor', qual: 'Ph.D. in Physics' },
+      { name: 'Dr. Henry Ford', email: 'henry.ford@campussphere.com', dept: meDept, desig: 'Professor', qual: 'Ph.D. in Mechanical' },
+      { name: 'Dr. Rudolf Diesel', email: 'rudolf.diesel@campussphere.com', dept: meDept, desig: 'Associate Professor', qual: 'Ph.D. in Thermal Engineering' },
+      { name: 'Dr. Marie Curie', email: 'marie.curie@campussphere.com', dept: meDept, desig: 'Assistant Professor', qual: 'Ph.D. in Thermodynamics' }
+    ];
+
+    const facultyUsers = [];
+    const facultyProfiles = [];
+    for (const f of facultiesData) {
       const u = await User.create({
-        name: item.name,
-        email: item.email,
+        name: f.name,
+        email: f.email,
         password: 'password123',
-        role: ROLES.STUDENT,
-        semester: 3,
-        branchId: cseBranch._id,
-        departmentId: cseDept._id,
-        group: item.group,
-        rollNumber: item.rollNumber,
-        courseId: course._id,
+        role: ROLES.FACULTY,
+        departmentId: f.dept._id,
+        shift: 'GENERAL'
       });
-      studentUsers.push(u);
+      facultyUsers.push(u);
+
+      const profile = await Faculty.create({
+        userId: u._id,
+        departmentId: f.dept._id,
+        designation: f.desig,
+        phoneNumber: '555-0199',
+        officeHours: 'Mon-Fri 2:00 PM - 4:00 PM',
+        officeRoom: 'Block B, Lab 2',
+        qualification: f.qual,
+        specialization: 'System Engineering',
+        employeeId: `EMP-${f.name.split(' ').pop().toUpperCase()}`,
+        joiningDate: new Date()
+      });
+      facultyProfiles.push(profile);
     }
-    console.log(`✅ ${studentUsers.length} student accounts seeded. (Default passwords: password123)`);
+    console.log('✅ 10 Faculty users and profiles seeded.');
 
-    // 8. Create Faculty Profiles and Link Subjects
-    console.log('🌱 Linking Faculty profiles with comprehensive metadata...');
-    await Faculty.create({
-      userId: facultyUser1._id,
-      departmentId: cseDept._id,
-      designation: 'Professor',
-      phoneNumber: '123-456-7890',
-      officeHours: 'Mon, Wed 10:00 AM - 12:00 PM',
-      officeRoom: 'Room 304, Academic Block-A',
-      qualification: 'Ph.D. in Mathematics (Princeton)',
-      specialization: 'Cryptography & Theory of Computation',
-      employeeId: 'EMP101',
-      joiningDate: new Date('2015-08-01'),
-      subjects: [dsSubject._id, osSubject._id, dsLabSubject._id, projectGuidanceSubject._id],
-    });
+    // 8. Seeding Subjects for each course and branch
+    console.log('📘 Seeding Subjects for all cohorts...');
+    const subjects = [];
 
-    await Faculty.create({
-      userId: facultyUser2._id,
-      departmentId: cseDept._id,
-      designation: 'Associate Professor',
-      phoneNumber: '987-654-3210',
-      officeHours: 'Tue, Thu 2:00 PM - 4:00 PM',
-      officeRoom: 'Room 402, Science Block',
-      qualification: 'Ph.D. in Computer Science (Yale)',
-      specialization: 'Compiler Design & Programming Languages',
-      employeeId: 'EMP102',
-      joiningDate: new Date('2018-01-15'),
-      subjects: [webDevSubject._id, dbmsSubject._id],
-    });
-    console.log('✅ Faculty profiles created and subjects assigned.');
+    // Helper to generate subject
+    const addSubject = async (name, code, credits, type, branch, dept, semester) => {
+      const sub = await Subject.create({ name, code, credits, type, branchId: branch._id, departmentId: dept._id, semester });
+      subjects.push(sub);
+      return sub;
+    };
 
-    // 9. Seed Attendance records for all 20 students (facultyId references User now)
-    console.log('🌱 Seeding mock attendance records for students...');
-    const date1 = new Date();
-    date1.setUTCHours(0, 0, 0, 0);
-    date1.setUTCDate(date1.getUTCDate() - 2);
+    // BTech CSE Subjects
+    await addSubject('Data Structures', 'CS101', 4, 'THEORY', branches[0], cseDept, 1);
+    await addSubject('Computer Networks', 'CS201', 3, 'THEORY', branches[0], cseDept, 2);
+    await addSubject('Operating Systems', 'CS301', 4, 'THEORY', branches[0], cseDept, 3);
+    await addSubject('Database Systems', 'CS401', 3, 'THEORY', branches[0], cseDept, 4);
+    await addSubject('Software Engineering', 'CS501', 4, 'THEORY', branches[0], cseDept, 5);
+    await addSubject('Compiler Design', 'CS601', 4, 'THEORY', branches[0], cseDept, 6);
+    await addSubject('Cloud Computing', 'CS701', 3, 'THEORY', branches[0], cseDept, 7);
+    await addSubject('Final Year Project', 'CS801', 6, 'PRACTICAL', branches[0], cseDept, 8);
 
-    const date2 = new Date();
-    date2.setUTCHours(0, 0, 0, 0);
-    date2.setUTCDate(date2.getUTCDate() - 1);
+    // BTech ECE Subjects
+    await addSubject('Basic Electronics', 'EC101', 3, 'THEORY', branches[1], eceDept, 1);
+    await addSubject('Digital Circuits', 'EC201', 4, 'THEORY', branches[1], eceDept, 2);
+    await addSubject('Microprocessors', 'EC301', 4, 'THEORY', branches[1], eceDept, 3);
+    await addSubject('Signals & Systems', 'EC401', 3, 'THEORY', branches[1], eceDept, 4);
 
-    const attendanceList = [];
-    studentUsers.forEach((stu, idx) => {
-      // Seed DSA Attendance (2 days ago and yesterday)
-      attendanceList.push({
-        studentId: stu._id,
-        subjectId: dsSubject._id,
-        facultyId: facultyUser1._id,
-        date: date1,
-        status: idx % 7 === 0 ? 'ABSENT' : 'PRESENT',
-      });
-      attendanceList.push({
-        studentId: stu._id,
-        subjectId: dsSubject._id,
-        facultyId: facultyUser1._id,
-        date: date2,
-        status: idx % 8 === 0 ? 'ABSENT' : 'PRESENT',
-      });
+    // BTech MECH Subjects
+    await addSubject('Engineering Mechanics', 'ME101', 4, 'THEORY', branches[2], meDept, 1);
+    await addSubject('Thermodynamics', 'ME201', 3, 'THEORY', branches[2], meDept, 2);
+    await addSubject('Fluid Mechanics', 'ME301', 4, 'THEORY', branches[2], meDept, 3);
 
-      // Seed Web Dev Attendance (yesterday)
-      attendanceList.push({
-        studentId: stu._id,
-        subjectId: webDevSubject._id,
-        facultyId: facultyUser2._id,
-        date: date2,
-        status: idx % 9 === 0 ? 'ABSENT' : 'PRESENT',
-      });
-    });
+    // MTech CS Subjects
+    await addSubject('Advanced Algorithms', 'MCS101', 4, 'THEORY', branches[3], cseDept, 1);
+    await addSubject('Machine Learning', 'MCS201', 3, 'THEORY', branches[3], cseDept, 2);
 
-    await Attendance.create(attendanceList);
-    console.log('✅ Mock attendance records seeded.');
+    // MBA HR Subjects
+    await addSubject('Organizational Behavior', 'MHR101', 3, 'THEORY', branches[5], cseDept, 1);
 
-    // 10. Seed Exams and Results
-    console.log('🌱 Seeding exams and results...');
-    const dsaMidterm = await Exam.create({
-      name: 'DSA Midterm Assessment',
-      subjectId: dsSubject._id,
-      examType: 'MID_TERM',
-      date: new Date(),
-      maxMarks: 50,
-      passingMarks: 20,
-    });
+    // BSc Physics Subjects
+    await addSubject('Quantum Physics', 'PH101', 4, 'THEORY', branches[7], eceDept, 1);
 
-    const dsaEndterm = await Exam.create({
-      name: 'DSA Final Theory Exam',
-      subjectId: dsSubject._id,
-      examType: 'END_TERM',
-      date: new Date(),
-      maxMarks: 100,
-      passingMarks: 40,
-    });
+    console.log(`✅ Seeded ${subjects.length} subjects.`);
 
-    // Create results for Midterm (Published)
-    const midtermResults = studentUsers.map((stu, idx) => {
-      const marks = 30 + ((idx * 1.5) % 20);
-      return {
-        studentId: stu._id,
-        examId: dsaMidterm._id,
-        marksObtained: marks,
-        isPublished: true,
-        absent: false,
-        remarks: 'Good progress.',
-      };
-    });
-    midtermResults[5].marksObtained = 0;
-    midtermResults[5].absent = true;
-    midtermResults[5].remarks = 'Absent due to medical emergency.';
+    // 9. Seeding Student Users
+    // Constraint: 15 students per semester for each branch.
+    // Course durations: B.Tech (8 sems), M.Tech (4 sems), MBA (4 sems), B.Sc (6 sems)
+    console.log('🌱 Seeding 15 Students per semester per branch (programmatically)...');
+    
+    const firstNames = ['John', 'Jane', 'Robert', 'Mary', 'David', 'James', 'Emily', 'Sarah', 'Michael', 'William', 'Jessica', 'Daniel', 'Karen', 'Thomas', 'Linda'];
+    const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson'];
 
-    await ExamResult.create(midtermResults);
+    const studentBatch = [];
+    let rollCounter = 1000;
 
-    // Create result for Endterm (Draft/In-Progress, not published yet)
-    const endtermResults = studentUsers.slice(0, 10).map((stu, idx) => {
-      const marks = 60 + ((idx * 3) % 40);
-      return {
-        studentId: stu._id,
-        examId: dsaEndterm._id,
-        marksObtained: marks,
-        isPublished: false,
-        absent: false,
-        remarks: 'Consistent.',
-      };
-    });
-    await ExamResult.create(endtermResults);
-    console.log('✅ Exams and grading results seeded.');
+    for (const branch of branches) {
+      // Find parent Course to determine semester limits
+      const courseObj = courses.find(c => c._id.toString() === branch.courseId.toString());
+      const maxSemesters = courseObj.durationYears * 2;
+      
+      // Determine department mapping
+      let dept = cseDept;
+      if (branch.code.includes('ECE') || branch.code === 'VLSI' || branch.code === 'PHYS') {
+        dept = eceDept;
+      } else if (branch.code === 'MECH') {
+        dept = meDept;
+      }
 
-    // 11. Seed Weekly Timetable Slots
-    console.log('🌱 Seeding weekly schedule timetable slots...');
-    await TimetableSlot.create([
-      // Monday: 09:00-10:00 DSA
-      {
-        departmentId: cseDept._id,
-        courseId: course._id,
-        branchId: cseBranch._id,
+      for (let sem = 1; sem <= maxSemesters; sem++) {
+        for (let sNum = 1; sNum <= 15; sNum++) {
+          const fn = firstNames[(sem * sNum) % firstNames.length];
+          const ln = lastNames[(sem * sNum + 7) % lastNames.length];
+          const name = `${fn} ${ln}`;
+          const email = `${fn.toLowerCase()}.${ln.toLowerCase()}.${branch.code.toLowerCase()}.${sem}.${sNum}@campussphere.edu`;
+          rollCounter++;
+
+          studentBatch.push({
+            name,
+            email,
+            password: 'password123',
+            role: ROLES.STUDENT,
+            departmentId: dept._id,
+            courseId: courseObj._id,
+            branchId: branch._id,
+            semester: sem,
+            group: sNum <= 8 ? 'A' : 'B',
+            rollNumber: `${branch.code}${sem}${rollCounter}`,
+            shift: 'GENERAL',
+            status: 'ACTIVE'
+          });
+        }
+      }
+    }
+
+    console.log(`📦 Prepared bulk batch of ${studentBatch.length} student records.`);
+    const seededStudents = await User.insertMany(studentBatch);
+    console.log(`✅ Successfully seeded ${seededStudents.length} students via bulk insert!`);
+
+    // 10. Seed Workload FacultyAssignments
+    console.log('🌱 Mapping Faculty assignments...');
+    const facultyAssignments = [];
+
+    // CSE Faculty Turing
+    facultyAssignments.push({ facultyId: facultyUsers[0]._id, subjectId: subjects[0]._id, group: 'A', assignedBy: adminUser._id });
+    facultyAssignments.push({ facultyId: facultyUsers[0]._id, subjectId: subjects[1]._id, group: 'A', assignedBy: adminUser._id });
+    // CSE Faculty Grace Hopper
+    facultyAssignments.push({ facultyId: facultyUsers[1]._id, subjectId: subjects[2]._id, group: 'A', assignedBy: adminUser._id });
+    facultyAssignments.push({ facultyId: facultyUsers[1]._id, subjectId: subjects[3]._id, group: 'A', assignedBy: adminUser._id });
+    // CSE Faculty Knuth
+    facultyAssignments.push({ facultyId: facultyUsers[2]._id, subjectId: subjects[4]._id, group: 'A', assignedBy: adminUser._id });
+    facultyAssignments.push({ facultyId: facultyUsers[2]._id, subjectId: subjects[5]._id, group: 'A', assignedBy: adminUser._id });
+    // ECE Faculty Shannon
+    facultyAssignments.push({ facultyId: facultyUsers[4]._id, subjectId: subjects[8]._id, group: 'A', assignedBy: adminUser._id });
+    facultyAssignments.push({ facultyId: facultyUsers[4]._id, subjectId: subjects[9]._id, group: 'A', assignedBy: adminUser._id });
+    // MECH Faculty Ford
+    facultyAssignments.push({ facultyId: facultyUsers[7]._id, subjectId: subjects[12]._id, group: 'A', assignedBy: adminUser._id });
+    facultyAssignments.push({ facultyId: facultyUsers[7]._id, subjectId: subjects[13]._id, group: 'A', assignedBy: adminUser._id });
+
+    await FacultyAssignment.insertMany(facultyAssignments);
+    console.log('✅ Faculty workload assignments mapped successfully.');
+
+    // 11. Timetables Slots Seeding
+    console.log('🌱 Seeding Weekly Timetable slots...');
+    const timetableSlots = [];
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'];
+
+    // Let's seed timetable slots for active subjects
+    facultyAssignments.forEach((fa, idx) => {
+      const day = days[idx % days.length];
+      timetableSlots.push({
+        departmentId: fa.facultyId.departmentId || cseDept._id,
+        courseId: courses[0]._id,
+        branchId: branches[0]._id,
         semester: 3,
-        group: 'CSE-A',
-        subjectId: dsSubject._id,
-        facultyId: facultyUser1._id,
-        dayOfWeek: 'MONDAY',
-        startTime: '09:00',
-        endTime: '10:00',
-        room: 'LH-101',
-        createdBy: adminUser._id,
-      },
-      // Monday: 11:00-12:00 OS
-      {
-        departmentId: cseDept._id,
-        courseId: course._id,
-        branchId: cseBranch._id,
-        semester: 3,
-        group: 'CSE-A',
-        subjectId: osSubject._id,
-        facultyId: facultyUser1._id,
-        dayOfWeek: 'MONDAY',
-        startTime: '11:00',
-        endTime: '12:00',
-        room: 'LH-102',
-        createdBy: adminUser._id,
-      },
-      // Tuesday: 10:00-11:00 DBMS
-      {
-        departmentId: cseDept._id,
-        courseId: course._id,
-        branchId: cseBranch._id,
-        semester: 3,
-        group: 'CSE-A',
-        subjectId: dbmsSubject._id,
-        facultyId: facultyUser2._id,
-        dayOfWeek: 'TUESDAY',
+        group: 'A',
+        subjectId: fa.subjectId,
+        facultyId: fa.facultyId,
+        dayOfWeek: day,
         startTime: '10:00',
-        endTime: '11:00',
-        room: 'LH-103',
+        endTime: '11:30',
+        room: `LH-${101 + idx}`,
         createdBy: adminUser._id,
-      },
-      // Wednesday: 09:00-10:00 DSA Lab
-      {
-        departmentId: cseDept._id,
-        courseId: course._id,
-        branchId: cseBranch._id,
-        semester: 3,
-        group: 'CSE-A',
-        subjectId: dsLabSubject._id,
-        facultyId: facultyUser1._id,
-        dayOfWeek: 'WEDNESDAY',
-        startTime: '09:00',
-        endTime: '10:00',
-        room: 'Lab-1',
-        createdBy: adminUser._id,
-      },
-      // Thursday: 11:00-12:00 OS
-      {
-        departmentId: cseDept._id,
-        courseId: course._id,
-        branchId: cseBranch._id,
-        semester: 3,
-        group: 'CSE-A',
-        subjectId: osSubject._id,
-        facultyId: facultyUser1._id,
-        dayOfWeek: 'THURSDAY',
-        startTime: '11:00',
-        endTime: '12:00',
-        room: 'LH-102',
-        createdBy: adminUser._id,
-      },
-      // Friday: 14:00-15:00 Project Guidance
-      {
-        departmentId: cseDept._id,
-        courseId: course._id,
-        branchId: cseBranch._id,
-        semester: 3,
-        group: 'CSE-A',
-        subjectId: projectGuidanceSubject._id,
-        facultyId: facultyUser1._id,
-        dayOfWeek: 'FRIDAY',
-        startTime: '14:00',
-        endTime: '15:00',
-        room: 'Project Room',
-        createdBy: adminUser._id,
-      },
-    ]);
-    console.log('✅ Weekly schedule timetable slots seeded.');
+      });
+    });
 
-    // 12. Seed Course Materials
-    console.log('🌱 Seeding Course Materials...');
-    await Material.create([
-      {
-        title: 'Lecture 1: Introduction to Trees',
-        type: 'PDF',
-        subjectId: dsSubject._id,
-        semester: 3,
-        group: 'CSE-A',
-        url: 'https://example.com/trees.pdf',
-        description: 'Covers Binary Search Tree basics, traversal, and insertion operations.',
-        fileSize: '2.4 MB',
-        uploadedBy: facultyUser1._id,
-      },
-      {
-        title: 'Lecture 2: BST Deletion Algorithm',
-        type: 'PPT',
-        subjectId: dsSubject._id,
-        semester: 3,
-        group: 'CSE-A',
-        url: 'https://example.com/bst-deletion.pptx',
-        description: 'Visual slides explaining single-child, no-child, and two-children node deletion.',
-        fileSize: '4.8 MB',
-        uploadedBy: facultyUser1._id,
-      },
-      {
-        title: 'React Fundamentals Tutorial',
-        type: 'YOUTUBE',
-        subjectId: webDevSubject._id,
-        semester: 3,
-        group: 'CSE-A',
-        url: 'https://youtube.com/watch?v=react-tutorial',
-        description: 'Comprehensive crash course on component lifecycle, state hooks, and virtual DOM mapping.',
-        fileSize: 'N/A',
-        uploadedBy: facultyUser2._id,
-      },
-      {
-        title: 'OS Process Management Guide',
-        type: 'PDF',
-        subjectId: osSubject._id,
-        semester: 3,
-        group: 'CSE-A',
-        url: 'https://example.com/os-process.pdf',
-        description: 'Covers Process States, PCBs, context switching, and scheduling states.',
-        fileSize: '1.8 MB',
-        uploadedBy: facultyUser1._id,
-      },
-      {
-        title: 'DBMS Normalization & Normal Forms',
-        type: 'PPT',
-        subjectId: dbmsSubject._id,
-        semester: 3,
-        group: 'CSE-A',
-        url: 'https://example.com/dbms-normal.pptx',
-        description: 'Covers 1NF, 2NF, 3NF, and BCNF mapping rules with database normalization examples.',
-        fileSize: '3.5 MB',
-        uploadedBy: facultyUser2._id,
-      },
-    ]);
-    console.log('✅ Course materials seeded.');
+    await TimetableSlot.insertMany(timetableSlots);
+    console.log('✅ Timetable slots seeded.');
 
-    // 13. Seed System Notifications
-    console.log('🌱 Seeding Notifications...');
-    await Notification.create([
-      {
-        recipientId: facultyUser1._id,
-        title: 'Midterm Grading Deadline Approaching',
-        message: 'Please ensure all CSE-A DSA Midterm grades are uploaded by tomorrow EOD.',
-        category: 'ACADEMIC',
-        isRead: false,
-        senderId: adminUser._id,
-      },
-      {
-        recipientId: facultyUser1._id,
-        title: 'Faculty Meeting Scheduled',
-        message: 'A monthly department coordination review meeting is scheduled for tomorrow at 3:00 PM in Seminar Hall.',
-        category: 'ADMINISTRATIVE',
-        isRead: false,
-        senderId: adminUser._id,
-      },
-      {
-        recipientId: facultyUser1._id,
-        title: 'System Profile Verified',
-        message: 'Your assistant professor designation records have been successfully mapped to the computer science department.',
-        category: 'GENERAL',
-        isRead: true,
-        senderId: adminUser._id,
-      },
-      {
-        recipientId: facultyUser2._id,
-        title: 'Practical Exam Scheduling',
-        message: 'Web Dev practical exams schedule has been approved for next Wednesday in Lab-3.',
-        category: 'ACADEMIC',
-        isRead: false,
-        senderId: adminUser._id,
-      },
-      {
-        recipientId: facultyUser2._id,
-        title: 'Department Seminar Invitation',
-        message: 'You are invited to present compiler design topics in the upcoming academic seminar.',
-        category: 'ADMINISTRATIVE',
-        isRead: true,
-        senderId: adminUser._id,
-      },
-    ]);
-    console.log('✅ Notifications seeded.');
+    // 12. Seed mock attendance records for the active semester students across subjects & dates
+    console.log('🌱 Seeding mock attendance records...');
+    const attendanceRecords = [];
 
-    // 14. Seed Homework Assignments
-    console.log('🌱 Seeding Homework Assignments...');
-    await Assignment.create([
-      {
-        title: 'Binary Search Tree Implementation',
-        description: 'Implement a Binary Search Tree (BST) class in JavaScript supporting insert, delete, search, and traversals.',
-        subjectId: dsSubject._id,
-        semester: 3,
-        group: 'CSE-A',
-        dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
-        maxMarks: 100,
-        uploadedBy: facultyUser1._id,
-      },
-      {
-        title: 'Red-Black Trees Concept Sheet',
-        description: 'Write solutions explaining node color rotations and balancing algorithms under insertion cases.',
-        subjectId: dsSubject._id,
-        semester: 3,
-        group: 'CSE-A',
-        dueDate: new Date(Date.now() + 9 * 24 * 60 * 60 * 1000), // 9 days from now
-        maxMarks: 50,
-        uploadedBy: facultyUser1._id,
-      },
-      {
-        title: 'React Single Page App Portfolio',
-        description: 'Build a profile portfolio using React function components, state, hooks, and responsive custom CSS layout.',
-        subjectId: webDevSubject._id,
-        semester: 3,
-        group: 'CSE-A',
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        maxMarks: 100,
-        uploadedBy: facultyUser2._id,
-      },
-      {
-        title: 'SQL Complex Queries Worksheet',
-        description: 'Write complex SQL select statements involving inner joins, subqueries, group by, and aggregates.',
-        subjectId: dbmsSubject._id,
-        semester: 3,
-        group: 'CSE-A',
-        dueDate: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000),
-        maxMarks: 50,
-        uploadedBy: facultyUser2._id,
-      },
-    ]);
-    console.log('✅ Homework assignments seeded.');
+    const datesToSeed = [0, 1, 2, 3, 4].map(daysAgo => {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - daysAgo);
+      d.setUTCHours(0, 0, 0, 0);
+      return d;
+    });
 
-    console.log('🎉 Database seeding complete!');
+    const cseSubjects = subjects.filter(sub => sub.departmentId.toString() === cseDept._id.toString());
+    const cseStudentsList = seededStudents.filter(s => s.departmentId.toString() === cseDept._id.toString());
+
+    cseSubjects.forEach((sub, subIdx) => {
+      const assignedFaculty = facultyUsers[subIdx % facultyUsers.length]._id;
+      datesToSeed.forEach((attDate, dIdx) => {
+        cseStudentsList.forEach((stu, stIdx) => {
+          const statusChoice = (stIdx + subIdx + dIdx) % 11 === 0 ? 'ABSENT' 
+            : (stIdx + subIdx + dIdx) % 13 === 0 ? 'MEDICAL_LEAVE' 
+            : (stIdx + subIdx + dIdx) % 17 === 0 ? 'EXCUSED' 
+            : 'PRESENT';
+
+          attendanceRecords.push({
+            studentId: stu._id,
+            subjectId: sub._id,
+            facultyId: assignedFaculty,
+            date: attDate,
+            sessionType: subIdx % 2 === 0 ? 'LECTURE' : 'LAB',
+            status: statusChoice,
+            isMedicalApproved: statusChoice === 'MEDICAL_LEAVE' && (stIdx % 2 === 0)
+          });
+        });
+      });
+    });
+
+    await Attendance.insertMany(attendanceRecords);
+    console.log(`✅ Seeded ${attendanceRecords.length} mock attendance records across all department subjects.`);
+
+    console.log('🎉 Extensively seeded comprehensive legimate database setup!');
   } catch (error) {
     console.error('❌ Seeding failed with error:', error);
   } finally {

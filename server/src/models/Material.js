@@ -41,6 +41,11 @@ const materialSchema = new mongoose.Schema(
       trim: true,
       maxlength: [1000, 'Description cannot exceed 1000 characters'],
     },
+    unit: {
+      type: String,
+      trim: true,
+      default: 'General Reference',
+    },
     fileSize: {
       type: String,
       trim: true,

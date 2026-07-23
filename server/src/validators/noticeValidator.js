@@ -28,14 +28,6 @@ const noticeSchema = z.object({
     .array(z.number().min(1).max(12))
     .optional()
     .default([]),
-  expiresAt: z
-    .string()
-    .datetime({ message: 'Invalid ISO date string format for expiry' })
-    .nullable()
-    .optional()
-    .or(z.date())
-    .or(z.literal(''))
-    .or(z.null()),
 });
 
 module.exports = {

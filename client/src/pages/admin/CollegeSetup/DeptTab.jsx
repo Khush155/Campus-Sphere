@@ -17,14 +17,16 @@ import {
   TextField,
   Typography,
   CircularProgress,
+  MenuItem,
   useTheme,
 } from '@mui/material';
-import { EditOutlined, DeleteOutline } from '@mui/icons-material';
+import { EditOutlined, DeleteOutline, MenuBook, Close } from '@mui/icons-material';
 import {
   useDepartmentsQuery,
   useCreateDeptMutation,
   useUpdateDeptMutation,
   useDeleteDeptMutation,
+  useSubjectsQuery,
 } from '../../../queries/collegeQueries';
 import { useUsersQuery } from '../../../queries/userQueries';
 import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
@@ -50,9 +52,18 @@ export const DeptTab = ({ setOnAddClick }) => {
   const [editId, setEditId] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
 
+  // Subjects view state
+  const [selectedDeptForSubjects, setSelectedDeptForSubjects] = useState(null);
+  const [filterDrawerSemester, setFilterDrawerSemester] = useState('');
+
   // Queries
   const { data: depts, isLoading } = useDepartmentsQuery();
   const { data: hodsData } = useUsersQuery({ role: 'HOD', limit: 100 });
+
+  const { data: deptSubjects, isLoading: isLoadingDeptSubjects } = useSubjectsQuery({
+    departmentId: selectedDeptForSubjects?._id,
+    semester: filterDrawerSemester || undefined,
+  });
 
   // Mutations
   const createDept = useCreateDeptMutation();
@@ -106,6 +117,11 @@ export const DeptTab = ({ setOnAddClick }) => {
       description: dept.description || '',
     });
     setDrawerOpen(true);
+  };
+
+  const handleOpenSubjects = (dept) => {
+    setSelectedDeptForSubjects(dept);
+    setFilterDrawerSemester('');
   };
 
   const onSubmit = async (data) => {
@@ -210,6 +226,9 @@ export const DeptTab = ({ setOnAddClick }) => {
                   </TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                      <IconButton aria-label="view subjects" size="small" onClick={() => handleOpenSubjects(dept)}>
+                        <MenuBook fontSize="small" sx={{ color: theme.palette.primary.main }} />
+                      </IconButton>
                       <IconButton aria-label="edit department" size="small" onClick={() => handleOpenEdit(dept)}>
                         <EditOutlined fontSize="small" sx={{ color: theme.palette.text.secondary }} />
                       </IconButton>
@@ -319,6 +338,107 @@ export const DeptTab = ({ setOnAddClick }) => {
               {isSaving ? 'Saving...' : editId ? 'Update' : 'Create'}
             </Button>
           </Box>
+        </Box>
+      </Drawer>
+
+      {/* 5. View Subjects Drawer */}
+      <Drawer
+        anchor="right"
+        open={Boolean(selectedDeptForSubjects)}
+        onClose={() => setSelectedDeptForSubjects(null)}
+        PaperProps={{ sx: { width: { xs: '100%', md: 750 }, p: 4, bgcolor: theme.palette.background.paper } }}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, height: '100%' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h5" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 700, color: theme.palette.ink[900] }}>
+                {selectedDeptForSubjects?.name} Subjects
+              </Typography>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                {isLoadingDeptSubjects ? 'Loading...' : `${deptSubjects?.length || 0} subjects linked to this department`}
+              </Typography>
+            </Box>
+            <IconButton onClick={() => setSelectedDeptForSubjects(null)} size="small">
+              <Close fontSize="small" />
+            </IconButton>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <TextField
+              select
+              label="Filter by Semester"
+              value={filterDrawerSemester}
+              onChange={(e) => setFilterDrawerSemester(e.target.value)}
+              size="small"
+              sx={{ minWidth: 160 }}
+            >
+              <MenuItem value="">All Semesters</MenuItem>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                <MenuItem key={num} value={num.toString()}>
+                  Semester {num}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Box>
+
+          {isLoadingDeptSubjects ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+              <CircularProgress size={32} sx={{ color: theme.palette.primary.main }} />
+            </Box>
+          ) : !deptSubjects || deptSubjects.length === 0 ? (
+            <EmptyState
+              type="subjects"
+              title="No subjects mapped"
+              description="No subjects are currently assigned to this department."
+              actionText=""
+              onAction={() => {}}
+            />
+          ) : (
+            <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px', flexGrow: 1, overflowY: 'auto' }}>
+              <Table aria-label="department subjects list table">
+                <TableHead sx={{ bgcolor: 'rgba(28, 46, 69, 0.02)' }}>
+                  <TableRow>
+                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                      SUBJECT NAME
+                    </TableCell>
+                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                      CODE
+                    </TableCell>
+                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                      SEMESTER
+                    </TableCell>
+                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                      BRANCH
+                    </TableCell>
+                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                      COURSE
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {deptSubjects.map((sub) => (
+                    <TableRow key={sub._id} sx={{ '&:hover': { bgcolor: theme.custom.interaction.hoverTint } }}>
+                      <TableCell sx={{ fontFamily: theme.typography.body1.fontFamily, fontSize: '0.88rem', fontWeight: 600 }}>
+                        {sub.name}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem', fontWeight: 600 }}>
+                        {sub.code}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.82rem', color: theme.palette.text.secondary }}>
+                        Sem {sub.semester}
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.85rem' }}>
+                        {sub.branchId?.name || '—'} ({sub.branchId?.code || '—'})
+                      </TableCell>
+                      <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.85rem', fontWeight: 500 }}>
+                        {sub.branchId?.courseId?.name || '—'} ({sub.branchId?.courseId?.code || '—'})
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </Box>
       </Drawer>
 

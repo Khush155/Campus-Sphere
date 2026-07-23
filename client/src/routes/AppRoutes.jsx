@@ -54,6 +54,7 @@ import MaterialsPage from '../pages/faculty/materials/MaterialsPage';
 import AnalyticsPage from '../pages/faculty/analytics/AnalyticsPage';
 import NotificationPage from '../pages/faculty/notifications/NotificationPage';
 import SettingsPage from '../pages/faculty/settings/SettingsPage';
+import FacultyNoticeHub from '../pages/faculty/notices/FacultyNoticeHub';
 
 // Guard for authenticated sections
 const ProtectedRoute = ({ children }) => {
@@ -314,8 +315,8 @@ export const AppRoutes = () => {
         <Route path="analytics" element={<RoleRoute allowedRoles={['FACULTY']}><AnalyticsPage /></RoleRoute>} />
         <Route path="notifications" element={<RoleRoute allowedRoles={['FACULTY']}><NotificationPage /></RoleRoute>} />
         <Route path="settings" element={<RoleRoute allowedRoles={['FACULTY']}><SettingsPage /></RoleRoute>} />
+        <Route path="notices" element={<RoleRoute allowedRoles={['FACULTY']}><FacultyNoticeHub /></RoleRoute>} />
         <Route path="fees" element={<PlaceholderView title="Fees" />} />
-        <Route path="notices" element={<PlaceholderView title="Notice Board" />} />
       </Route>
 
       {/* Wildcard Fallback */}

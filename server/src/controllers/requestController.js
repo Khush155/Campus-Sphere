@@ -1,63 +1,71 @@
 const requestService = require('../services/requestService');
-const { createRequestSchema, respondRequestSchema, finalizeRequestSchema } = require('../validators/requestValidator');
 const { successResponse } = require('../utils/apiResponse');
-const AppError = require('../utils/AppError');
-const ERROR_CODES = require('../constants/errorCodes');
+const asyncHandler = require('../middlewares/asyncHandler');
 
-const createRequest = async (req, res) => {
+/**
+ * @desc    Create cross-department request
+ * @route   POST /api/v1/cross-dept-requests
+ * @access  Private/HOD
+ */
+const createRequest = asyncHandler(async (req, res) => {
   const departmentId = req.user.departmentId;
-  const parsedData = createRequestSchema.safeParse(req.body);
-  if (!parsedData.success) {
-    throw new AppError('Validation failed', 400, ERROR_CODES.VALIDATION_ERROR, parsedData.error.errors);
-  }
-
-  const crossRequest = await requestService.createRequest(parsedData.data, departmentId, req.user._id, req);
+  const crossRequest = await requestService.createRequest(req.body, departmentId, req.user.id, req);
   return successResponse(res, 201, 'Cross-department request sent successfully', crossRequest);
-};
+});
 
-const getSentRequests = async (req, res) => {
+/**
+ * @desc    Get sent requests
+ * @route   GET /api/v1/cross-dept-requests/sent
+ * @access  Private/HOD
+ */
+const getSentRequests = asyncHandler(async (req, res) => {
   const departmentId = req.user.departmentId;
   const requests = await requestService.getSentRequests(departmentId);
   return successResponse(res, 200, 'Sent requests fetched successfully', requests);
-};
+});
 
-const getReceivedRequests = async (req, res) => {
+/**
+ * @desc    Get received requests
+ * @route   GET /api/v1/cross-dept-requests/received
+ * @access  Private/HOD
+ */
+const getReceivedRequests = asyncHandler(async (req, res) => {
   const departmentId = req.user.departmentId;
   const requests = await requestService.getReceivedRequests(departmentId);
   return successResponse(res, 200, 'Received requests fetched successfully', requests);
-};
+});
 
-const respondToRequest = async (req, res) => {
+/**
+ * @desc    Respond to cross-department request
+ * @route   POST /api/v1/cross-dept-requests/:id/respond
+ * @access  Private/HOD
+ */
+const respondToRequest = asyncHandler(async (req, res) => {
   const departmentId = req.user.departmentId;
   const requestId = req.params.id;
-  
-  const parsedData = respondRequestSchema.safeParse(req.body);
-  if (!parsedData.success) {
-    throw new AppError('Validation failed', 400, ERROR_CODES.VALIDATION_ERROR, parsedData.error.errors);
-  }
+  const { action, responseNotes } = req.body;
 
-  const { action, responseNotes } = parsedData.data;
-  const result = await requestService.respondToRequest(requestId, departmentId, action, responseNotes, req.user._id, req);
+  const result = await requestService.respondToRequest(requestId, departmentId, action, responseNotes, req.user.id, req);
   
   const msg = action === 'APPROVE' 
     ? 'Request approved. Share the PIN with the requester to finalize.' 
     : 'Request rejected.';
     
   return successResponse(res, 200, msg, result);
-};
+});
 
-const finalizeRequest = async (req, res) => {
+/**
+ * @desc    Finalize cross-department request
+ * @route   POST /api/v1/cross-dept-requests/:id/finalize
+ * @access  Private/HOD
+ */
+const finalizeRequest = asyncHandler(async (req, res) => {
   const departmentId = req.user.departmentId;
   const requestId = req.params.id;
   
-  const parsedData = finalizeRequestSchema.safeParse(req.body);
-  if (!parsedData.success) {
-    throw new AppError('Validation failed', 400, ERROR_CODES.VALIDATION_ERROR, parsedData.error.errors);
-  }
-
-  const crossRequest = await requestService.finalizeRequest(requestId, departmentId, parsedData.data.pin, req.user._id, req);
+  const crossRequest = await requestService.finalizeRequest(requestId, departmentId, req.body.pin, req.user.id, req);
   return successResponse(res, 200, 'Request finalized and faculty assigned successfully', crossRequest);
-};
+});
 
 module.exports = {
   createRequest,

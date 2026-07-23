@@ -13,10 +13,11 @@ export const useAttendanceQuery = (params = {}) => useQuery({
 export const useAttendanceSummaryQuery = (subjectId) => useQuery({
   queryKey: ['attendance-summary', subjectId],
   queryFn: async () => {
-    const response = await api.get('/attendance/summary', { params: { subjectId } });
+    const params = subjectId ? { subjectId } : {};
+    const response = await api.get('/attendance/summary', { params });
     return response.data.data || { summary: [], stats: {} };
   },
-  enabled: !!subjectId,
+  enabled: true,
 });
 
 export const useCreateAttendanceMutation = () => {

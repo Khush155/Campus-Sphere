@@ -113,9 +113,9 @@ export const CollegeProfile = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate size (2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      setErrorMessage('File size exceeds 2MB limit.');
+    // Validate size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMessage('File size exceeds 10MB limit.');
       return;
     }
 
@@ -420,7 +420,7 @@ export const CollegeProfile = () => {
               )}
 
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                Accepted types: JPEG, PNG, WEBP. Max size: 2MB.
+                Accepted types: JPEG, PNG, WEBP. Max size: 10MB.
               </Typography>
             </Box>
           </Card>

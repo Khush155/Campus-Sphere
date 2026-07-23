@@ -1,5 +1,8 @@
 const collegeService = require('../services/collegeService');
 const { successResponse } = require('../utils/apiResponse');
+const AppError = require('../utils/AppError');
+const ERROR_CODES = require('../constants/errorCodes');
+const ROLES = require('../constants/roles');
 const {
   createDepartmentSchema,
   updateDepartmentSchema,
@@ -108,7 +111,27 @@ const deleteBranch = async (req, res, _next) => {
 // SUBJECT CONTROLLERS
 // ==========================================
 
+const getIdString = (val) => {
+  if (!val) {
+    return '';
+  }
+  if (typeof val === 'string') {
+    return val;
+  }
+  if (val._id) {
+    return String(val._id);
+  }
+  return String(val);
+};
+
 const createSubject = async (req, res, _next) => {
+  if (req.user.role === ROLES.HOD) {
+    const userDeptId = getIdString(req.user.departmentId);
+    if (req.body.departmentId && getIdString(req.body.departmentId) !== userDeptId) {
+      throw new AppError('Access denied. You can only create subjects for your own department.', 403, ERROR_CODES.FORBIDDEN);
+    }
+    req.body.departmentId = userDeptId;
+  }
   const validatedBody = createSubjectSchema.parse(req.body);
   const subject = await collegeService.createSubject(validatedBody);
   return successResponse(res, 201, 'Subject created successfully.', subject);
@@ -125,12 +148,30 @@ const getSubjectById = async (req, res, _next) => {
 };
 
 const updateSubject = async (req, res, _next) => {
+  if (req.user.role === ROLES.HOD) {
+    const existing = await collegeService.getSubjectById(req.params.id);
+    const userDeptId = getIdString(req.user.departmentId);
+    const existingDeptId = getIdString(existing.departmentId);
+
+    if (existingDeptId !== userDeptId) {
+      throw new AppError('Access denied. You can only update subjects within your department.', 403, ERROR_CODES.FORBIDDEN);
+    }
+  }
   const validatedBody = updateSubjectSchema.parse(req.body);
   const subject = await collegeService.updateSubject(req.params.id, validatedBody);
   return successResponse(res, 200, 'Subject updated successfully.', subject);
 };
 
 const deleteSubject = async (req, res, _next) => {
+  if (req.user.role === ROLES.HOD) {
+    const existing = await collegeService.getSubjectById(req.params.id);
+    const userDeptId = getIdString(req.user.departmentId);
+    const existingDeptId = getIdString(existing.departmentId);
+
+    if (existingDeptId !== userDeptId) {
+      throw new AppError('Access denied. You can only delete subjects within your department.', 403, ERROR_CODES.FORBIDDEN);
+    }
+  }
   const subject = await collegeService.deleteSubject(req.params.id);
   return successResponse(res, 200, 'Subject deleted successfully.', subject);
 };
@@ -157,3 +198,4 @@ module.exports = {
   updateSubject,
   deleteSubject,
 };
+

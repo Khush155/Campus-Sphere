@@ -176,9 +176,6 @@ export const CourseTab = ({ setOnAddClick }) => {
                 <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   DURATION
                 </TableCell>
-                <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                  TOTAL SEMESTERS
-                </TableCell>
                 <TableCell align="right" sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   ACTIONS
                 </TableCell>
@@ -200,9 +197,6 @@ export const CourseTab = ({ setOnAddClick }) => {
                   </TableCell>
                   <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.85rem' }}>
                     {course.durationYears} {course.durationYears === 1 ? 'Year' : 'Years'}
-                  </TableCell>
-                  <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.82rem', color: theme.palette.text.secondary }}>
-                    {course.semesters} Semesters
                   </TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
@@ -299,7 +293,7 @@ export const CourseTab = ({ setOnAddClick }) => {
                   AUTO-CALCULATED SEMESTERS
                 </Typography>
                 <Typography sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.85rem', fontWeight: 600, color: theme.palette.primary.main }}>
-                  {durationValue ? durationValue * 2 : 0} Semesters
+                  {durationValue ? durationValue * 2 : 0} Semester
                 </Typography>
                 <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: theme.palette.text.secondary }}>
                   Computed at a standard rate of 2 semesters per year.

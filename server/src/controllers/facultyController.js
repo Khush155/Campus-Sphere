@@ -229,23 +229,58 @@ const assignSubjects = asyncHandler(async (req, res, next) => {
  */
 const getFacultyDashboard = asyncHandler(async (req, res, _next) => {
   const faculty = await Faculty.findOne({ userId: req.user.id })
-    .populate('subjects')
     .populate('departmentId');
 
-  let subjectIds = [];
-  let designation = 'Lecturer';
-  let assignedSubjects = [];
+  const FacultyAssignment = require('../models/FacultyAssignment');
+  const activeAssignments = await FacultyAssignment.find({
+    facultyId: req.user.id,
+    status: 'ACTIVE'
+  }).populate('subjectId');
 
-  if (faculty) {
-    subjectIds = faculty.subjects.map(s => s._id);
-    designation = faculty.designation;
-    assignedSubjects = faculty.subjects.map(s => ({
-      id: s._id,
-      code: s.code,
-      name: s.name,
-      credits: s.credits,
-      type: s.type
-    }));
+  const subjectIds = [];
+  const designation = faculty ? faculty.designation : 'Lecturer';
+  const assignedSubjects = [];
+
+  const Subject = require('../models/Subject');
+  const User = require('../models/User');
+
+  activeAssignments.forEach(a => {
+    if (a.subjectId) {
+      subjectIds.push(a.subjectId._id);
+      assignedSubjects.push({
+        id: a.subjectId._id,
+        code: a.subjectId.code,
+        name: a.subjectId.name,
+        credits: a.subjectId.credits,
+        type: a.subjectId.type,
+        departmentId: a.subjectId.departmentId,
+        branchId: a.subjectId.branchId,
+        semester: a.subjectId.semester,
+        group: a.group || null
+      });
+    }
+  });
+
+  if (assignedSubjects.length === 0) {
+    const userDoc = await User.findById(req.user.id);
+    const deptId = userDoc?.departmentId || (faculty ? faculty.departmentId : null);
+    if (deptId) {
+      const deptSubjects = await Subject.find({ departmentId: deptId });
+      deptSubjects.forEach(s => {
+        subjectIds.push(s._id);
+        assignedSubjects.push({
+          id: s._id,
+          code: s.code,
+          name: s.name,
+          credits: s.credits,
+          type: s.type,
+          departmentId: s.departmentId,
+          branchId: s.branchId,
+          semester: s.semester,
+          group: null
+        });
+      });
+    }
   }
 
   const totalSubjectsCount = subjectIds.length;
@@ -375,7 +410,12 @@ const getFacultyAnalytics = asyncHandler(async (req, res, next) => {
     return next(new AppError('Faculty profile not found', 404, ERROR_CODES.NOT_FOUND));
   }
 
-  const subjectIds = faculty.subjects;
+  const FacultyAssignment = require('../models/FacultyAssignment');
+  const activeAssignments = await FacultyAssignment.find({
+    facultyId: req.user.id,
+    status: 'ACTIVE'
+  });
+  const subjectIds = activeAssignments.map(a => a.subjectId).filter(Boolean);
 
   const Attendance = require('../models/Attendance');
   const attendanceRecords = await Attendance.find({ facultyId: faculty._id })

@@ -21,6 +21,12 @@ const adminAndHodGuard = [
   roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY),
 ];
 
+// Update guard for super admins and HODs
+const updateGuard = [
+  authMiddleware,
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+];
+
 /**
  * @openapi
  * /api/v1/users:
@@ -74,7 +80,7 @@ router.get('/:id', adminAndHodGuard, asyncHandler(userController.getUser));
  *       200:
  *         description: User updated.
  */
-router.put('/:id', superAdminGuard, asyncHandler(userController.updateUser));
+router.put('/:id', updateGuard, asyncHandler(userController.updateUser));
 
 /**
  * @openapi

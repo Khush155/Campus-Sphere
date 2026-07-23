@@ -12,6 +12,10 @@ const adminGuard = [
   authMiddleware,
   roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN),
 ];
+const subjectManageGuard = [
+  authMiddleware,
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
+];
 const authGuard = [authMiddleware];
 
 // ==========================================
@@ -44,10 +48,10 @@ router.delete('/branches/:id', adminGuard, asyncHandler(collegeController.delete
 // ==========================================
 // SUBJECT ROUTES
 // ==========================================
-router.post('/subjects', adminGuard, asyncHandler(collegeController.createSubject));
+router.post('/subjects', subjectManageGuard, asyncHandler(collegeController.createSubject));
 router.get('/subjects', authGuard, asyncHandler(collegeController.getAllSubjects));
 router.get('/subjects/:id', authGuard, asyncHandler(collegeController.getSubjectById));
-router.put('/subjects/:id', adminGuard, asyncHandler(collegeController.updateSubject));
-router.delete('/subjects/:id', adminGuard, asyncHandler(collegeController.deleteSubject));
+router.put('/subjects/:id', subjectManageGuard, asyncHandler(collegeController.updateSubject));
+router.delete('/subjects/:id', subjectManageGuard, asyncHandler(collegeController.deleteSubject));
 
 module.exports = router;

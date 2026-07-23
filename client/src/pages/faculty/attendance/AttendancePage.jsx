@@ -1,7 +1,3 @@
-// client/src/pages/faculty/attendance/AttendancePage.jsx
-//
-// Main orchestrator page for the Faculty Attendance Module with backend integration.
-
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
@@ -30,79 +26,97 @@ import DateSelector from './components/DateSelector';
 import StudentAttendanceTable from './components/StudentAttendanceTable';
 import AttendanceSummaryCard from './components/AttendanceSummaryCard';
 
-// Import backend hooks
+// Backend hooks
 import {
   useFacultyDashboardQuery,
   useSubmitAttendanceMutation,
   useAttendanceQuery,
 } from '../../../queries/facultyQueries';
 import { useUsersQuery } from '../../../queries/userQueries';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const formatDateToISO = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
 export const AttendancePage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // State Management
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
-  const [selectedSectionId, setSelectedSectionId] = useState('');
+  const [selectedSectionId, setSelectedSectionId] = useState('ALL');
   const [selectedDate, setSelectedDate] = useState(formatDateToISO(new Date()));
   const [attendanceRecords, setAttendanceRecords] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [toastSeverity, setToastSeverity] = useState('success');
 
   // 1. Fetch dashboard stats for assigned subjects list
   const { data: dashboardData, isLoading: isDashboardLoading } = useFacultyDashboardQuery();
-  const assignedSubjects = dashboardData?.assignedSubjects || [];
+  const assignedSubjects = useMemo(() => dashboardData?.assignedSubjects || [], [dashboardData]);
 
-  // Helper to determine sections based on subject code
-  const getSectionsForSubject = (subjectId) => {
-    const subject = assignedSubjects.find((s) => s.id === subjectId);
-    if (!subject) return [];
-    const code = subject.code || '';
-    if (code.startsWith('CS')) {
-      return [
-        { id: 'CSE-A', name: 'CSE-A', strength: 20 },
-        { id: 'CSE-B', name: 'CSE-B', strength: 18 },
-      ];
+  // Auto-select first subject if none selected
+  useEffect(() => {
+    if (assignedSubjects.length > 0 && !selectedSubjectId) {
+      setSelectedSubjectId(assignedSubjects[0].id);
     }
-    if (code.startsWith('EC')) {
-      return [{ id: 'ECE-A', name: 'ECE-A', strength: 20 }];
+  }, [assignedSubjects, selectedSubjectId]);
+
+  // Selected subject object
+  const currentSubject = useMemo(() => {
+    return assignedSubjects.find(s => String(s.id) === String(selectedSubjectId)) || null;
+  }, [assignedSubjects, selectedSubjectId]);
+
+  // Section options for current subject
+  const sectionsForSubject = useMemo(() => {
+    return [
+      { id: 'ALL', name: 'All Sections (Whole Batch)', strength: 'All' },
+      { id: 'A', name: 'Group / Section A', strength: 'Sec A' },
+      { id: 'B', name: 'Group / Section B', strength: 'Sec B' },
+    ];
+  }, []);
+
+  // Form ready check
+  const isFormReady = !!(selectedSubjectId && selectedDate);
+
+  // Robust department ID extraction
+  const cleanDeptId = typeof user?.departmentId === 'object'
+    ? user?.departmentId?._id
+    : (user?.departmentId || user?.department?._id || user?.department || currentSubject?.departmentId);
+
+  // 2. Fetch students for the selected subject's department/group
+  const userQueryParams = useMemo(() => {
+    const params = { role: 'STUDENT', limit: 200 };
+    if (cleanDeptId) params.departmentId = cleanDeptId;
+    if (selectedSectionId && selectedSectionId !== 'ALL') {
+      params.group = selectedSectionId;
     }
-    return [{ id: 'CSE-A', name: 'CSE-A', strength: 20 }];
-  };
+    return params;
+  }, [cleanDeptId, selectedSectionId]);
 
-  const sectionsForSubject = getSectionsForSubject(selectedSubjectId);
+  const { data: studentsResponse, isLoading: isStudentsLoading } = useUsersQuery(userQueryParams);
+  const rawStudents = useMemo(() => {
+    if (Array.isArray(studentsResponse)) return studentsResponse;
+    return studentsResponse?.data || [];
+  }, [studentsResponse]);
 
-  // Is the form complete enough to show the student table?
-  const isFormReady = !!(selectedSubjectId && selectedSectionId && selectedDate);
-
-  // 2. Fetch students from the active section
-  const { data: studentsResponse, isLoading: isStudentsLoading } = useUsersQuery({
-    role: 'STUDENT',
-    group: selectedSectionId || undefined,
-    limit: 100,
-  });
-
-  const studentsList = useMemo(() => studentsResponse?.data || [], [studentsResponse]);
-
-  // Map database student list to display-ready structure
+  // Map database student list to display structure
   const formattedStudents = useMemo(() => {
-    return studentsList.map((stud, idx) => ({
-      id: stud.id || stud._id,
+    return rawStudents.map((stud, idx) => ({
+      id: stud._id || stud.id,
       name: stud.name,
       email: stud.email,
-      rollNumber: stud.rollNumber || `CS20260${idx + 1}`,
+      rollNumber: stud.rollNumber || stud.enrollmentNo || stud.studentId || `STU2026${String(idx + 1).padStart(3, '0')}`,
     }));
-  }, [studentsList]);
+  }, [rawStudents]);
 
-  // 3. Fetch existing attendance records
-  const { data: existingAttendance } = useAttendanceQuery(
+  // 3. Fetch existing attendance records for the selected date & subject
+  const { data: existingAttendance, refetch: refetchAttendance } = useAttendanceQuery(
     {
       subjectId: selectedSubjectId,
       date: selectedDate,
@@ -111,12 +125,17 @@ export const AttendancePage = () => {
     isFormReady
   );
 
-  // Sync attendance list when students or existing attendance load
+  // Sync attendance state when students or existing attendance change
   useEffect(() => {
     if (formattedStudents.length > 0) {
       const records = {};
       formattedStudents.forEach((s) => {
-        const match = existingAttendance?.find((r) => (r.studentId?._id || r.studentId) === s.id);
+        const match = Array.isArray(existingAttendance)
+          ? existingAttendance.find((r) => {
+              const rStudentId = typeof r.studentId === 'object' ? r.studentId?._id : r.studentId;
+              return String(rStudentId) === String(s.id);
+            })
+          : null;
         records[s.id] = match ? match.status : 'PRESENT';
       });
       setAttendanceRecords(records);
@@ -140,22 +159,13 @@ export const AttendancePage = () => {
   const totalStudents = formattedStudents.length;
   const attendancePercentage =
     totalStudents > 0
-      ? ((summaryCounts.present + summaryCounts.medicalLeave + summaryCounts.dutyLeave) / totalStudents) * 100
+      ? Math.round(((summaryCounts.present + summaryCounts.medicalLeave + summaryCounts.dutyLeave) / totalStudents) * 100)
       : 0;
 
-  // Timetable Guard: Relaxed for development testing
-  const isClassScheduledToday = true;
-
-  const canSubmit = isFormReady && isClassScheduledToday && totalStudents > 0 && Object.keys(attendanceRecords).length > 0;
+  const canSubmit = isFormReady && totalStudents > 0 && Object.keys(attendanceRecords).length > 0;
 
   const handleSubjectChange = (subjectId) => {
     setSelectedSubjectId(subjectId);
-    const sections = getSectionsForSubject(subjectId);
-    if (sections.length > 0) {
-      setSelectedSectionId(sections[0].id);
-    } else {
-      setSelectedSectionId('');
-    }
   };
 
   const handleSectionChange = (sectionId) => {
@@ -204,30 +214,34 @@ export const AttendancePage = () => {
 
     submitAttendanceMutation.mutate(payload, {
       onSuccess: () => {
+        setToastMsg('Attendance sheet saved and updated successfully!');
+        setToastSeverity('success');
         setIsSubmitted(true);
-        setToastMsg('Attendance sheet submitted successfully to MongoDB!');
+        refetchAttendance();
       },
       onError: (err) => {
-        alert(`Attendance submission failed: ${err.response?.data?.message || err.message}`);
+        setToastMsg(`Attendance submission failed: ${err.response?.data?.message || err.message}`);
+        setToastSeverity('error');
+        setIsSubmitted(true);
       },
     });
   };
 
   const handleExport = (type) => {
-    const filename = `attendance_${selectedSubjectId || 'subject'}_${selectedDate}.${type === 'csv' ? 'csv' : 'txt'}`;
+    const filename = `attendance_${currentSubject?.code || selectedSubjectId}_${selectedDate}.${type === 'csv' ? 'csv' : 'txt'}`;
     const element = document.createElement('a');
     let content = '';
 
     if (type === 'csv') {
-      content = 'Roll Number,Student Name,Attendance Status\n';
+      content = 'Roll Number,Student Name,Email,Attendance Status\n';
       formattedStudents.forEach((stud) => {
-        content += `${stud.rollNumber},${stud.name},${attendanceRecords[stud.id] || 'PRESENT'}\n`;
+        content += `"${stud.rollNumber}","${stud.name}","${stud.email}","${attendanceRecords[stud.id] || 'PRESENT'}"\n`;
       });
       element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(content));
     } else {
-      content = `--- Attendance Report ---\nSubject ID: ${selectedSubjectId}\nDate: ${selectedDate}\n\n`;
+      content = `--- ATTENDANCE SHEET ---\nSubject: ${currentSubject?.name} (${currentSubject?.code})\nDate: ${selectedDate}\nSection: ${selectedSectionId}\nTotal Students: ${totalStudents}\n\n`;
       formattedStudents.forEach((stud) => {
-        content += `${stud.rollNumber} - ${stud.name}: ${attendanceRecords[stud.id] || 'PRESENT'}\n`;
+        content += `${stud.rollNumber} | ${stud.name} | ${attendanceRecords[stud.id] || 'PRESENT'}\n`;
       });
       element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
     }
@@ -256,7 +270,7 @@ export const AttendancePage = () => {
   }));
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
+    <Box sx={{ flexGrow: 1, p: { xs: 1, sm: 3 } }}>
       {/* ── Page Header ── */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -274,18 +288,18 @@ export const AttendancePage = () => {
         </Box>
         {isFormReady && formattedStudents.length > 0 && (
           <Box sx={{ display: 'flex', gap: 1.5 }}>
-            <Button variant="outlined" size="small" startIcon={<DownloadIcon />} onClick={() => handleExport('csv')} sx={{ textTransform: 'none', fontWeight: 700 }}>
+            <Button variant="outlined" size="small" startIcon={<DownloadIcon />} onClick={() => handleExport('csv')} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>
               Export CSV
             </Button>
-            <Button variant="outlined" size="small" startIcon={<DownloadIcon />} onClick={() => handleExport('pdf')} sx={{ textTransform: 'none', fontWeight: 700 }}>
-              Export PDF
+            <Button variant="outlined" size="small" startIcon={<DownloadIcon />} onClick={() => handleExport('txt')} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>
+              Export Text
             </Button>
           </Box>
         )}
       </Box>
 
       {/* ── Cascade Selectors Row ── */}
-      <Paper sx={{ p: 3, mb: 3 }} elevation={0} variant="outlined">
+      <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }} elevation={0} variant="outlined">
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
             <SubjectSelector subjects={filterSubjects} selectedSubjectId={selectedSubjectId} onSubjectChange={handleSubjectChange} />
@@ -352,20 +366,21 @@ export const AttendancePage = () => {
                       fontWeight: 700,
                       py: 1.5,
                       borderRadius: 2,
-                      bgcolor: '#4f46e5',
-                      '&:hover': { bgcolor: '#4338ca' },
+                      bgcolor: 'primary.main',
+                      '&:hover': { bgcolor: 'primary.dark' },
                     }}
                   >
-                    {submitAttendanceMutation.isPending ? 'Submitting...' : 'Submit Sheet'}
+                    {submitAttendanceMutation.isPending ? 'Saving...' : 'Submit Sheet'}
                   </Button>
                 </Box>
               </Box>
             </Grid>
           </Grid>
         ) : (
-          <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 3 }}>
-            <Typography variant="body1" color="text.secondary">
-              No students registered in section {selectedSectionId}.
+          <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', borderRadius: 3 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>No Students Found</Typography>
+            <Typography variant="body2" color="text.secondary">
+              No registered students found for the selected subject and section filter. Ensure students are enrolled in this department.
             </Typography>
           </Paper>
         )
@@ -389,14 +404,14 @@ export const AttendancePage = () => {
             Class Roster Waiting
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 400 }}>
-            Select a subject, target class section, and academic date from selectors to load the student list sheet
+            Select a subject, section, and date above to load the student list sheet and mark daily attendance.
           </Typography>
         </Paper>
       )}
 
-      {/* ── Snackbar Toast notifications ── */}
-      <Snackbar open={isSubmitted} autoHideDuration={4000} onClose={() => setIsSubmitted(false)}>
-        <Alert severity="success" variant="filled" sx={{ width: '100%' }}>
+      {/* ── Toast Notifications ── */}
+      <Snackbar open={isSubmitted} autoHideDuration={4000} onClose={() => setIsSubmitted(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+        <Alert severity={toastSeverity} onClose={() => setIsSubmitted(false)} variant="filled" sx={{ width: '100%', borderRadius: 2 }}>
           {toastMsg}
         </Alert>
       </Snackbar>

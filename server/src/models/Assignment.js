@@ -40,6 +40,11 @@ const assignmentSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'Uploader user reference is required'],
     },
+    status: {
+      type: String,
+      enum: ['DRAFT', 'PUBLISHED', 'CLOSED', 'ARCHIVED'],
+      default: 'PUBLISHED',
+    },
   },
   {
     timestamps: true,

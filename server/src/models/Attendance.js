@@ -27,7 +27,7 @@ const attendanceSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED', 'MEDICAL_LEAVE'],
+    enum: ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED', 'MEDICAL_LEAVE', 'DUTY_LEAVE'],
     required: [true, 'Attendance status is required'],
   },
   isMedicalApproved: {

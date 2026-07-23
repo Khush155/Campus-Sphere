@@ -122,22 +122,22 @@ export const AssignmentForm = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = (e, statusOverride) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!validateForm()) return;
 
-    // Package payload (convert local datetime picker back to full ISO standard string)
     onSubmit({
       title: title.trim(),
       description: description.trim(),
       maxMarks: Number(maxMarks),
       dueDate: new Date(dueDate).toISOString(),
       sectionIds: selectedSectionIds,
+      status: statusOverride || (initialValues?.status || 'PUBLISHED'),
     });
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
+    <Box component="form" onSubmit={(e) => handleSubmit(e, 'PUBLISHED')} noValidate sx={{ mt: 1 }}>
       <Grid container spacing={2.5}>
         {/* Title */}
         <Grid item xs={12}>
@@ -234,15 +234,24 @@ export const AssignmentForm = ({
       </Grid>
 
       {/* Action Buttons */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, mt: 4, flexWrap: 'wrap' }}>
         <Button
           variant="outlined"
           color="inherit"
           onClick={onCancel}
           disabled={isSubmitting}
-          sx={{ textTransform: 'none', fontWeight: 600 }}
+          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
         >
           Cancel
+        </Button>
+        <Button
+          variant="outlined"
+          color="secondary"
+          onClick={(e) => handleSubmit(e, 'DRAFT')}
+          disabled={isSubmitting}
+          sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2 }}
+        >
+          Save as Draft
         </Button>
         <Button
           type="submit"
@@ -251,8 +260,9 @@ export const AssignmentForm = ({
           sx={{
             textTransform: 'none',
             fontWeight: 700,
-            bgcolor: '#4f46e5',
-            '&:hover': { bgcolor: '#4338ca' },
+            borderRadius: 2,
+            bgcolor: 'primary.main',
+            '&:hover': { bgcolor: 'primary.dark' },
           }}
         >
           {isSubmitting ? 'Saving...' : submitText}

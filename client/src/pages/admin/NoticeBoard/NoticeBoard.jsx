@@ -56,7 +56,6 @@ const noticeFormSchema = z.object({
   targetRoles: z.array(z.string()).default([]),
   targetDepartments: z.array(z.string()).default([]),
   targetSemesters: z.array(z.number()).default([]),
-  expiresAt: z.string().optional().or(z.null()).or(z.literal('')),
 });
 
 const NoticeBoard = () => {
@@ -476,7 +475,6 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
       targetRoles: notice?.targetRoles || [],
       targetDepartments: notice?.targetDepartments?.map((d) => d._id || d) || [],
       targetSemesters: notice?.targetSemesters || [],
-      expiresAt: notice?.expiresAt ? new Date(notice.expiresAt).toISOString().split('T')[0] : '',
     },
   });
 
@@ -533,7 +531,6 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
   const handleFormSubmit = async (data) => {
     const payload = {
       ...data,
-      expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : null,
     };
 
     try {
@@ -683,22 +680,6 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
               />
             </Box>
           )}
-
-          {/* Expiry Date */}
-          <Box>
-            <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-              Expiry Date (Optional)
-            </Typography>
-            <TextField
-              type="date"
-              fullWidth
-              size="small"
-              InputLabelProps={{ shrink: true }}
-              {...register('expiresAt')}
-              error={!!errors.expiresAt}
-              helperText={errors.expiresAt?.message}
-            />
-          </Box>
         </Box>
       </Box>
 

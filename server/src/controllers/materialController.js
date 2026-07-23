@@ -11,11 +11,12 @@ const asyncHandler = require('../middlewares/asyncHandler');
  * @access  Private/Faculty
  */
 const createMaterial = asyncHandler(async (req, res, next) => {
-  const { title, type, subjectId, semester, group, url, description, fileSize } = req.body;
+  const { title, type, subjectId, semester, group, url, description, fileSize, unit } = req.body;
 
-  // Verify that the user is a registered faculty member
-  const faculty = await Faculty.findOne({ userId: req.user.id });
-  if (!faculty) {
+  // Verify that the user has teaching/admin role
+  const isFacultyRole = ['FACULTY', 'HOD', 'SUPER_ADMIN'].includes(req.user.role);
+  const facultyRecord = await Faculty.findOne({ userId: req.user.id });
+  if (!isFacultyRole && !facultyRecord) {
     return next(new AppError('Only registered Faculty members can upload materials', 403, ERROR_CODES.FORBIDDEN));
   }
 
@@ -24,11 +25,12 @@ const createMaterial = asyncHandler(async (req, res, next) => {
     title,
     type,
     subjectId,
-    semester: parseInt(semester, 10),
-    group,
+    semester: parseInt(semester, 10) || 1,
+    group: group || 'ALL',
     url,
     description,
     fileSize,
+    unit: unit || 'General Reference',
     uploadedBy: req.user.id,
   });
 
@@ -52,7 +54,7 @@ const getMaterials = asyncHandler(async (req, res, _next) => {
   if (subjectId) {
     filter.subjectId = subjectId;
   }
-  if (group) {
+  if (group && group !== 'ALL') {
     filter.group = group;
   }
 

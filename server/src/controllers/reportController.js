@@ -2,12 +2,14 @@ const reportService = require('../services/reportService');
 const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
 const { successResponse } = require('../utils/apiResponse');
+const asyncHandler = require('../middlewares/asyncHandler');
 
 /**
- * GET /api/v1/reports/types
- * Returns registered report keys, descriptions, and filters specifications.
+ * @desc    Get report types
+ * @route   GET /api/v1/reports/types
+ * @access  Private/SuperAdmin
  */
-const getReportTypes = async (req, res, _next) => {
+const getReportTypes = asyncHandler(async (req, res) => {
   const types = Object.entries(reportService.REPORT_TYPES).map(([key, val]) => ({
     key,
     label: val.label,
@@ -15,13 +17,14 @@ const getReportTypes = async (req, res, _next) => {
     filtersSchema: val.filtersSchema,
   }));
   return successResponse(res, 200, 'Report types retrieved successfully.', types);
-};
+});
 
 /**
- * POST /api/v1/reports/generate
- * Generates data set and pipes down format attachment (CSV / PDF).
+ * @desc    Generate report
+ * @route   POST /api/v1/reports/generate
+ * @access  Private/SuperAdmin
  */
-const generateReport = async (req, res, _next) => {
+const generateReport = asyncHandler(async (req, res) => {
   const { type, format, filters } = req.body;
 
   if (!type || !format) {
@@ -45,14 +48,14 @@ const generateReport = async (req, res, _next) => {
   }
 
   await reportService.exportReport({ type, format, filters }, res);
-};
+});
 
 /**
- * GET /api/v1/reports/hod
- * Fetch HOD Overview & Reports metrics
+ * @desc    Get HOD reports overview
+ * @route   GET /api/v1/reports/hod
+ * @access  Private/HOD/CollegeAdmin/SuperAdmin
  */
-const getHodReports = async (req, res, _next) => {
-  // Dummy data for now until fully implemented in the service
+const getHodReports = asyncHandler(async (req, res) => {
   const workloadDistribution = [
     { subject: 'Computer Networks', hours: 15 },
     { subject: 'Operating Systems', hours: 12 },
@@ -68,7 +71,7 @@ const getHodReports = async (req, res, _next) => {
     workloadDistribution,
     vacantSubjects,
   });
-};
+});
 
 module.exports = {
   getReportTypes,

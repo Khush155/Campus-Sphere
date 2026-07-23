@@ -533,9 +533,6 @@ export const UserRoster = () => {
                   MAPPING DETAILS
                 </TableCell>
                 <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                  HOD SCOPE
-                </TableCell>
-                <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   STATUS
                 </TableCell>
                 <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
@@ -590,16 +587,16 @@ export const UserRoster = () => {
                             Sem {user.semester || '—'}
                           </Box>
                         </>
+                      ) : user.role === 'HOD' ? (
+                        <>
+                          {user.department || 'No Department'} ·{' '}
+                          <Box component="span" sx={{ fontFamily: theme.typography.mono.fontFamily, color: theme.palette.text.secondary }}>
+                            {user.shift === 'MORNING' ? 'Morning' : user.shift === 'EVENING' ? 'Evening' : 'General'} Shift
+                          </Box>
+                        </>
                       ) : (
                         user.department || 'Global / Administrator'
                       )}
-                    </TableCell>
-                    <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontSize: density === 'compact' ? '0.78rem' : '0.82rem' }}>
-                      {user.role === 'HOD' ? (
-                        user.shift === 'GENERAL' || !user.shift ? 'General' :
-                        user.shift === 'MORNING' ? 'Morning' :
-                        user.shift === 'EVENING' ? 'Evening' : 'General'
-                      ) : '—'}
                     </TableCell>
                     <TableCell sx={{ py: density === 'compact' ? 1 : 1.75 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

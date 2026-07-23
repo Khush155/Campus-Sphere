@@ -207,16 +207,6 @@ describe('Notice Board API Integration Tests', () => {
       publishedAt: new Date(),
     });
 
-    // 6. Expired Notice (should never be visible)
-    await Notice.create({
-      title: 'Old Notice',
-      content: 'Expired yesterday.',
-      status: 'PUBLISHED',
-      expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      publishedBy: adminUser._id,
-      publishedAt: new Date(),
-    });
-
     // Verify Faculty Feed (should see Global Notice #1, Staff Meeting #2, and NO student notices)
     const facultyFeed = await request(app)
       .get('/api/v1/notices/feed')

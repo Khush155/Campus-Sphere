@@ -1,47 +1,39 @@
 const express = require('express');
 const router = express.Router();
-
-// Import controllers
 const examController = require('../controllers/examController');
-
-// Import authentication and authorization middlewares
 const authMiddleware = require('../middlewares/authMiddleware');
 const roleMiddleware = require('../middlewares/roleMiddleware');
-
-// Import validation middleware
 const validate = require('../middlewares/validate');
-const { createExamSchema, submitResultSchema } = require('../validations/examValidation');
+const { createExamSchema, submitResultSchema } = require('../validators/examValidator');
+const ROLES = require('../constants/roles');
 
-// Apply authentication globally to all exam routes
 router.use(authMiddleware);
 
 router
   .route('/')
   .get(examController.getExams)
   .post(
-    roleMiddleware('FACULTY', 'ADMIN'),
+    roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.FACULTY),
     validate(createExamSchema),
     examController.scheduleExam
   );
 
-// Route to submit/update student exam grades (restricted to Faculty & Admin)
 router.post(
   '/results',
-  roleMiddleware('FACULTY', 'ADMIN'),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.FACULTY),
   validate(submitResultSchema),
   examController.submitExamResult
 );
 
-// Route to fetch exam results by examId
 router.get(
   '/:examId/results',
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.FACULTY, ROLES.HOD),
   examController.getExamResults
 );
 
-// Route to calculate GPA for a student (accessible to Admin, Faculty, and Students)
 router.get(
   '/gpa/:studentId',
-  roleMiddleware('ADMIN', 'FACULTY', 'STUDENT'),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.FACULTY, ROLES.STUDENT, ROLES.HOD),
   examController.calculateStudentGPA
 );
 

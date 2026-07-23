@@ -16,6 +16,7 @@ export const AssignmentList = ({
   onDelete,
   onPublish,
   onArchive,
+  onCloseAssignment,
   onView,
   onCreateNew,
 }) => {
@@ -112,6 +113,7 @@ export const AssignmentList = ({
             onDelete={onDelete}
             onPublish={onPublish}
             onArchive={onArchive}
+            onCloseAssignment={onCloseAssignment}
             onView={onView}
           />
         </Grid>

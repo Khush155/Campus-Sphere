@@ -51,7 +51,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 2 * 1024 * 1024, // 2MB
+    fileSize: 10 * 1024 * 1024, // 10MB
   },
 }).single('logo');
 
@@ -62,7 +62,7 @@ const uploadLogoMiddleware = (req, res, next) => {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return next(
           new AppError(
-            'File size is too large. Max limit is 2MB.',
+            'File size is too large. Max limit is 10MB.',
             400,
             ERROR_CODES.VALIDATION_ERROR
           )

@@ -9,11 +9,9 @@ const logger = require('../utils/logger');
  * A notice is visible if it is PUBLISHED, active (not expired), and targeted to the user's role, dept, and semester.
  */
 const buildVisibilityQuery = (user) => {
-  const now = new Date();
   const andQuery = [
     { $or: [{ targetRoles: { $size: 0 } }, { targetRoles: user.role }] },
     { $or: [{ targetDepartments: { $size: 0 } }, { targetDepartments: user.departmentId }] },
-    { $or: [{ expiresAt: null }, { expiresAt: { $gte: now } }] },
   ];
 
   if (user.role === 'STUDENT') {
@@ -44,7 +42,7 @@ const createNotice = async (noticeData, authorId) => {
 /**
  * Retrieve unfiltered list of notices for administration directory.
  */
-const getNoticesList = async ({ page = 1, limit = 20, status, priority, search }) => {
+const getNoticesList = async ({ page = 1, limit = 20, status, priority, search, actor }) => {
   const filter = {};
 
   if (status) {
@@ -57,6 +55,21 @@ const getNoticesList = async ({ page = 1, limit = 20, status, priority, search }
 
   if (search && search.trim().length > 0) {
     filter.title = new RegExp(search.trim(), 'i');
+  }
+
+  // Role-based visibility scoping for directory listings
+  if (actor && actor.role === 'FACULTY') {
+    filter.$or = [
+      { targetRoles: { $size: 0 } },
+      { targetRoles: { $in: ['FACULTY', 'STUDENT'] } },
+      { publishedBy: actor.id || actor._id }
+    ];
+  } else if (actor && actor.role === 'HOD') {
+    filter.$or = [
+      { targetRoles: { $size: 0 } },
+      { targetRoles: { $in: ['HOD', 'FACULTY', 'STUDENT'] } },
+      { publishedBy: actor.id || actor._id }
+    ];
   }
 
   const skip = (page - 1) * limit;
@@ -123,7 +136,6 @@ const updateNoticeDetails = async (id, updateData, adminUserId, meta) => {
     'targetRoles',
     'targetDepartments',
     'targetSemesters',
-    'expiresAt',
   ];
 
   fields.forEach((field) => {

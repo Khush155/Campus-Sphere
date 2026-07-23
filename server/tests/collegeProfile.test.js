@@ -140,8 +140,8 @@ describe('College Profile API Integration Tests', () => {
     expect(badMimeRes.status).toBe(400);
     expect(badMimeRes.body.success).toBe(false);
 
-    // 2. File size exceeds 2MB limit
-    const largeBuffer = Buffer.alloc(2.5 * 1024 * 1024); // 2.5MB
+    // 2. File size exceeds 10MB limit
+    const largeBuffer = Buffer.alloc(10.5 * 1024 * 1024); // 10.5MB
     const largeFileRes = await request(app)
       .post('/api/v1/college-profile/logo')
       .set('Authorization', `Bearer ${adminToken}`)

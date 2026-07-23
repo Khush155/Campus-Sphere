@@ -25,6 +25,7 @@ const getNotices = async (req, res, _next) => {
     status,
     priority,
     search,
+    actor: req.user,
   });
 
   return successResponse(res, 200, 'Notices retrieved successfully.', result.notices, result.meta);

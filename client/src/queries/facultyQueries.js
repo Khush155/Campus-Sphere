@@ -221,3 +221,29 @@ export const useDeleteFacultyAssignmentMutation = () => {
     },
   });
 };
+
+export const useUpdateFacultyAssignmentMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }) => {
+      const response = await api.put(`/faculty-assignments/${id}`, data);
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['faculty-assignments'] });
+    },
+  });
+};
+
+export const useUpdateFacultyAssignmentStatusMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }) => {
+      const response = await api.patch(`/faculty-assignments/${id}/status`, { status });
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['faculty-assignments'] });
+    },
+  });
+};

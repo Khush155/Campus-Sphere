@@ -12,19 +12,33 @@ const generatePin = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+const getIdString = (val) => {
+  if (!val) {
+    return '';
+  }
+  if (typeof val === 'string') {
+    return val;
+  }
+  if (val._id) {
+    return String(val._id);
+  }
+  return String(val);
+};
+
 const createRequest = async (requestData, requesterDeptId, createdBy, req) => {
   // Verify faculty belongs to a different department
   const faculty = await User.findById(requestData.facultyId);
-  if (!faculty) {throw new AppError('Faculty not found', 404, ERROR_CODES.NOT_FOUND);}
-  if (faculty.departmentId.toString() === requesterDeptId.toString()) {
+  if (!faculty) {
+    throw new AppError('Faculty not found', 404, ERROR_CODES.NOT_FOUND);
+  }
+  if (getIdString(faculty.departmentId) === getIdString(requesterDeptId)) {
     throw new AppError('Faculty is already in your department. You can assign them directly.', 400, ERROR_CODES.VALIDATION_ERROR);
   }
 
-  // Verify subject belongs to the requester's department
+  // Verify subject exists
   const subject = await Subject.findById(requestData.subjectId);
-  if (!subject) {throw new AppError('Subject not found', 404, ERROR_CODES.NOT_FOUND);}
-  if (subject.departmentId.toString() !== requesterDeptId.toString()) {
-    throw new AppError('Subject does not belong to your department.', 403, ERROR_CODES.FORBIDDEN);
+  if (!subject) {
+    throw new AppError('Subject not found', 404, ERROR_CODES.NOT_FOUND);
   }
 
   // Prevent duplicate pending requests for the same faculty-subject combo

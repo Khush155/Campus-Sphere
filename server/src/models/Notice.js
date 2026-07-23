@@ -38,10 +38,6 @@ const noticeSchema = new mongoose.Schema(
       type: [Number],
       default: [],
     },
-    expiresAt: {
-      type: Date,
-      default: null,
-    },
     publishedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -58,7 +54,7 @@ const noticeSchema = new mongoose.Schema(
 );
 
 // Indexes
-noticeSchema.index({ status: 1, expiresAt: 1 });
+noticeSchema.index({ status: 1 });
 noticeSchema.index({ targetRoles: 1 });
 noticeSchema.index({ targetDepartments: 1 });
 

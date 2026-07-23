@@ -1,14 +1,22 @@
-
 const express = require('express');
 const feedbackController = require('../controllers/feedbackController');
-const protect = require('../middlewares/authMiddleware');
+const authMiddleware = require('../middlewares/authMiddleware');
+const roleMiddleware = require('../middlewares/roleMiddleware');
+const validate = require('../middlewares/validate');
+const { createFeedbackSchema } = require('../validators/feedbackValidator');
+const ROLES = require('../constants/roles');
 
 const router = express.Router();
-router.use(protect);
+router.use(authMiddleware);
+
+router.get('/analytics', roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD), feedbackController.getFeedbackAnalytics);
 
 router.route('/')
   .get(feedbackController.getAllFeedback)
-  .post(feedbackController.createFeedback);
+  .post(
+    roleMiddleware(ROLES.FACULTY, ROLES.STUDENT),
+    validate(createFeedbackSchema),
+    feedbackController.createFeedback
+  );
 
 module.exports = router;
-

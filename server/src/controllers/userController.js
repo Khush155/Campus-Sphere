@@ -13,9 +13,12 @@ const getUsers = async (req, res, _next) => {
   const limit = parseInt(req.query.limit, 10) || 20;
   const { role, department, status, search, course, branch, semester, group } = req.query;
 
-  // Security Rule: HODs can only fetch users in their own department
+  // Security Rule: HODs default to their own department, but can query target department faculty for cross-dept requests
   const isHod = req.user.role === ROLES.HOD;
-  const targetDepartmentId = isHod ? req.user.departmentId : department;
+  let targetDepartmentId = department;
+  if (isHod && (role !== 'FACULTY' || !department)) {
+    targetDepartmentId = req.user.departmentId;
+  }
 
   const result = await userService.getUsersList({
     page,
@@ -34,10 +37,39 @@ const getUsers = async (req, res, _next) => {
 };
 
 /**
- * Controller to update a user's details (admin only).
+ * Controller to update a user's details.
  */
 const updateUser = async (req, res, _next) => {
   const { id } = req.params;
+  const targetUser = await userService.getUserDetails(id);
+  if (!targetUser) {
+    throw new AppError('User not found.', 404, ERROR_CODES.NOT_FOUND);
+  }
+
+  const { assertNoPrivilegeEscalation, assertHODDeptBound } = require('../utils/privilegeGuard');
+
+  // Enforce privilege guards
+  assertNoPrivilegeEscalation({
+    actorRole: req.user.role,
+    targetCurrentRole: targetUser.role,
+    targetNewRole: req.body.role || targetUser.role,
+  });
+
+  if (req.user.role === ROLES.HOD) {
+    // HOD can only update users within their own department
+    assertHODDeptBound(req.user, targetUser.departmentId);
+
+    // HODs cannot assign a user to a different department or set admin roles
+    if (req.body.departmentId && String(req.body.departmentId) !== String(req.user.departmentId)) {
+      throw new AppError('Access denied. You cannot assign users to a different department.', 403, ERROR_CODES.FORBIDDEN);
+    }
+
+    const newRole = req.body.role || targetUser.role;
+    if (newRole !== ROLES.FACULTY && newRole !== ROLES.STUDENT) {
+      throw new AppError('Access denied. HODs can only assign FACULTY or STUDENT roles.', 403, ERROR_CODES.FORBIDDEN);
+    }
+  }
+
   const validatedBody = updateUserSchema.parse(req.body);
   const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
 
@@ -90,6 +122,21 @@ const getUser = async (req, res, _next) => {
   return successResponse(res, 200, 'User details fetched successfully', user);
 };
 
+const importStudents = async (req, res, _next) => {
+  if (!req.file || !req.file.path) {
+    throw new AppError('No CSV file uploaded.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
+  const fs = require('fs');
+  const fileBuffer = fs.readFileSync(req.file.path);
+  try { fs.unlinkSync(req.file.path); } catch (e) {
+    // Ignore cleanup errors
+  }
+
+  const result = await userService.importStudents(fileBuffer, req.user.id, req);
+  return successResponse(res, 200, 'Student CSV import processed successfully', result);
+};
+
 module.exports = {
   getUsers,
   getUser,
@@ -97,4 +144,5 @@ module.exports = {
   deleteUser,
   getAuditLogs,
   getInsights,
+  importStudents,
 };

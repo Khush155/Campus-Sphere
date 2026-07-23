@@ -21,8 +21,8 @@ const validate = (schema) => async (req, res, next) => {
     if (error.name === 'ZodError') {
       const messages = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
       
-      // We wrap the error in our custom AppError and forward it to our global errorHandler
-      return next(new AppError(messages, 400, ERROR_CODES.BAD_REQUEST));
+      // Wrap the error in our custom AppError with VALIDATION_ERROR code
+      return next(new AppError(messages, 400, ERROR_CODES.VALIDATION_ERROR));
     }
     
     // For other unexpected errors

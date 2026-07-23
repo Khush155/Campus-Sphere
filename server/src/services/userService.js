@@ -179,6 +179,20 @@ const updateUserDetails = async (userId, updateData, adminUserId, meta) => {
         );
       }
     }
+
+    const targetBranchId = updateData.branchId !== undefined ? updateData.branchId : user.branchId;
+    const targetSem = updateData.semester !== undefined ? Number(updateData.semester) : user.semester;
+
+    if (targetBranchId) {
+      const branchDoc = await Branch.findById(targetBranchId).populate('courseId');
+      if (branchDoc) {
+        user.courseId = branchDoc.courseId?._id || branchDoc.courseId;
+        const maxSemesters = branchDoc.courseId?.durationYears ? branchDoc.courseId.durationYears * 2 : 12;
+        if (targetSem && targetSem > maxSemesters) {
+          throw new AppError(`Student semester (${targetSem}) exceeds maximum allowed semester (${maxSemesters}) for ${branchDoc.courseId?.code || 'this course'}.`, 400, ERROR_CODES.VALIDATION_ERROR);
+        }
+      }
+    }
   }
 
   // 3. Map update fields
@@ -433,6 +447,133 @@ const getUserDetails = async (userId) => {
   };
 };
 
+/**
+ * Import students in bulk from a CSV buffer.
+ */
+const importStudents = async (fileBuffer, actorId, req) => {
+  if (!fileBuffer) {
+    throw new AppError('No CSV file uploaded.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
+  const csvText = fileBuffer.toString('utf-8');
+  const lines = csvText.split(/\r?\n/).filter(line => line.trim().length > 0);
+
+  if (lines.length <= 1) {
+    throw new AppError('CSV file is empty or missing headers.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  const nameIdx = headers.findIndex(h => h.includes('name'));
+  const emailIdx = headers.findIndex(h => h.includes('email'));
+  const branchIdx = headers.findIndex(h => h.includes('branch'));
+  const semIdx = headers.findIndex(h => h.includes('sem'));
+  const rollIdx = headers.findIndex(h => h.includes('roll'));
+  const groupIdx = headers.findIndex(h => h.includes('group'));
+  const passIdx = headers.findIndex(h => h.includes('password'));
+
+  if (nameIdx === -1 || emailIdx === -1 || branchIdx === -1) {
+    throw new AppError('CSV must include "Name", "Email", and "Branch" columns.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
+  const actor = await User.findById(actorId);
+
+  const branches = await Branch.find().populate('courseId');
+  const branchMap = new Map();
+  branches.forEach(b => {
+    branchMap.set(b.code.toUpperCase(), b);
+    branchMap.set(b.name.toUpperCase(), b);
+  });
+
+  const importedStudents = [];
+  const errors = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const rowNum = i + 1;
+    const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+    if (cols.length < 3) {
+      continue;
+    }
+
+    const name = cols[nameIdx] || '';
+    const email = cols[emailIdx] || '';
+    const branchCode = (cols[branchIdx] || '').toUpperCase();
+    const semester = parseInt(cols[semIdx], 10) || 1;
+    const rollNumber = rollIdx !== -1 && cols[rollIdx] ? cols[rollIdx] : undefined;
+    const group = groupIdx !== -1 && cols[groupIdx] ? cols[groupIdx] : undefined;
+    const password = passIdx !== -1 && cols[passIdx] ? cols[passIdx] : 'Student@123';
+
+    if (!name || name.length < 2) {
+      errors.push(`Row ${rowNum}: Name must be at least 2 characters.`);
+      continue;
+    }
+
+    if (!email || !/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(email)) {
+      errors.push(`Row ${rowNum}: Invalid email address "${email}".`);
+      continue;
+    }
+
+    const branch = branchMap.get(branchCode);
+    if (!branch) {
+      errors.push(`Row ${rowNum}: Branch "${branchCode}" not found.`);
+      continue;
+    }
+
+    const maxSemesters = branch.courseId?.durationYears ? branch.courseId.durationYears * 2 : 12;
+    if (semester < 1 || semester > maxSemesters) {
+      errors.push(`Row ${rowNum}: Semester (${semester}) exceeds max semesters (${maxSemesters}) for course ${branch.courseId?.code || ''}.`);
+      continue;
+    }
+
+    const existingEmail = await User.findOne({ email: email.toLowerCase() });
+    if (existingEmail) {
+      errors.push(`Row ${rowNum}: Email "${email}" already registered.`);
+      continue;
+    }
+
+    if (rollNumber) {
+      const existingRoll = await User.findOne({ rollNumber });
+      if (existingRoll) {
+        errors.push(`Row ${rowNum}: Roll number "${rollNumber}" already exists.`);
+        continue;
+      }
+    }
+
+    try {
+      const student = await User.create({
+        name,
+        email: email.toLowerCase(),
+        password,
+        role: 'STUDENT',
+        departmentId: actor?.departmentId || null,
+        courseId: branch.courseId?._id || branch.courseId,
+        branchId: branch._id,
+        semester,
+        group,
+        rollNumber: rollNumber || undefined,
+        status: 'ACTIVE'
+      });
+
+      importedStudents.push(student);
+    } catch (createErr) {
+      errors.push(`Row ${rowNum}: Failed to create student (${createErr.message}).`);
+    }
+  }
+
+  await logAuditEvent({
+    actorId,
+    action: 'STUDENTS_BULK_IMPORTED',
+    targetModel: 'User',
+    after: { count: importedStudents.length, errorsCount: errors.length },
+    req
+  });
+
+  return {
+    importedCount: importedStudents.length,
+    failedCount: errors.length,
+    errors
+  };
+};
+
 module.exports = {
   getUsersList,
   getUserDetails,
@@ -441,4 +582,5 @@ module.exports = {
   getAuditLogsList,
   getInstitutionalInsights,
   checkHodConflict,
+  importStudents,
 };

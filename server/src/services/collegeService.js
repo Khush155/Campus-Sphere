@@ -2,6 +2,9 @@ const Department = require('../models/Department');
 const Course = require('../models/Course');
 const Branch = require('../models/Branch');
 const Subject = require('../models/Subject');
+const User = require('../models/User');
+const FacultyAssignment = require('../models/FacultyAssignment');
+const TimetableSlot = require('../models/TimetableSlot');
 const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
 const logger = require('../utils/logger');
@@ -76,6 +79,15 @@ const updateDepartment = async (id, updateData) => {
 };
 
 const deleteDepartment = async (id) => {
+  const userExists = await User.findOne({ departmentId: id });
+  if (userExists) {
+    throw new AppError('Cannot delete department. Active users are linked to it.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+  const subjectExists = await Subject.findOne({ departmentId: id });
+  if (subjectExists) {
+    throw new AppError('Cannot delete department. Active subjects are linked to it.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
   const dept = await Department.findByIdAndDelete(id);
   if (!dept) {
     throw new AppError('Department not found.', 404, ERROR_CODES.NOT_FOUND);
@@ -151,6 +163,15 @@ const updateCourse = async (id, updateData) => {
 };
 
 const deleteCourse = async (id) => {
+  const branchExists = await Branch.findOne({ courseId: id });
+  if (branchExists) {
+    throw new AppError('Cannot delete course. Branches are linked to it.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+  const userExists = await User.findOne({ courseId: id });
+  if (userExists) {
+    throw new AppError('Cannot delete course. Users are enrolled in it.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
   const course = await Course.findByIdAndDelete(id);
   if (!course) {
     throw new AppError('Course not found.', 404, ERROR_CODES.NOT_FOUND);
@@ -244,6 +265,15 @@ const updateBranch = async (id, updateData) => {
 };
 
 const deleteBranch = async (id) => {
+  const subjectExists = await Subject.findOne({ branchId: id });
+  if (subjectExists) {
+    throw new AppError('Cannot delete branch. Subjects are linked to it.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+  const userExists = await User.findOne({ branchId: id });
+  if (userExists) {
+    throw new AppError('Cannot delete branch. Users are enrolled in it.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
   const branch = await Branch.findByIdAndDelete(id);
   if (!branch) {
     throw new AppError('Branch not found.', 404, ERROR_CODES.NOT_FOUND);
@@ -326,7 +356,15 @@ const getAllSubjects = async (queryOptions = {}) => {
   }
   return await paginate(Subject, filter, {
     ...queryOptions,
-    populate: ['branchId', 'departmentId'],
+    populate: [
+      {
+        path: 'branchId',
+        populate: {
+          path: 'courseId',
+        },
+      },
+      'departmentId',
+    ],
   });
 };
 
@@ -380,6 +418,15 @@ const updateSubject = async (id, updateData) => {
 };
 
 const deleteSubject = async (id) => {
+  const assignmentExists = await FacultyAssignment.findOne({ subjectId: id, status: 'ACTIVE' });
+  if (assignmentExists) {
+    throw new AppError('Cannot delete subject. Active faculty workload assignments exist.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+  const slotExists = await TimetableSlot.findOne({ subjectId: id });
+  if (slotExists) {
+    throw new AppError('Cannot delete subject. Timetable slots are scheduled for it.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
   const subject = await Subject.findByIdAndDelete(id);
   if (!subject) {
     throw new AppError('Subject not found.', 404, ERROR_CODES.NOT_FOUND);

@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useState } from 'react';
-import { Box, Typography, Tabs, Tab, Paper, Button, Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField, useTheme } from '@mui/material';
+import { Box, Typography, Tabs, Tab, Paper, Button, Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, useTheme } from '@mui/material';
 import { Add as AddIcon, Key as KeyIcon } from '@mui/icons-material';
 import { useSentRequestsQuery, useReceivedRequestsQuery, useRespondRequestMutation, useFinalizeRequestMutation } from '../../../queries/requestQueries';
 import NewRequestModal from './NewRequestModal';
@@ -12,8 +12,11 @@ const RequestHub = () => {
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
   const { user } = useAuth();
 
-  const { data: sentRequests = [] } = useSentRequestsQuery();
-  const { data: receivedRequests = [] } = useReceivedRequestsQuery();
+  const { data: sentRequestsRaw } = useSentRequestsQuery();
+  const { data: receivedRequestsRaw } = useReceivedRequestsQuery();
+
+  const sentRequests = Array.isArray(sentRequestsRaw) ? sentRequestsRaw : [];
+  const receivedRequests = Array.isArray(receivedRequestsRaw) ? receivedRequestsRaw : [];
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', p: { xs: 1, sm: 3 } }}>

@@ -10,7 +10,7 @@ const router = express.Router();
 // Route-based guards for administration
 const adminGuard = [
   authMiddleware,
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY),
 ];
 
 const authGuard = [authMiddleware];

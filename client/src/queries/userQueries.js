@@ -49,6 +49,24 @@ export const useDeleteUserMutation = () => {
 };
 
 /**
+ * Hook to bulk import students via CSV upload.
+ */
+export const useImportStudentsMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (formData) => {
+      const response = await api.post('/users/import-students', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['users']);
+    },
+  });
+};
+
+/**
  * Hook to fetch the last 8 audit logs.
  */
 export const useAuditLogsQuery = () => {

@@ -48,12 +48,21 @@ const AssignFacultyDrawer = ({ open, onClose, onSubmit, isSubmitting }) => {
     handleClose();
   };
 
-  // Fetch subjects in the department (could filter to unassigned if backend supported it, but we'll fetch all)
-  const { data: subjects, isLoading: loadingSubjects } = useSubjectsQuery({ departmentId: user?.departmentId, limit: 100 });
+  // Extract clean department ID safely
+  const cleanDeptId = typeof user?.departmentId === 'object'
+    ? user?.departmentId?._id
+    : (user?.departmentId || user?.department?._id || user?.department);
+
+  // Fetch subjects in the department
+  const { data: subjects, isLoading: loadingSubjects } = useSubjectsQuery(
+    cleanDeptId ? { departmentId: cleanDeptId, limit: 100 } : { limit: 100 }
+  );
   
   // Fetch faculty in the department
-  const { data: facultyRes, isLoading: loadingFaculty } = useUsersQuery({ role: 'FACULTY', departmentId: user?.departmentId, limit: 100 });
-  const facultyMembers = facultyRes?.data || [];
+  const { data: facultyRes, isLoading: loadingFaculty } = useUsersQuery(
+    cleanDeptId ? { role: 'FACULTY', departmentId: cleanDeptId, limit: 100 } : { role: 'FACULTY', limit: 100 }
+  );
+  const facultyMembers = Array.isArray(facultyRes) ? facultyRes : (facultyRes?.data || []);
 
   return (
     <Drawer

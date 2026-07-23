@@ -1,26 +1,26 @@
 const promotionService = require('../services/promotionService');
-const { promotionSchema } = require('../validators/promotionValidator');
 const { successResponse } = require('../utils/apiResponse');
+const asyncHandler = require('../middlewares/asyncHandler');
 
 /**
- * POST /api/v1/promotions/preview
- * Returns computed dry-run metrics and warnings before writing any changes.
+ * @desc    Dry-run promotion preview
+ * @route   POST /api/v1/promotions/preview
+ * @access  Private/SuperAdmin
  */
-const previewPromotion = async (req, res, _next) => {
-  const validatedBody = promotionSchema.parse(req.body);
-  const result = await promotionService.previewPromotion(validatedBody);
+const previewPromotion = asyncHandler(async (req, res) => {
+  const result = await promotionService.previewPromotion(req.body);
   return successResponse(res, 200, 'Promotion preview generated successfully.', result);
-};
+});
 
 /**
- * POST /api/v1/promotions/execute
- * Recomputes promotion requirements and applies mutations atomically in a transaction.
+ * @desc    Execute bulk promotion
+ * @route   POST /api/v1/promotions/execute
+ * @access  Private/SuperAdmin
  */
-const executePromotion = async (req, res, _next) => {
-  const validatedBody = promotionSchema.parse(req.body);
-  const result = await promotionService.executePromotion(validatedBody, req.user.id);
+const executePromotion = asyncHandler(async (req, res) => {
+  const result = await promotionService.executePromotion(req.body, req.user.id);
   return successResponse(res, 200, 'Promotion executed successfully.', result);
-};
+});
 
 module.exports = {
   previewPromotion,

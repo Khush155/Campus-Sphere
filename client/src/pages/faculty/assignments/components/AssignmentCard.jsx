@@ -53,6 +53,7 @@ export const AssignmentCard = ({
   onDelete,
   onPublish,
   onArchive,
+  onCloseAssignment,
   onView,
 }) => {
   const theme = useTheme();
@@ -297,8 +298,21 @@ export const AssignmentCard = ({
                   handleMenuClose();
                 }}
               >
-                <PublishIcon fontSize="small" sx={{ mr: 1.5, color: 'text.secondary' }} />
+                <PublishIcon fontSize="small" sx={{ mr: 1.5, color: 'success.main' }} />
                 Publish
+              </MenuItem>
+            )}
+
+            {/* Close Action */}
+            {assignment.status === 'PUBLISHED' && onCloseAssignment && (
+              <MenuItem
+                onClick={() => {
+                  onCloseAssignment(assignment.id);
+                  handleMenuClose();
+                }}
+              >
+                <SubmissionsIcon fontSize="small" sx={{ mr: 1.5, color: 'warning.main' }} />
+                Close Submissions
               </MenuItem>
             )}
 
@@ -310,7 +324,7 @@ export const AssignmentCard = ({
                   handleMenuClose();
                 }}
               >
-                <ArchiveIcon fontSize="small" sx={{ mr: 1.5, color: 'text.secondary' }} />
+                <ArchiveIcon fontSize="small" sx={{ mr: 1.5, color: 'info.main' }} />
                 Archive
               </MenuItem>
             )}
