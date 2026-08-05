@@ -23,6 +23,7 @@ const examinationSchema = new mongoose.Schema({
   instructions: { type: String, trim: true }, // General instructions for students
   datesheetPdfUrl: { type: String, trim: true }, // Link to PDF datesheet
   seatingPlanPdfUrl: { type: String, trim: true }, // Link to PDF seating plan
+  marksEntryEnabled: { type: Boolean, default: false }, // HOD permission toggle for faculty marks entry
 }, { timestamps: true });
 
 examinationSchema.index({ departmentId: 1, status: 1 });

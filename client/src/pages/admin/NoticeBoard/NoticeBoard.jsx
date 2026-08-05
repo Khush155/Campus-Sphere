@@ -22,8 +22,20 @@ import {
   Grid,
   Skeleton,
   Autocomplete,
+  Divider,
 } from '@mui/material';
-import { MoreVertOutlined, AddOutlined } from '@mui/icons-material';
+import {
+  MoreVertOutlined,
+  AddOutlined,
+  CampaignOutlined,
+  ArchiveOutlined,
+  CheckCircleOutlined,
+  VisibilityOutlined,
+  EditOutlined,
+  PublishOutlined,
+  DraftsOutlined,
+  DeleteOutline,
+} from '@mui/icons-material';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 
@@ -38,6 +50,7 @@ import { useDepartmentsQuery } from '../../../queries/collegeQueries';
 import Pagination from '../../../components/common/Pagination';
 import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
 import EmptyState from '../../../components/common/EmptyState';
+import { useToast } from '../../../contexts/ToastContext';
 
 // Zod Edit Validation Schema
 const noticeFormSchema = z.object({
@@ -58,8 +71,9 @@ const noticeFormSchema = z.object({
   targetSemesters: z.array(z.number()).default([]),
 });
 
-const NoticeBoard = () => {
+export const NoticeBoard = () => {
   const theme = useTheme();
+  const { showToast } = useToast();
 
   // Filter and search state
   const [page, setPage] = useState(1);
@@ -74,6 +88,7 @@ const NoticeBoard = () => {
   const [archiveId, setArchiveId] = useState(null);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [selectedNotice, setSelectedNotice] = useState(null);
+  const [viewNotice, setViewNotice] = useState(null);
 
   // Queries
   const { data: depts } = useDepartmentsQuery();
@@ -87,6 +102,12 @@ const NoticeBoard = () => {
 
   const archiveNotice = useArchiveNoticeMutation();
   const updateNotice = useUpdateNoticeMutation();
+
+  // KPI Calculations
+  const allNotices = noticesData?.data || [];
+  const publishedCount = allNotices.filter((n) => n.status === 'PUBLISHED').length;
+  const urgentCount = allNotices.filter((n) => n.priority === 'URGENT').length;
+  const archivedCount = allNotices.filter((n) => n.status === 'ARCHIVED').length;
 
   const handleMenuOpen = (event, notice) => {
     setMenuAnchor(event.currentTarget);
@@ -109,10 +130,31 @@ const NoticeBoard = () => {
     handleMenuClose();
   };
 
+  const handleViewNoticeClick = (notice) => {
+    setViewNotice(notice);
+    handleMenuClose();
+  };
+
+  const handlePublishToggle = async (notice) => {
+    try {
+      const newStatus = notice.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED';
+      await updateNotice.mutateAsync({ id: notice._id, data: { status: newStatus } });
+      showToast(`Notice ${newStatus === 'PUBLISHED' ? 'published' : 'reverted to draft'}.`);
+      handleMenuClose();
+    } catch (err) {
+      showToast('Failed to update notice status.', { severity: 'error' });
+    }
+  };
+
   const handleArchiveConfirm = async () => {
     if (archiveId) {
-      await archiveNotice.mutateAsync(archiveId);
-      setArchiveId(null);
+      try {
+        await archiveNotice.mutateAsync(archiveId);
+        showToast('Announcement archived successfully.');
+        setArchiveId(null);
+      } catch (err) {
+        showToast('Failed to archive notice.', { severity: 'error' });
+      }
     }
   };
 
@@ -124,9 +166,10 @@ const NoticeBoard = () => {
   const handleRestoreNotice = async (notice) => {
     try {
       await updateNotice.mutateAsync({ id: notice._id, data: { status: 'DRAFT' } });
+      showToast('Notice restored to draft state.');
       handleMenuClose();
     } catch (err) {
-      // Handled globally
+      showToast('Failed to restore notice.', { severity: 'error' });
     }
   };
 
@@ -134,18 +177,18 @@ const NoticeBoard = () => {
     switch (priority) {
       case 'URGENT':
         return {
-          bgcolor: 'rgba(239, 68, 68, 0.1)',
+          bgcolor: 'rgba(239, 68, 68, 0.12)',
           color: theme.palette.signal.error,
         };
       case 'IMPORTANT':
         return {
-          bgcolor: 'rgba(245, 158, 11, 0.1)',
+          bgcolor: 'rgba(245, 158, 11, 0.12)',
           color: 'rgb(217, 119, 6)',
         };
       case 'NORMAL':
       default:
         return {
-          bgcolor: 'rgba(107, 114, 128, 0.1)',
+          bgcolor: 'rgba(107, 114, 128, 0.12)',
           color: theme.palette.text.secondary,
         };
     }
@@ -155,12 +198,12 @@ const NoticeBoard = () => {
     switch (status) {
       case 'PUBLISHED':
         return {
-          bgcolor: 'rgba(16, 185, 129, 0.1)',
+          bgcolor: 'rgba(16, 185, 129, 0.12)',
           color: theme.palette.signal.success,
         };
       case 'DRAFT':
         return {
-          bgcolor: 'rgba(59, 130, 246, 0.1)',
+          bgcolor: 'rgba(59, 130, 246, 0.12)',
           color: theme.palette.primary.main,
         };
       case 'ARCHIVED':
@@ -198,30 +241,137 @@ const NoticeBoard = () => {
   };
 
   return (
-    <Box sx={{ p: 4 }}>
-      {/* 1. Header Toolbar */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+      {/* ── 1. Hero Header Banner Card ─────────────────────────────────────── */}
+      <Card
+        sx={{
+          p: 3.5,
+          borderRadius: '16px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}0F 0%, ${theme.palette.brass?.[500] || '#b8863e'}08 100%)`,
+          boxShadow: theme.custom?.elevation?.raised || 'none',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 2,
+        }}
+      >
         <Box>
-          <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900], mb: 0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1, flexWrap: 'wrap' }}>
+            <Chip
+              icon={<CampaignOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+              label="CAMPUS BROADCAST CENTER"
+              size="small"
+              sx={{
+                bgcolor: `${theme.palette.primary.main}15`,
+                color: theme.palette.primary.main,
+                fontFamily: theme.typography.mono.fontFamily,
+                fontWeight: 700,
+                fontSize: '0.68rem',
+                letterSpacing: '0.06em',
+                borderRadius: '6px',
+              }}
+            />
+            <Chip
+              label={`${noticesData?.meta?.total || 0} Total Notices`}
+              size="small"
+              sx={{
+                bgcolor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                fontFamily: theme.typography.mono.fontFamily,
+                fontSize: '0.72rem',
+                fontWeight: 600,
+              }}
+            />
+            <Chip
+              label={`${publishedCount} Active Published`}
+              size="small"
+              sx={{
+                bgcolor: 'rgba(16, 185, 129, 0.1)',
+                color: theme.palette.signal.success,
+                fontFamily: theme.typography.mono.fontFamily,
+                fontSize: '0.72rem',
+                fontWeight: 600,
+              }}
+            />
+            {urgentCount > 0 && (
+              <Chip
+                label={`${urgentCount} Urgent`}
+                size="small"
+                sx={{
+                  bgcolor: 'rgba(239, 68, 68, 0.1)',
+                  color: theme.palette.signal.error,
+                  fontFamily: theme.typography.mono.fontFamily,
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                }}
+              />
+            )}
+            {archivedCount > 0 && (
+              <Chip
+                label={`${archivedCount} Archived`}
+                size="small"
+                sx={{
+                  bgcolor: 'rgba(107, 114, 128, 0.1)',
+                  color: theme.palette.text.secondary,
+                  fontFamily: theme.typography.mono.fontFamily,
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                }}
+              />
+            )}
+          </Box>
+
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              fontFamily: theme.typography.h1.fontFamily,
+              fontWeight: 600,
+              color: theme.palette.ink[900],
+              lineHeight: 1.15,
+              mb: 0.5,
+            }}
+          >
             Notice Board Management
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Publish, edit, and target critical notices to students, faculty, or departments.
+          <Typography
+            variant="body2"
+            sx={{
+              fontFamily: theme.typography.body2.fontFamily,
+              color: theme.palette.text.secondary,
+              maxWidth: 640,
+            }}
+          >
+            Publish, edit, and target critical broadcast notices to students, faculty, or specific departments.
           </Typography>
         </Box>
+
         <Button
           variant="contained"
-          color="primary"
           startIcon={<AddOutlined />}
           onClick={handleOpenCreate}
-          sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700 }}
+          sx={{
+            background: theme.palette.primary.gradient || theme.palette.primary.main,
+            color: '#ffffff',
+            fontWeight: 700,
+            px: 3,
+            py: 1.25,
+            borderRadius: '8px',
+            textTransform: 'none',
+            boxShadow: `0 4px 16px ${theme.palette.primary.main}40`,
+            '&:hover': {
+              filter: 'brightness(1.1)',
+            },
+          }}
         >
           Create Notice
         </Button>
-      </Box>
+      </Card>
 
-      {/* 2. Filters & Searches */}
-      <Card sx={{ p: 2.5, mb: 3.5, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
+      {/* ── 2. Filters & Searches ─────────────────────────────────────────── */}
+      <Card sx={{ p: 2.5, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={4}>
             <TextField
@@ -265,7 +415,7 @@ const NoticeBoard = () => {
         </Grid>
       </Card>
 
-      {/* 3. Main Data Table */}
+      {/* ── 3. Main Data Table ────────────────────────────────────────────── */}
       {isLoading ? (
         <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
           <Table>
@@ -305,51 +455,68 @@ const NoticeBoard = () => {
       ) : (
         <>
           <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
-            <Table aria-label="Notices configuration table">
-              <TableHead sx={{ bgcolor: 'rgba(28, 46, 69, 0.02)' }}>
+            <Table aria-label="Notices configuration table" size="small">
+              <TableHead sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(28, 46, 69, 0.02)' }}>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>TITLE</TableCell>
-                  <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>PRIORITY</TableCell>
-                  <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>STATUS</TableCell>
-                  <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>TARGETED TO</TableCell>
-                  <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>PUBLISHED DATE</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>ACTIONS</TableCell>
+                  <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>TITLE</TableCell>
+                  <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>PRIORITY</TableCell>
+                  <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>STATUS</TableCell>
+                  <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>TARGETED TO</TableCell>
+                  <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>PUBLISHED DATE</TableCell>
+                  <TableCell align="right" sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>ACTIONS</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {noticesData.data.map((notice) => (
-                  <TableRow key={notice._id} sx={{ '&:hover': { bgcolor: theme.custom.interaction.hoverTint } }}>
-                    <TableCell sx={{ fontWeight: 600 }}>{notice.title}</TableCell>
-                    <TableCell>
+                  <TableRow
+                    key={notice._id}
+                    sx={{
+                      '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' },
+                    }}
+                  >
+                    <TableCell
+                      onClick={() => setViewNotice(notice)}
+                      sx={{
+                        py: 1.5,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        '&:hover': { color: theme.palette.primary.main, textDecoration: 'underline' },
+                      }}
+                    >
+                      {notice.title}
+                    </TableCell>
+                    <TableCell sx={{ py: 1.5 }}>
                       <Chip
                         label={notice.priority}
                         size="small"
                         sx={{
                           ...getPriorityLabelStyle(notice.priority),
+                          fontFamily: theme.typography.mono.fontFamily,
                           fontWeight: 700,
                           fontSize: '0.68rem',
                           borderRadius: '6px',
                         }}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ py: 1.5 }}>
                       <Chip
                         label={notice.status}
                         size="small"
                         sx={{
                           ...getStatusLabelStyle(notice.status),
+                          fontFamily: theme.typography.mono.fontFamily,
                           fontWeight: 700,
                           fontSize: '0.68rem',
                           borderRadius: '6px',
                         }}
                       />
                     </TableCell>
-                    <TableCell sx={{ fontSize: '0.82rem' }}>{getAudienceSummary(notice)}</TableCell>
-                    <TableCell sx={{ fontSize: '0.82rem', color: theme.palette.text.secondary }}>
+                    <TableCell sx={{ py: 1.5, fontSize: '0.82rem' }}>{getAudienceSummary(notice)}</TableCell>
+                    <TableCell sx={{ py: 1.5, fontSize: '0.82rem', color: theme.palette.text.secondary }}>
                       {notice.publishedAt ? new Date(notice.publishedAt).toLocaleDateString() : '—'}
                     </TableCell>
-                    <TableCell align="right">
-                      <IconButton size="small" onClick={(e) => handleMenuOpen(e, notice)}>
+                    <TableCell align="right" sx={{ py: 1.5 }}>
+                      <IconButton aria-label="notice actions menu" size="small" onClick={(e) => handleMenuOpen(e, notice)}>
                         <MoreVertOutlined fontSize="small" />
                       </IconButton>
                     </TableCell>
@@ -371,6 +538,89 @@ const NoticeBoard = () => {
           </Box>
         </>
       )}
+
+      {/* ── 4. Notice Reader Preview Drawer ───────────────────────────────── */}
+      <Drawer
+        anchor="right"
+        open={Boolean(viewNotice)}
+        onClose={() => setViewNotice(null)}
+        PaperProps={{ sx: { width: { xs: '100%', sm: 480 }, p: 4, bgcolor: theme.palette.background.paper } }}
+      >
+        {viewNotice && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, height: '100%' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1.5 }}>
+              <Chip
+                label={viewNotice.priority}
+                size="small"
+                sx={{
+                  ...getPriorityLabelStyle(viewNotice.priority),
+                  fontFamily: theme.typography.mono.fontFamily,
+                  fontWeight: 700,
+                  fontSize: '0.72rem',
+                }}
+              />
+              <Chip
+                label={viewNotice.status}
+                size="small"
+                sx={{
+                  ...getStatusLabelStyle(viewNotice.status),
+                  fontFamily: theme.typography.mono.fontFamily,
+                  fontWeight: 700,
+                  fontSize: '0.72rem',
+                }}
+              />
+            </Box>
+
+            <Box>
+              <Typography variant="h5" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 700, color: theme.palette.ink[900], mb: 1 }}>
+                {viewNotice.title}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                Published: {viewNotice.publishedAt ? new Date(viewNotice.publishedAt).toLocaleString() : 'Draft Mode'}
+              </Typography>
+            </Box>
+
+            <Divider />
+
+            <Typography variant="body2" sx={{ color: theme.palette.text.primary, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+              {viewNotice.content}
+            </Typography>
+
+            <Divider />
+
+            <Box sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)', p: 2, borderRadius: '8px' }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: theme.palette.ink[900], display: 'block', mb: 0.5 }}>
+                Target Audience Breakdown
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem' }}>
+                {getAudienceSummary(viewNotice)}
+              </Typography>
+            </Box>
+
+            <Box sx={{ mt: 'auto', display: 'flex', gap: 2 }}>
+              <Button variant="outlined" fullWidth onClick={() => setViewNotice(null)}>
+                Close
+              </Button>
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={() => {
+                  setActiveNoticeId(viewNotice._id);
+                  setViewNotice(null);
+                  setDrawerOpen(true);
+                }}
+                sx={{
+                  background: theme.palette.primary.gradient || theme.palette.primary.main,
+                  color: '#ffffff',
+                  fontWeight: 700,
+                }}
+              >
+                Edit Notice
+              </Button>
+            </Box>
+          </Box>
+        )}
+      </Drawer>
 
       {/* Drawer Form (Edit/Create lazy wrapper) */}
       <Drawer
@@ -395,14 +645,41 @@ const NoticeBoard = () => {
 
       {/* Row Action Menu */}
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={handleMenuClose}>
-        <MenuItem onClick={() => handleOpenEdit(selectedNotice)}>Edit Notice</MenuItem>
-        {selectedNotice?.status === 'ARCHIVED' ? (
-          <MenuItem onClick={() => handleRestoreNotice(selectedNotice)}>Restore to Draft</MenuItem>
-        ) : (
-          <MenuItem onClick={() => handleOpenArchive(selectedNotice)} sx={{ color: theme.palette.signal.error }}>
-            Archive
+        <MenuItem onClick={() => handleViewNoticeClick(selectedNotice)}>
+          <VisibilityOutlined sx={{ fontSize: 18, mr: 1.25, color: theme.palette.primary.main }} />
+          View Broadcast
+        </MenuItem>
+        <MenuItem onClick={() => handleOpenEdit(selectedNotice)}>
+          <EditOutlined sx={{ fontSize: 18, mr: 1.25 }} />
+          Edit Notice
+        </MenuItem>
+        {selectedNotice?.status === 'DRAFT' && (
+          <MenuItem onClick={() => handlePublishToggle(selectedNotice)}>
+            <PublishOutlined sx={{ fontSize: 18, mr: 1.25, color: theme.palette.signal.success }} />
+            Publish Now
           </MenuItem>
         )}
+        {selectedNotice?.status === 'PUBLISHED' && (
+          <MenuItem onClick={() => handlePublishToggle(selectedNotice)}>
+            <DraftsOutlined sx={{ fontSize: 18, mr: 1.25 }} />
+            Revert to Draft
+          </MenuItem>
+        )}
+        {selectedNotice?.status === 'ARCHIVED' ? (
+          <MenuItem onClick={() => handleRestoreNotice(selectedNotice)}>
+            <CheckCircleOutlined sx={{ fontSize: 18, mr: 1.25 }} />
+            Restore to Draft
+          </MenuItem>
+        ) : (
+          <MenuItem onClick={() => handleOpenArchive(selectedNotice)}>
+            <ArchiveOutlined sx={{ fontSize: 18, mr: 1.25 }} />
+            Archive Notice
+          </MenuItem>
+        )}
+        <MenuItem onClick={() => handleOpenArchive(selectedNotice)} sx={{ color: theme.palette.signal.error }}>
+          <DeleteOutline sx={{ fontSize: 18, mr: 1.25 }} />
+          Delete Notice
+        </MenuItem>
       </Menu>
 
       {/* Soft Archive Confirmation Modal */}
@@ -455,6 +732,7 @@ const NoticeEditFormWrapper = ({ noticeId, onClose, onSaveSuccess, depts, theme 
 };
 
 const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts, theme }) => {
+  const { showToast } = useToast();
   const createNotice = useCreateNoticeMutation();
   const updateNotice = useUpdateNoticeMutation();
 
@@ -482,18 +760,14 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
   const selectedDepts = watch('targetDepartments');
   const selectedSemesters = watch('targetSemesters');
 
-  // Progressive disclosure for semesters autocomplete:
-  // Render if student role is selected, or if targetRoles is empty (means all roles, hence includes student).
   const showSemesters = selectedRoles.length === 0 || selectedRoles.includes('STUDENT');
 
-  // Clear semesters if student role is deselected
   useEffect(() => {
     if (selectedRoles.length > 0 && !selectedRoles.includes('STUDENT')) {
       setValue('targetSemesters', []);
     }
   }, [selectedRoles, setValue]);
 
-  // Compute dynamic audience summary preview
   const previewText = useMemo(() => {
     const roleLabels = {
       SUPER_ADMIN: 'Super Admins',
@@ -529,19 +803,17 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
   }, [selectedRoles, selectedDepts, selectedSemesters, showSemesters, depts]);
 
   const handleFormSubmit = async (data) => {
-    const payload = {
-      ...data,
-    };
-
     try {
       if (notice?._id) {
-        await updateNotice.mutateAsync({ id: notice._id, data: payload });
+        await updateNotice.mutateAsync({ id: notice._id, data });
+        showToast('Announcement notice updated successfully.');
       } else {
-        await createNotice.mutateAsync(payload);
+        await createNotice.mutateAsync(data);
+        showToast('Announcement notice created successfully.');
       }
       onSaveSuccess();
     } catch (err) {
-      // Handled globally
+      showToast(err.response?.data?.message || 'Failed to save notice.', { severity: 'error' });
     }
   };
 
@@ -550,7 +822,7 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         <Box>
           <Typography variant="h5" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900], mb: 0.5 }}>
-            {notice?._id ? 'Edit announcement Notice' : 'Create announcements Notice'}
+            {notice?._id ? 'Edit Announcement Notice' : 'Create Announcement Notice'}
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Draft, prioritize, and broadcast news to specific nodes.
@@ -558,12 +830,12 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
         </Box>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          {/* Title */}
           <Box>
-            <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+            <Typography component="label" htmlFor="notice-title-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
               Notice Title
             </Typography>
             <TextField
+              id="notice-title-input"
               fullWidth
               size="small"
               placeholder="e.g. End Semester Exam registrations"
@@ -573,12 +845,12 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
             />
           </Box>
 
-          {/* Content */}
           <Box>
-            <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+            <Typography component="label" htmlFor="notice-content-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
               Content Body
             </Typography>
             <TextField
+              id="notice-content-input"
               fullWidth
               multiline
               rows={4}
@@ -589,16 +861,15 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
             />
           </Box>
 
-          {/* Priority */}
           <Box>
-            <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-              Priority level
+            <Typography component="label" htmlFor="notice-priority-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+              Priority Level
             </Typography>
             <Controller
               name="priority"
               control={control}
               render={({ field }) => (
-                <TextField {...field} select fullWidth size="small">
+                <TextField {...field} id="notice-priority-input" select fullWidth size="small">
                   <MenuItem value="NORMAL">Normal</MenuItem>
                   <MenuItem value="IMPORTANT">Important</MenuItem>
                   <MenuItem value="URGENT">Urgent</MenuItem>
@@ -607,10 +878,9 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
             />
           </Box>
 
-          {/* Target Roles */}
           <Box>
-            <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-              Target roles
+            <Typography component="label" htmlFor="notice-roles-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+              Target Roles
             </Typography>
             <Controller
               name="targetRoles"
@@ -618,6 +888,7 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
               render={({ field: { value, onChange } }) => (
                 <Autocomplete
                   multiple
+                  id="notice-roles-input"
                   options={['SUPER_ADMIN', 'COLLEGE_ADMIN', 'HOD', 'FACULTY', 'STUDENT']}
                   getOptionLabel={(option) => option.replace('_', ' ')}
                   value={value}
@@ -630,9 +901,8 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
             />
           </Box>
 
-          {/* Target Departments */}
           <Box>
-            <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+            <Typography component="label" htmlFor="notice-depts-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
               Target Departments
             </Typography>
             <Controller
@@ -641,6 +911,7 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
               render={({ field: { value, onChange } }) => (
                 <Autocomplete
                   multiple
+                  id="notice-depts-input"
                   options={depts.map((d) => d._id)}
                   getOptionLabel={(option) => {
                     const match = depts.find((d) => d._id === option);
@@ -656,11 +927,10 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
             />
           </Box>
 
-          {/* Target Semesters (Student-only progressive disclosure) */}
           {showSemesters && (
             <Box>
-              <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-                Target semesters
+              <Typography component="label" htmlFor="notice-sems-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                Target Semesters
               </Typography>
               <Controller
                 name="targetSemesters"
@@ -668,6 +938,7 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
                 render={({ field: { value, onChange } }) => (
                   <Autocomplete
                     multiple
+                    id="notice-sems-input"
                     options={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
                     getOptionLabel={(option) => `Semester ${option}`}
                     value={value}
@@ -683,7 +954,6 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
         </Box>
       </Box>
 
-      {/* Live Preview & Buttons */}
       <Box sx={{ mt: 3 }}>
         <Alert severity="info" sx={{ mb: 2, fontFamily: theme.typography.body2.fontFamily, fontSize: '0.78rem' }}>
           {previewText}
@@ -707,7 +977,14 @@ const NoticeEditFormContent = ({ notice, onClose: _onClose, onSaveSuccess, depts
               variant="contained"
               color="primary"
               onClick={handleSubmit((data) => handleFormSubmit({ ...data, status: 'PUBLISHED' }))}
-              sx={{ py: 1, textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+              sx={{
+                py: 1,
+                textTransform: 'none',
+                fontWeight: 700,
+                borderRadius: '8px',
+                background: theme.palette.primary.gradient || theme.palette.primary.main,
+                color: '#ffffff',
+              }}
             >
               Publish Notice
             </Button>

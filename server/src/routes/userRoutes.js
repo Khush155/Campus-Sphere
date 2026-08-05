@@ -15,16 +15,22 @@ const superAdminGuard = [
   roleMiddleware(ROLES.SUPER_ADMIN),
 ];
 
+// Wide Admin access guard
+const adminGuard = [
+  authMiddleware,
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN),
+];
+
 // Admin and HOD access guard for read operations
 const adminAndHodGuard = [
   authMiddleware,
   roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY),
 ];
 
-// Update guard for super admins and HODs
+// Update guard for super admins, college admins, and HODs
 const updateGuard = [
   authMiddleware,
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
 ];
 
 /**
@@ -38,6 +44,9 @@ const updateGuard = [
  *       200:
  *         description: Users list.
  */
+router.get('/me', authMiddleware, asyncHandler(userController.getMyProfile));
+router.put('/me', authMiddleware, asyncHandler(userController.updateMyProfile));
+
 router.get('/', adminAndHodGuard, asyncHandler(userController.getUsers));
 router.post('/import-students', adminAndHodGuard, upload.single('file'), asyncHandler(userController.importStudents));
 
@@ -93,6 +102,6 @@ router.put('/:id', updateGuard, asyncHandler(userController.updateUser));
  *       200:
  *         description: User deactivated.
  */
-router.delete('/:id', superAdminGuard, asyncHandler(userController.deleteUser));
+router.delete('/:id', adminGuard, asyncHandler(userController.deleteUser));
 
 module.exports = router;

@@ -1,24 +1,4 @@
-// client/src/pages/faculty/components/TodaysSchedule.jsx
-//
-// Displays the faculty member's class schedule for today.
-// Shows each class with its time slot, subject, section, and room.
-//
-// Props:
-//   classes — array of class objects from mockTodaysClasses:
-//     [
-//       {
-//         id:       string  — unique identifier
-//         subject:  string  — subject name (e.g. "Data Structures & Algorithms")
-//         section:  string  — student section (e.g. "CSE-A")
-//         time:     string  — time range (e.g. "09:00 AM - 10:00 AM")
-//         room:     string  — classroom/lab (e.g. "Room 204")
-//       }
-//     ]
-//
-// Future: Data will come from GET /api/v1/timetable?facultyId=xxx&day=today.
-// Adding an onClassClick prop will enable navigation to attendance marking.
-
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Paper,
   Typography,
@@ -26,6 +6,7 @@ import {
   Chip,
   Stack,
   Divider,
+  Button,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -33,181 +14,142 @@ import {
   Schedule as HeaderIcon,
   Room as RoomIcon,
   Groups as SectionIcon,
+  FactCheckOutlined,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
-export const TodaysSchedule = ({ classes }) => {
+export const TodaysSchedule = ({ classes = [] }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const isDark = theme.palette.mode === 'dark';
 
+  const validClasses = useMemo(() => {
+    return classes.filter(
+      (c) => c.id !== 'today-none' && c.subjectCode !== 'FREE' && (c.subjectName || '').toLowerCase() !== 'no scheduled classes today'
+    );
+  }, [classes]);
+
+  if (validClasses.length === 0) {
+    return (
+      <Paper sx={{ p: 2.5, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <HeaderIcon color="primary" fontSize="small" />
+            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'text.primary' }}>
+              Today&apos;s Lecture Schedule
+            </Typography>
+            <Chip label="0 Classes Today" size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.68rem' }} />
+          </Box>
+
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+            ☕ No lectures scheduled for today. Take time for research, grading, and course preparation!
+          </Typography>
+        </Box>
+      </Paper>
+    );
+  }
+
   return (
-    <Paper sx={{ p: 3, height: '100%' }}>
+    <Paper sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
       {/* ── Section Header ── */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2.5 }}>
-        <HeaderIcon color="primary" />
-        <Typography
-          variant="h6"
-          sx={{ fontWeight: 700, color: 'text.primary' }}
-        >
-          Today&apos;s Schedule
-        </Typography>
-        <Chip
-          label={`${classes.length} class${classes.length !== 1 ? 'es' : ''}`}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <HeaderIcon color="primary" />
+          <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
+            Today&apos;s Lecture Schedule
+          </Typography>
+          <Chip
+            label={`${validClasses.length} class${validClasses.length !== 1 ? 'es' : ''}`}
+            size="small"
+            color="primary"
+            sx={{ fontWeight: 800, fontSize: '0.68rem' }}
+          />
+        </Box>
+
+        <Button
           size="small"
-          sx={{
-            fontWeight: 600,
-            fontSize: '0.7rem',
-            height: 22,
-            bgcolor: isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(79, 70, 229, 0.08)',
-            color: 'primary.main',
-          }}
-        />
+          variant="outlined"
+          startIcon={<FactCheckOutlined />}
+          onClick={() => navigate('/attendance')}
+          sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 600, fontSize: '0.72rem' }}
+        >
+          Mark Attendance
+        </Button>
       </Box>
 
       <Divider sx={{ mb: 2 }} />
 
       {/* ── Class List ── */}
-      {classes.length === 0 ? (
-        <Box sx={{ py: 4, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary">
-            No classes scheduled for today.
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-            Enjoy your day off! 🎉
-          </Typography>
-        </Box>
-      ) : (
-        <Stack spacing={1.5}>
-          {classes.map((classItem, index) => (
+      <Stack spacing={1.5}>
+        {validClasses.map((classItem) => (
+          <Box
+            key={classItem.id}
+            sx={{
+              display: 'flex',
+              alignItems: 'stretch',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+              border: `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            {/* Left: Time Badge */}
             <Box
-              key={classItem.id}
               sx={{
+                bgcolor: `${theme.palette.primary.main}12`,
+                px: 2,
+                py: 1.5,
                 display: 'flex',
-                alignItems: 'stretch',
-                gap: 0,
-                borderRadius: 2,
-                overflow: 'hidden',
-                bgcolor: 'action.hover',
-                transition: 'background-color 0.2s ease',
-                '&:hover': {
-                  bgcolor: 'action.selected',
-                },
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 110,
+                borderRight: `3px solid ${theme.palette.primary.main}`,
               }}
             >
-              {/* ── Left: Time Badge ── */}
-              <Box
-                sx={{
-                  bgcolor: isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(79, 70, 229, 0.06)',
-                  px: 2,
-                  py: 1.5,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: { xs: 80, sm: 100 },
-                  borderRight: `2px solid`,
-                  borderColor: 'primary.main',
-                }}
-              >
-                <TimeIcon
-                  sx={{ fontSize: 16, color: 'primary.main', mb: 0.5 }}
-                />
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontWeight: 700,
-                    color: 'primary.main',
-                    textAlign: 'center',
-                    lineHeight: 1.3,
-                    fontSize: '0.68rem',
-                  }}
-                >
-                  {classItem.time}
-                </Typography>
-              </Box>
+              <TimeIcon sx={{ fontSize: 16, color: theme.palette.primary.main, mb: 0.5 }} />
+              <Typography variant="caption" sx={{ fontWeight: 800, color: theme.palette.primary.main, textAlign: 'center' }}>
+                {classItem.time}
+              </Typography>
+            </Box>
 
-              {/* ── Right: Class Details ── */}
-              <Box
-                sx={{
-                  flex: 1,
-                  px: 2,
-                  py: 1.5,
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: { xs: 'flex-start', sm: 'center' },
-                  justifyContent: 'space-between',
-                  gap: 1,
-                  minWidth: 0,
-                }}
-              >
-                {/* Subject name — primary info */}
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: 600,
-                      color: 'text.primary',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {classItem.subject}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ fontWeight: 500 }}
-                  >
-                    Class {index + 1} of {classes.length}
+            {/* Right: Class Details */}
+            <Box sx={{ p: 2, flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                  <Chip label={classItem.subjectCode || 'SUB'} size="small" color="primary" sx={{ fontWeight: 800, fontSize: '0.65rem', height: 20 }} />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+                    {classItem.subjectName || classItem.subject}
                   </Typography>
                 </Box>
-
-                {/* Section & Room chips */}
-                <Stack
-                  direction="row"
-                  spacing={0.75}
-                  sx={{ flexShrink: 0 }}
-                >
-                  {classItem.section && (
-                    <Chip
-                      icon={<SectionIcon sx={{ fontSize: 14 }} />}
-                      label={classItem.section}
-                      size="small"
-                      sx={{
-                        fontWeight: 600,
-                        fontSize: '0.7rem',
-                        height: 24,
-                        bgcolor: isDark
-                          ? 'rgba(34, 211, 238, 0.12)'
-                          : 'rgba(6, 182, 212, 0.1)',
-                        color: 'secondary.main',
-                        '& .MuiChip-icon': { color: 'secondary.main' },
-                      }}
-                    />
-                  )}
-                  {classItem.room && (
-                    <Chip
-                      icon={<RoomIcon sx={{ fontSize: 14 }} />}
-                      label={classItem.room}
-                      size="small"
-                      sx={{
-                        fontWeight: 600,
-                        fontSize: '0.7rem',
-                        height: 24,
-                        bgcolor: isDark
-                          ? 'rgba(16, 185, 129, 0.12)'
-                          : 'rgba(16, 185, 129, 0.1)',
-                        color: '#10b981',
-                        '& .MuiChip-icon': { color: '#10b981' },
-                      }}
-                    />
-                  )}
-                </Stack>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <SectionIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Group {classItem.section}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <RoomIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      {classItem.room}
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
+
+              <Button
+                size="small"
+                variant="contained"
+                onClick={() => navigate('/attendance')}
+                sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 700, fontSize: '0.72rem' }}
+              >
+                Mark Attendance
+              </Button>
             </Box>
-          ))}
-        </Stack>
-      )}
+          </Box>
+        ))}
+      </Stack>
     </Paper>
   );
 };

@@ -435,6 +435,55 @@ const deleteSubject = async (id) => {
   return subject;
 };
 
+const createBulkSubjects = async (departmentId, subjectsArray) => {
+  // 1. Verify parent Department exists
+  const parentDept = await Department.findById(departmentId);
+  if (!parentDept) {
+    throw new AppError('Department reference not found.', 404, ERROR_CODES.NOT_FOUND);
+  }
+
+  const results = {
+    successful: 0,
+    failed: 0,
+    errors: [],
+  };
+
+  const createdSubjects = [];
+
+  for (let i = 0; i < subjectsArray.length; i++) {
+    const subjectData = subjectsArray[i];
+    try {
+      subjectData.departmentId = departmentId;
+      
+      await assertSubjectSemestersValid(subjectData.branchId, subjectData.semester);
+
+      const duplicate = await Subject.findOne({ branchId: subjectData.branchId, code: subjectData.code.toUpperCase() });
+      if (duplicate) {
+        throw new AppError(`Subject code ${subjectData.code} already registered under this branch.`, 400, ERROR_CODES.DUPLICATE_ENTRY);
+      }
+
+      const subject = await Subject.create({
+        name: subjectData.name,
+        code: subjectData.code.toUpperCase(),
+        credits: subjectData.credits,
+        type: subjectData.type,
+        branchId: subjectData.branchId,
+        departmentId: subjectData.departmentId,
+        semester: subjectData.semester,
+      });
+
+      createdSubjects.push(subject);
+      results.successful++;
+    } catch (err) {
+      results.failed++;
+      results.errors.push(`Item ${i + 1} (${subjectData.code || 'Unknown'}): ${err.message}`);
+    }
+  }
+
+  logger.info(`[Bulk Subject Import] Dept: ${departmentId} | Success: ${results.successful}, Failed: ${results.failed}`);
+  return { results, createdSubjects };
+};
+
 module.exports = {
   createDepartment,
   getAllDepartments,
@@ -452,6 +501,7 @@ module.exports = {
   updateBranch,
   deleteBranch,
   createSubject,
+  createBulkSubjects,
   getAllSubjects,
   getSubjectById,
   updateSubject,

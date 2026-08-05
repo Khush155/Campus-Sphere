@@ -1,6 +1,7 @@
 const Attendance = require('../models/Attendance');
 const User = require('../models/User');
 const Subject = require('../models/Subject');
+const { createNotification } = require('./notificationService');
 const { assertHODDeptBound, assertFacultyAssigned } = require('../utils/privilegeGuard');
 const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
@@ -47,6 +48,31 @@ const submitAttendance = async (attendanceData, actor, req) => {
   });
 
   const result = await Attendance.bulkWrite(bulkOperations);
+
+  // Check low attendance (< 75%) for updated students
+  try {
+    const studentIds = records.map((r) => r.studentId);
+    for (const studentId of studentIds) {
+      const studentLogs = await Attendance.find({ studentId, subjectId });
+      if (studentLogs.length >= 3) {
+        const attendedCount = studentLogs.filter((l) => l.status === 'PRESENT' || l.status === 'LATE').length;
+        const pct = Math.round((attendedCount / studentLogs.length) * 100);
+        if (pct < 75) {
+          await createNotification({
+            recipientId: studentId,
+            title: `⚠️ Low Attendance Warning: ${subject.name || 'Subject'}`,
+            message: `Your attendance in ${subject.name || 'this subject'} is currently ${pct}%, which is below the 75% requirement.`,
+            category: 'ATTENDANCE_LOW',
+            link: '/student/attendance',
+            senderId: actor.id,
+            metadata: { subjectId, percentage: pct },
+          });
+        }
+      }
+    }
+  } catch (err) {
+    // Non-blocking
+  }
 
   // Audit Log
   await logAuditEvent({

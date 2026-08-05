@@ -20,7 +20,6 @@ const validate = (schema) => async (req, res, next) => {
     // If it's a Zod validation error, extract messages and format them nicely
     if (error.name === 'ZodError') {
       const messages = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
-      
       // Wrap the error in our custom AppError with VALIDATION_ERROR code
       return next(new AppError(messages, 400, ERROR_CODES.VALIDATION_ERROR));
     }

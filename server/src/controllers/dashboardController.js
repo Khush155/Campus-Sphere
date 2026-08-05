@@ -29,8 +29,29 @@ const getInsights = async (req, res, _next) => {
   return successResponse(res, 200, 'Institutional insights retrieved successfully.', insights);
 };
 
+const Notice = require('../models/Notice');
+
+const getRecentNotices = async (req, res, _next) => {
+  const notices = await Notice.find({ status: 'PUBLISHED' })
+    .sort({ publishedAt: -1, createdAt: -1 })
+    .limit(8)
+    .populate('publishedBy', 'name');
+
+  const formatted = notices.map((n) => ({
+    id: n._id,
+    title: n.title,
+    content: n.content,
+    priority: n.priority,
+    publishedAt: n.publishedAt || n.createdAt,
+    publishedByName: n.publishedBy ? n.publishedBy.name : 'System',
+  }));
+
+  return successResponse(res, 200, 'Recent notices retrieved successfully.', formatted);
+};
+
 module.exports = {
   getStats,
   getDepartmentDistribution,
   getInsights,
+  getRecentNotices,
 };

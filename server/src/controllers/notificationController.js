@@ -1,50 +1,54 @@
-const Notification = require('../models/Notification');
+const notificationService = require('../services/notificationService');
 const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
 const { successResponse } = require('../utils/apiResponse');
 const asyncHandler = require('../middlewares/asyncHandler');
 
 /**
- * @desc    Get notifications for logged in user
+ * @desc    Get notifications for logged-in user
  * @route   GET /api/v1/notifications
  * @access  Private
  */
 const getNotifications = asyncHandler(async (req, res, _next) => {
-  const filter = { recipientId: req.user.id };
-  const { category, unreadOnly } = req.query;
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 15;
+  const unreadOnly = req.query.unreadOnly === 'true';
 
-  if (category) {
-    filter.category = category;
-  }
-  if (unreadOnly === 'true') {
-    filter.isRead = false;
-  }
+  const result = await notificationService.getNotificationsForUser(req.user.id, {
+    page,
+    limit,
+    unreadOnly,
+  });
 
-  const notifications = await Notification.find(filter)
-    .populate('senderId', 'name email')
-    .sort({ createdAt: -1 });
-
-  return successResponse(res, 200, 'Notifications retrieved successfully', notifications);
+  return successResponse(
+    res,
+    200,
+    'Notifications retrieved successfully',
+    result.notifications,
+    result.meta
+  );
 });
 
 /**
- * @desc    Mark a notification as read
+ * @desc    Get cheap unread notification count for logged-in user
+ * @route   GET /api/v1/notifications/unread-count
+ * @access  Private
+ */
+const getUnreadCount = asyncHandler(async (req, res, _next) => {
+  const unreadCount = await notificationService.getUnreadCountForUser(req.user.id);
+  return successResponse(res, 200, 'Unread notification count retrieved', { unreadCount });
+});
+
+/**
+ * @desc    Mark a single notification as read
  * @route   PATCH /api/v1/notifications/:id/read
  * @access  Private
  */
 const markNotificationRead = asyncHandler(async (req, res, next) => {
-  const notification = await Notification.findById(req.params.id);
+  const notification = await notificationService.markAsRead(req.params.id, req.user.id);
   if (!notification) {
-    return next(new AppError('Notification not found', 404, ERROR_CODES.NOT_FOUND));
+    return next(new AppError('Notification not found or access denied', 404, ERROR_CODES.NOT_FOUND));
   }
-
-  // Verify recipient match
-  if (String(notification.recipientId) !== String(req.user.id)) {
-    return next(new AppError('Unauthorized access', 403, ERROR_CODES.FORBIDDEN));
-  }
-
-  notification.isRead = true;
-  await notification.save();
 
   return successResponse(res, 200, 'Notification marked as read', notification);
 });
@@ -55,16 +59,13 @@ const markNotificationRead = asyncHandler(async (req, res, next) => {
  * @access  Private
  */
 const markAllRead = asyncHandler(async (req, res, _next) => {
-  await Notification.updateMany(
-    { recipientId: req.user.id, isRead: false },
-    { $set: { isRead: true } }
-  );
-
-  return successResponse(res, 200, 'All notifications marked as read', null);
+  const count = await notificationService.markAllAsRead(req.user.id);
+  return successResponse(res, 200, 'All notifications marked as read', { markedCount: count });
 });
 
 module.exports = {
   getNotifications,
+  getUnreadCount,
   markNotificationRead,
   markAllRead,
 };

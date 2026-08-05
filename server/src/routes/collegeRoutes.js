@@ -48,6 +48,7 @@ router.delete('/branches/:id', adminGuard, asyncHandler(collegeController.delete
 // ==========================================
 // SUBJECT ROUTES
 // ==========================================
+router.post('/subjects/bulk', subjectManageGuard, asyncHandler(collegeController.createBulkSubjects));
 router.post('/subjects', subjectManageGuard, asyncHandler(collegeController.createSubject));
 router.get('/subjects', authGuard, asyncHandler(collegeController.getAllSubjects));
 router.get('/subjects/:id', authGuard, asyncHandler(collegeController.getSubjectById));

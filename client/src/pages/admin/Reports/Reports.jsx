@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
   Box,
@@ -12,26 +12,29 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
-  Alert,
   CircularProgress,
   Divider,
   useTheme,
+  Chip,
+  Alert,
 } from '@mui/material';
 import {
   AssessmentOutlined,
   DownloadOutlined,
   FilterListOutlined,
+  DescriptionOutlined,
+  CheckCircleOutlined,
 } from '@mui/icons-material';
 import { useDepartmentsQuery } from '../../../queries/collegeQueries';
 import {
   useReportTypesQuery,
   useGenerateReportMutation,
 } from '../../../queries/reportQueries';
+import { useToast } from '../../../contexts/ToastContext';
 
 export const Reports = () => {
   const theme = useTheme();
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const { showToast } = useToast();
 
   // Queries
   const { data: reportTypes, isLoading: loadingTypes, isError: errorTypes } = useReportTypesQuery();
@@ -45,7 +48,7 @@ export const Reports = () => {
     control,
     watch,
     register,
-    formState: { errors },
+    setValue,
   } = useForm({
     defaultValues: {
       type: '',
@@ -57,6 +60,10 @@ export const Reports = () => {
   });
 
   const selectedTypeKey = watch('type');
+  const selectedFormat = watch('format');
+  const selectedDeptId = watch('departmentId');
+  const selectedDateFrom = watch('dateFrom');
+  const selectedDateTo = watch('dateTo');
 
   // Find schema properties for progressive disclosures
   const selectedReportType = reportTypes?.find((r) => r.key === selectedTypeKey);
@@ -65,9 +72,18 @@ export const Reports = () => {
     selectedReportType?.filtersSchema?.includes('dateFrom') ||
     selectedReportType?.filtersSchema?.includes('dateTo');
 
+  // Set default report type when loaded
+  React.useEffect(() => {
+    if (reportTypes && reportTypes.length > 0 && !selectedTypeKey) {
+      setValue('type', reportTypes[0].key);
+    }
+  }, [reportTypes, selectedTypeKey, setValue]);
+
   const onExportSubmit = async (data) => {
-    setErrorMsg('');
-    setSuccessMsg('');
+    if (!data.type) {
+      showToast('Please select a report template.', { severity: 'error' });
+      return;
+    }
 
     try {
       const payload = {
@@ -83,7 +99,7 @@ export const Reports = () => {
       const response = await generateMutation.mutateAsync(payload);
 
       // Extract filename from content-disposition header if available
-      const disposition = response.headers['content-disposition'];
+      const disposition = response.headers?.['content-disposition'];
       let filename = `report_${data.type.toLowerCase()}_${Date.now()}.${data.format.toLowerCase()}`;
       if (disposition && disposition.indexOf('filename=') !== -1) {
         const matches = /filename="([^"]+)"/g.exec(disposition);
@@ -102,285 +118,414 @@ export const Reports = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      setSuccessMsg('Report compiled and downloaded successfully.');
+      showToast(`Report '${selectedReportType?.label || data.type}' downloaded successfully as ${data.format}.`);
     } catch (err) {
-      setErrorMsg('Failed to generate report. Please try again.');
+      showToast('Failed to generate report. Please try again.', { severity: 'error' });
     }
   };
 
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, pb: 6 }}>
-      {/* Header */}
-      <Box sx={{ borderBottom: `1px solid ${theme.custom.border.subtle}`, pb: 2.5 }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontFamily: theme.typography.h1.fontFamily,
-            fontWeight: 700,
-            color: theme.palette.ink[900],
-            mb: 0.5,
-          }}
-        >
-          Reports & Export Center
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Select, filter, and compile institution records in spreadsheet CSV or printable PDF layouts.
-        </Typography>
-      </Box>
+  const selectedDeptName = useMemo(() => {
+    if (!selectedDeptId || !depts) return 'Entire College';
+    const match = depts.find((d) => d._id === selectedDeptId);
+    return match ? match.name : 'Entire College';
+  }, [selectedDeptId, depts]);
 
-      {/* Main Form Box */}
-      <Grid container spacing={4}>
-        <Grid item xs={12} md={6}>
-          <Card
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, pb: 6 }}>
+      {/* ── 1. Hero Export Banner Card ─────────────────────────────────────── */}
+      <Card
+        sx={{
+          p: 3.5,
+          borderRadius: '16px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}0F 0%, ${theme.palette.brass?.[500] || '#b8863e'}08 100%)`,
+          boxShadow: theme.custom?.elevation?.raised || 'none',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1, flexWrap: 'wrap' }}>
+            <Chip
+              icon={<AssessmentOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+              label="DATA EXPORT & ANALYTICS CENTER"
+              size="small"
+              sx={{
+                bgcolor: `${theme.palette.primary.main}15`,
+                color: theme.palette.primary.main,
+                fontFamily: theme.typography.mono.fontFamily,
+                fontWeight: 700,
+                fontSize: '0.68rem',
+                letterSpacing: '0.06em',
+                borderRadius: '6px',
+              }}
+            />
+            <Chip
+              label={`${reportTypes?.length || 0} Standard Templates`}
+              size="small"
+              sx={{
+                bgcolor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                fontFamily: theme.typography.mono.fontFamily,
+                fontSize: '0.72rem',
+                fontWeight: 600,
+              }}
+            />
+            <Chip
+              label="CSV & PDF Formats"
+              size="small"
+              sx={{
+                bgcolor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                fontFamily: theme.typography.mono.fontFamily,
+                fontSize: '0.72rem',
+                fontWeight: 600,
+              }}
+            />
+          </Box>
+          <Typography
+            variant="h4"
+            component="h1"
             sx={{
-              border: `1px solid ${theme.custom.border.subtle}`,
-              borderRadius: '16px',
-              boxShadow: 'none',
-              bgcolor: theme.custom.surface.raised,
+              fontFamily: theme.typography.h1.fontFamily,
+              fontWeight: 600,
+              color: theme.palette.ink[900],
+              lineHeight: 1.15,
+              mb: 0.5,
             }}
           >
-            <CardContent sx={{ p: 4 }}>
-              {errorMsg && (
-                <Alert severity="error" sx={{ mb: 3, borderRadius: '8px' }}>
-                  {errorMsg}
-                </Alert>
-              )}
+            Reports & Export Center
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              fontFamily: theme.typography.body2.fontFamily,
+              color: theme.palette.text.secondary,
+              maxWidth: 640,
+            }}
+          >
+            Select, filter, and compile institutional data into structured spreadsheet CSVs or print-ready PDF reports.
+          </Typography>
+        </Box>
+      </Card>
 
-              {successMsg && (
-                <Alert severity="success" sx={{ mb: 3, borderRadius: '8px' }}>
-                  {successMsg}
-                </Alert>
-              )}
-
-              {loadingTypes ? (
-                <Box sx={{ display: 'flex', py: 6, justifyContent: 'center' }}>
-                  <CircularProgress size={30} sx={{ color: theme.palette.primary.main }} />
-                </Box>
-              ) : errorTypes ? (
-                <Alert severity="error" sx={{ borderRadius: '8px' }}>
-                  Could not load report types. Please check backend connection.
-                </Alert>
-              ) : (
-                <Box
-                  component="form"
-                  onSubmit={handleSubmit(onExportSubmit)}
-                  sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}
-                >
-                  {/* Report Type Select */}
-                  <Box>
-                    <Typography
-                      component="label"
-                      sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}
-                    >
-                      Report Template
-                    </Typography>
-                    <Controller
-                      name="type"
-                      control={control}
-                      rules={{ required: 'Report template is required' }}
-                      render={({ field }) => (
-                        <TextField
-                          select
-                          fullWidth
-                          size="small"
-                          error={!!errors.type}
-                          helperText={errors.type?.message}
-                          value={field.value}
-                          onChange={field.onChange}
-                        >
-                          <MenuItem value="">Choose Template...</MenuItem>
-                          {reportTypes?.map((r) => (
-                            <MenuItem key={r.key} value={r.key}>
-                              {r.label}
-                            </MenuItem>
-                          ))}
-                        </TextField>
-                      )}
-                    />
-                    {selectedReportType && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                        {selectedReportType.description}
-                      </Typography>
-                    )}
-                  </Box>
-
-                  {/* Progressive Disclosure Filter Block */}
-                  {(showDeptFilter || showDateFilter) && (
-                    <Box
-                      sx={{
-                        p: 2.5,
-                        borderRadius: '12px',
-                        border: `1px solid ${theme.palette.divider}`,
-                        bgcolor: 'rgba(28, 46, 69, 0.01)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 2.5,
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <FilterListOutlined sx={{ fontSize: 16, color: theme.palette.primary.main }} />
-                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.78rem' }}>
-                          Apply Scope Filters
-                        </Typography>
-                      </Box>
-
-                      {/* Department filter */}
-                      {showDeptFilter && (
-                        <Box>
-                          <Typography
-                            component="label"
-                            sx={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: theme.palette.text.secondary, mb: 1 }}
-                          >
-                            Department
-                          </Typography>
-                          <Controller
-                            name="departmentId"
-                            control={control}
-                            render={({ field }) => (
-                              <TextField select {...field} size="small" fullWidth>
-                                <MenuItem value="">Entire College</MenuItem>
-                                {depts?.map((d) => (
-                                  <MenuItem key={d._id} value={d._id}>
-                                    {d.name}
-                                  </MenuItem>
-                                ))}
-                              </TextField>
-                            )}
-                          />
-                        </Box>
-                      )}
-
-                      {/* Date Range filter */}
-                      {showDateFilter && (
-                        <Grid container spacing={2}>
-                          <Grid item xs={12} sm={6}>
-                            <Typography
-                              component="label"
-                              sx={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: theme.palette.text.secondary, mb: 1 }}
-                            >
-                              Start Date
-                            </Typography>
-                            <TextField
-                              type="date"
-                              size="small"
-                              fullWidth
-                              InputLabelProps={{ shrink: true }}
-                              {...register('dateFrom')}
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <Typography
-                              component="label"
-                              sx={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: theme.palette.text.secondary, mb: 1 }}
-                            >
-                              End Date
-                            </Typography>
-                            <TextField
-                              type="date"
-                              size="small"
-                              fullWidth
-                              InputLabelProps={{ shrink: true }}
-                              {...register('dateTo')}
-                            />
-                          </Grid>
-                        </Grid>
-                      )}
-                    </Box>
-                  )}
-
-                  {/* Format Selector */}
-                  <Box>
-                    <Typography
-                      component="label"
-                      sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}
-                    >
-                      Export Format
-                    </Typography>
-                    <Controller
-                      name="format"
-                      control={control}
-                      render={({ field }) => (
-                        <RadioGroup row {...field}>
-                          <FormControlLabel
-                            value="CSV"
-                            control={<Radio size="small" />}
-                            label={
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                CSV (Spreadsheet)
-                              </Typography>
-                            }
-                            sx={{ mr: 4 }}
-                          />
-                          <FormControlLabel
-                            value="PDF"
-                            control={<Radio size="small" />}
-                            label={
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                PDF (Print Document)
-                              </Typography>
-                            }
-                          />
-                        </RadioGroup>
-                      )}
-                    />
-                  </Box>
-
-                  <Divider />
-
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    fullWidth
-                    disabled={generateMutation.isPending}
-                    startIcon={
-                      generateMutation.isPending ? (
-                        <CircularProgress size={18} color="inherit" />
-                      ) : (
-                        <DownloadOutlined />
-                      )
-                    }
+      {/* ── 2. Interactive Template Selector Cards ────────────────────────── */}
+      <Box>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2, color: theme.palette.ink[900] }}>
+          Select Report Template
+        </Typography>
+        {loadingTypes ? (
+          <Box sx={{ display: 'flex', py: 4, justifyContent: 'center' }}>
+            <CircularProgress size={28} sx={{ color: theme.palette.primary.main }} />
+          </Box>
+        ) : errorTypes ? (
+          <Alert severity="error" sx={{ borderRadius: '8px' }}>
+            Could not load report templates. Please check backend connection.
+          </Alert>
+        ) : (
+          <Grid container spacing={2} alignItems="stretch">
+            {reportTypes?.map((r) => {
+              const isSelected = selectedTypeKey === r.key;
+              return (
+                <Grid item xs={12} sm={6} md={3} key={r.key} sx={{ display: 'flex' }}>
+                  <Card
+                    onClick={() => setValue('type', r.key)}
                     sx={{
-                      bgcolor: theme.palette.primary.main,
-                      color: theme.palette.ink[900],
-                      fontWeight: 700,
-                      textTransform: 'none',
-                      height: '40px',
-                      '&:hover': { bgcolor: theme.palette.primary.light },
+                      p: 2.5,
+                      width: '100%',
+                      height: '100%',
+                      minHeight: 155,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      border: `1px solid ${isSelected ? theme.palette.primary.main : theme.palette.divider}`,
+                      bgcolor: isSelected ? `${theme.palette.primary.main}0D` : theme.custom?.surface?.raised || theme.palette.background.paper,
+                      transition: 'all 0.2s ease',
+                      position: 'relative',
+                      '&:hover': {
+                        borderColor: theme.palette.primary.main,
+                      },
                     }}
                   >
-                    {generateMutation.isPending ? 'Compiling Export...' : 'Generate & Download'}
-                  </Button>
+                    {isSelected && (
+                      <CheckCircleOutlined
+                        sx={{
+                          position: 'absolute',
+                          top: 12,
+                          right: 12,
+                          fontSize: 18,
+                          color: theme.palette.primary.main,
+                        }}
+                      />
+                    )}
+                    <DescriptionOutlined sx={{ fontSize: 28, color: isSelected ? theme.palette.primary.main : theme.palette.text.secondary, mb: 1 }} />
+                    <Typography variant="body1" sx={{ fontWeight: 700, color: theme.palette.ink[900], mb: 0.5, fontSize: '0.9rem' }}>
+                      {r.label}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.76rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {r.description}
+                    </Typography>
+                  </Card>
+                </Grid>
+              );
+            })}
+          </Grid>
+        )}
+      </Box>
+
+      {/* ── 3. Main Form & Configuration Box ──────────────────────────────── */}
+      <Grid container spacing={3.5} alignItems="stretch">
+        <Grid item xs={12} md={7} sx={{ display: 'flex' }}>
+          <Card
+            sx={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justify: 'space-between',
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: '16px',
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+            }}
+          >
+            <CardContent sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <Box
+                component="form"
+                onSubmit={handleSubmit(onExportSubmit)}
+                sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}
+              >
+                {/* Format Selector */}
+                <Box>
+                  <Typography
+                    component="label"
+                    sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}
+                  >
+                    Export Format
+                  </Typography>
+                  <Controller
+                    name="format"
+                    control={control}
+                    render={({ field }) => (
+                      <RadioGroup row {...field}>
+                        <FormControlLabel
+                          value="CSV"
+                          control={<Radio size="small" />}
+                          label={
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              CSV (Spreadsheet)
+                            </Typography>
+                          }
+                          sx={{ mr: 4 }}
+                        />
+                        <FormControlLabel
+                          value="PDF"
+                          control={<Radio size="small" />}
+                          label={
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              PDF (Print Document)
+                            </Typography>
+                          }
+                        />
+                      </RadioGroup>
+                    )}
+                  />
                 </Box>
-              )}
+
+                {/* Progressive Disclosure Filter Block */}
+                {(showDeptFilter || showDateFilter) && (
+                  <Box
+                    sx={{
+                      p: 2.5,
+                      borderRadius: '12px',
+                      border: `1px solid ${theme.palette.divider}`,
+                      bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 2.5,
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <FilterListOutlined sx={{ fontSize: 16, color: theme.palette.primary.main }} />
+                      <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.78rem' }}>
+                        Apply Scope Filters
+                      </Typography>
+                    </Box>
+
+                    {/* Department filter */}
+                    {showDeptFilter && (
+                      <Box>
+                        <Typography
+                          component="label"
+                          htmlFor="report-dept-input"
+                          sx={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: theme.palette.text.secondary, mb: 1 }}
+                        >
+                          Department
+                        </Typography>
+                        <Controller
+                          name="departmentId"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField id="report-dept-input" select {...field} size="small" fullWidth>
+                              <MenuItem value="">Entire College</MenuItem>
+                              {depts?.map((d) => (
+                                <MenuItem key={d._id} value={d._id}>
+                                  {d.name}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          )}
+                        />
+                      </Box>
+                    )}
+
+                    {/* Date Range filter */}
+                    {showDateFilter && (
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <Typography
+                            component="label"
+                            htmlFor="date-from-input"
+                            sx={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: theme.palette.text.secondary, mb: 1 }}
+                          >
+                            Start Date
+                          </Typography>
+                          <TextField
+                            id="date-from-input"
+                            type="date"
+                            size="small"
+                            fullWidth
+                            InputLabelProps={{ shrink: true }}
+                            {...register('dateFrom')}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Typography
+                            component="label"
+                            htmlFor="date-to-input"
+                            sx={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: theme.palette.text.secondary, mb: 1 }}
+                          >
+                            End Date
+                          </Typography>
+                          <TextField
+                            id="date-to-input"
+                            type="date"
+                            size="small"
+                            fullWidth
+                            InputLabelProps={{ shrink: true }}
+                            {...register('dateTo')}
+                          />
+                        </Grid>
+                      </Grid>
+                    )}
+                  </Box>
+                )}
+
+                <Divider />
+
+                <Button
+                  type="submit"
+                  variant="contained"
+                  fullWidth
+                  disabled={generateMutation.isPending || !selectedTypeKey}
+                  startIcon={
+                    generateMutation.isPending ? (
+                      <CircularProgress size={18} color="inherit" />
+                    ) : (
+                      <DownloadOutlined />
+                    )
+                  }
+                  sx={{
+                    background: theme.palette.primary.gradient || theme.palette.primary.main,
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    height: '42px',
+                    borderRadius: '8px',
+                    boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
+                  }}
+                >
+                  {generateMutation.isPending ? 'Compiling Export...' : 'Generate & Download Report'}
+                </Button>
+              </Box>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Side Tip Information */}
-        <Grid item xs={12} md={6}>
+        {/* Dynamic Scope Summary Box */}
+        <Grid item xs={12} md={5} sx={{ display: 'flex' }}>
           <Card
             sx={{
-              border: `1px solid ${theme.custom.border.subtle}`,
+              width: '100%',
+              height: '100%',
+              border: `1px solid ${theme.palette.divider}`,
               borderRadius: '16px',
               boxShadow: 'none',
-              height: '100%',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              p: 4,
               display: 'flex',
-              alignItems: 'center',
-              bgcolor: 'rgba(28, 46, 69, 0.01)',
+              flexDirection: 'column',
+              justify: 'space-between',
+              gap: 2.5,
             }}
           >
-            <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <AssessmentOutlined sx={{ fontSize: 40, color: theme.palette.primary.main }} />
-              <Typography variant="h6" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
-                Dynamic Report Compilations
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                Our reports engine compiles direct snapshots from live database records. If you download a CSV format, it can be imported directly into applications like Microsoft Excel or Google Sheets. The PDF format features official university headers and is formatted for clean printing.
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                Future modules (such as fees collection summaries and student attendance trends) will register here automatically as they are introduced in later stages.
-              </Typography>
-            </CardContent>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
+              Scope Compilation Summary
+            </Typography>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Template
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.primary.main }}>
+                  {selectedReportType?.label || 'Not Selected'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Format
+                </Typography>
+                <Chip
+                  label={selectedFormat}
+                  size="small"
+                  sx={{ fontWeight: 700, fontFamily: theme.typography.mono.fontFamily }}
+                />
+              </Box>
+
+              {showDeptFilter && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Target Department
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {selectedDeptName}
+                  </Typography>
+                </Box>
+              )}
+
+              {showDateFilter && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Date Range
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem' }}>
+                    {selectedDateFrom || 'Start'} → {selectedDateTo || 'End'}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            <Divider />
+
+            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+              Reports compile directly from live database records into structured files. CSV exports are ready for Excel / Google Sheets import.
+            </Typography>
           </Card>
         </Grid>
       </Grid>

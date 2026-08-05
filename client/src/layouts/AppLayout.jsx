@@ -48,9 +48,13 @@ import {
   Assignment as AssignmentIcon,
   Campaign as CampaignIcon,
   LocalLibrary as LocalLibraryIcon,
+  TrendingUp as TrendingUpIcon,
   Hotel as HotelIcon,
   Description as DescriptionIcon,
   Settings as SettingsIcon,
+  Badge as BadgeIcon,
+  PersonAdd as PersonAddIcon,
+  AccountBalanceWallet as AccountBalanceWalletIcon,
   Groups as GroupsIcon,
   Public as PublicIcon,
   AccountBalance as AccountBalanceIcon,
@@ -66,6 +70,9 @@ import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../contexts/AuthContext';
 import CommandPalette from '../components/common/CommandPalette';
 import { useCollegeProfileQuery } from '../queries/collegeProfileQueries';
+import { useActiveSessionQuery } from '../queries/academicSessionQueries';
+import { useMyProfileQuery } from '../queries/userProfileQueries';
+import NotificationMenu from '../components/common/NotificationMenu';
 
 const drawerWidth = 240;
 
@@ -81,6 +88,10 @@ export const AppLayout = () => {
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
 
   const { data: profile } = useCollegeProfileQuery();
+  const { data: activeSession } = useActiveSessionQuery();
+  const { data: myProfile } = useMyProfileQuery();
+
+  const currentUser = myProfile || user;
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -119,31 +130,38 @@ export const AppLayout = () => {
     navigate('/login');
   };
 
-  const menuItems = user?.role === 'SUPER_ADMIN'
+  const userRole = currentUser?.role || user?.role;
+
+  const menuItems = (userRole === 'SUPER_ADMIN' || userRole === 'COLLEGE_ADMIN')
     ? [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard', roles: ['SUPER_ADMIN'] },
-        { text: 'College Setup', icon: <SchoolIcon />, path: '/admin/college-setup/departments', roles: ['SUPER_ADMIN'] },
-        { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users', roles: ['SUPER_ADMIN'] },
-        { text: 'Notice Board', icon: <NotificationsIcon />, path: '/admin/notices', roles: ['SUPER_ADMIN'] },
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'College Setup', icon: <SchoolIcon />, path: '/admin/college-setup/departments', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Users Directory', icon: <PeopleIcon />, path: '/admin/users', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Student Admissions', icon: <PersonAddIcon />, path: '/admin/admissions', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Faculty Allocations', icon: <AssignmentIndIcon />, path: '/admin/faculty-assignments', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'ID Cards Studio', icon: <BadgeIcon />, path: '/admin/id-cards', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Fee Dues Clearance', icon: <AccountBalanceWalletIcon />, path: '/admin/fee-clearance', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Notice Board', icon: <NotificationsIcon />, path: '/admin/notices', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Academic Calendar', icon: <DateRangeIcon />, path: '/admin/academic-calendar', roles: ['SUPER_ADMIN'] },
+        { text: 'Academic Sessions', icon: <DateRangeIcon />, path: '/admin/academic-sessions', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Bulk Promotion', icon: <AutorenewIcon />, path: '/admin/bulk-promotion', roles: ['SUPER_ADMIN'] },
-        { text: 'Certificates', icon: <CardMembershipIcon />, path: '/admin/certificates', roles: ['SUPER_ADMIN'] },
-        { text: 'Reports Export', icon: <AssessmentIcon />, path: '/admin/reports', roles: ['SUPER_ADMIN'] },
+        { text: 'Certificates', icon: <CardMembershipIcon />, path: '/admin/certificates', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Reports Export', icon: <AssessmentIcon />, path: '/admin/reports', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'College Profile', icon: <AccountBalanceIcon />, path: '/admin/college-profile', roles: ['SUPER_ADMIN'] },
         { text: 'Audit Logs', icon: <HistoryIcon />, path: '/admin/audit-logs', roles: ['SUPER_ADMIN'] },
       ]
-    : user?.role === 'HOD'
+    : userRole === 'HOD'
     ? [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/hod/overview', roles: ['HOD'] },
-        { text: 'Faculty', icon: <AssignmentIndIcon />, path: '/hod/faculty', roles: ['HOD'] },
-        { text: 'Faculty Assignment', icon: <AssignmentIndIcon />, path: '/hod/faculty-assignment', roles: ['HOD'] },
+        { text: 'Faculty Staff Directory', icon: <GroupsIcon />, path: '/hod/faculty', roles: ['HOD'] },
+        { text: 'Subject Allocations', icon: <AssignmentIndIcon />, path: '/hod/faculty-assignment', roles: ['HOD'] },
         { text: 'Cross-Dept Requests', icon: <SwapHorizIcon />, path: '/hod/cross-dept-requests', roles: ['HOD'] },
         { text: 'Students', icon: <PeopleIcon />, path: '/hod/students', roles: ['HOD'] },
+        { text: 'Semester Progression', icon: <TrendingUpIcon />, path: '/hod/promotions', roles: ['HOD'] },
         { text: 'Subjects', icon: <MenuBookIcon />, path: '/hod/subjects', roles: ['HOD'] },
         { text: 'Timetable', icon: <DateRangeIcon />, path: '/hod/timetable', roles: ['HOD'] },
         { text: 'Attendance', icon: <FactCheckIcon />, path: '/hod/attendance', roles: ['HOD'] },
         { text: 'Examinations', icon: <ArticleIcon />, path: '/hod/examinations', roles: ['HOD'] },
-        { text: 'Projects', icon: <AccountTreeIcon />, path: '/hod/projects', roles: ['HOD'] },
         { text: 'Placements', icon: <WorkIcon />, path: '/hod/placements', roles: ['HOD'] },
         { text: 'Leave Management', icon: <EventNoteIcon />, path: '/hod/leave-management', roles: ['HOD'] },
         { text: 'Notices', icon: <NotificationsIcon />, path: '/hod/notices', roles: ['HOD'] },
@@ -154,7 +172,7 @@ export const AppLayout = () => {
         { text: 'Opportunities', icon: <PublicIcon />, path: '/hod/opportunities', roles: ['HOD'] },
         { text: 'Feedback', icon: <ReportProblemIcon />, path: '/hod/feedback', roles: ['HOD'] },
       ]
-    : user?.role === 'STUDENT'
+    : userRole === 'STUDENT'
     ? [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['STUDENT'] },
         { text: 'Profile', icon: <PersonIcon />, path: '/student/profile', roles: ['STUDENT'] },
@@ -174,31 +192,24 @@ export const AppLayout = () => {
         { text: 'Complaints', icon: <ReportProblemIcon />, path: '/student/complaints', roles: ['STUDENT'] },
         { text: 'Notifications', icon: <NotificationsIcon />, path: '/student/notifications', roles: ['STUDENT'] },
       ]
-    : user?.role === 'FACULTY'
+    : userRole === 'FACULTY'
     ? [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['FACULTY'] },
+        { text: 'Students Roster', icon: <PeopleIcon />, path: '/students', roles: ['FACULTY'] },
         { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['FACULTY'] },
         { text: 'Assignments', icon: <AssignmentIcon />, path: '/assignments', roles: ['FACULTY'] },
-        { text: 'Exams', icon: <AssessmentIcon />, path: '/exams', roles: ['FACULTY'] },
         { text: 'Marks', icon: <FactCheckIcon />, path: '/marks', roles: ['FACULTY'] },
         { text: 'Timetable', icon: <CalendarTodayIcon />, path: '/timetable', roles: ['FACULTY'] },
+        { text: 'Leave Portal', icon: <EventNoteIcon />, path: '/leaves', roles: ['FACULTY'] },
         { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['FACULTY'] },
+        { text: 'Department Meetings', icon: <SchoolIcon />, path: '/meetings', roles: ['FACULTY'] },
         { text: 'Materials', icon: <MenuBookIcon />, path: '/materials', roles: ['FACULTY'] },
+        { text: 'Maintenance Helpdesk', icon: <ReportProblemIcon />, path: '/complaints', roles: ['FACULTY'] },
         { text: 'Analytics', icon: <BarChartIcon />, path: '/analytics', roles: ['FACULTY'] },
-        { text: 'Notifications', icon: <NotificationsIcon />, path: '/notifications', roles: ['FACULTY'] },
-        { text: 'Settings', icon: <SettingsIcon />, path: '/settings', roles: ['FACULTY'] },
       ]
-    : [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['COLLEGE_ADMIN'] },
-        { text: 'Students', icon: <PeopleIcon />, path: '/students', roles: ['COLLEGE_ADMIN'] },
-        { text: 'Faculty', icon: <SchoolIcon />, path: '/faculty', roles: ['COLLEGE_ADMIN'] },
-        { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['COLLEGE_ADMIN'] },
-        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['COLLEGE_ADMIN'] },
-        { text: 'Notices', icon: <NotificationsIcon />, path: '/notices', roles: ['COLLEGE_ADMIN'] },
-      ];
-  const visibleMenuItems = (user?.role === 'SUPER_ADMIN' || user?.role === 'HOD' || user?.role === 'STUDENT' || user?.role === 'FACULTY')
-    ? menuItems
-    : menuItems.filter(item => item.roles.includes(user?.role));
+    : [];
+
+  const visibleMenuItems = menuItems.filter(item => item.roles.includes(userRole));
 
   const getInitials = (name) => {
     if (!name) return 'CS';
@@ -216,40 +227,78 @@ export const AppLayout = () => {
 
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Toolbar sx={{ justifyContent: 'center', py: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        {hasCustomProfile && profile.logoUrl ? (
-          <Box
-            component="img"
-            src={getFullLogoUrl(profile.logoUrl)}
-            alt="College Logo"
-            sx={{ width: 32, height: 32, objectFit: 'contain' }}
-          />
-        ) : null}
-        <Typography
-          variant="h6"
-          component="div"
+      <Toolbar
+        sx={{
+          px: 2.5,
+          py: 2.5,
+          minHeight: '76px !important',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.75,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          background: mode === 'dark'
+            ? 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%)'
+            : 'linear-gradient(180deg, rgba(79,70,229,0.03) 0%, rgba(255,255,255,0) 100%)',
+        }}
+      >
+        <Box
           sx={{
-            fontWeight: 800,
-            letterSpacing: '0.5px',
-            maxWidth: 180,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            color: theme.palette.text.primary,
-            ...(!hasCustomProfile && {
-              background: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }),
+            width: 40,
+            height: 40,
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: hasCustomProfile && profile?.logoUrl
+              ? 'transparent'
+              : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+            boxShadow: hasCustomProfile && profile?.logoUrl ? 'none' : '0 4px 14px rgba(79, 70, 229, 0.35)',
+            flexShrink: 0,
           }}
         >
-          {hasCustomProfile ? profile.name : 'CampusSphere'}
-        </Typography>
+          {hasCustomProfile && profile?.logoUrl ? (
+            <Box
+              component="img"
+              src={getFullLogoUrl(profile.logoUrl)}
+              alt="College Logo"
+              sx={{ width: 34, height: 34, objectFit: 'contain' }}
+            />
+          ) : (
+            <SchoolIcon sx={{ color: '#ffffff', fontSize: 22 }} />
+          )}
+        </Box>
+
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography
+            variant="subtitle1"
+            sx={{
+              fontWeight: 800,
+              fontSize: '1.08rem',
+              lineHeight: 1.2,
+              letterSpacing: '-0.02em',
+              color: 'text.primary',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              ...(!hasCustomProfile && {
+                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }),
+            }}
+          >
+            {hasCustomProfile ? profile.name : 'CampusSphere'}
+          </Typography>
+        </Box>
       </Toolbar>
       <Divider />
       <List sx={{ px: 2, py: 2, flexGrow: 1 }}>
         {visibleMenuItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive =
+            location.pathname === item.path ||
+            (item.path !== '/admin/dashboard' &&
+              item.path !== '/' &&
+              location.pathname.startsWith(item.path));
           return (
             <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
               <ListItemButton
@@ -303,44 +352,107 @@ export const AppLayout = () => {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      {/* Top Navbar */}
+      {/* ── Top Executive Glassmorphism Navbar ───────────────────────────── */}
       <AppBar
         position="fixed"
         elevation={0}
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
-          bgcolor: 'background.paper',
+          bgcolor: mode === 'dark' ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.85)',
+          backdropFilter: 'blur(16px)',
           borderBottom: `1px solid ${theme.palette.divider}`,
+          boxShadow: mode === 'dark' ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.03)',
         }}
       >
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' }, color: 'text.primary' }}
-          >
-            <MenuIcon />
-          </IconButton>
+        <Toolbar sx={{ justifyContent: 'space-between', px: { xs: 2, sm: 3 }, minHeight: '64px !important' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ display: { sm: 'none' }, color: 'text.primary' }}
+            >
+              <MenuIcon />
+            </IconButton>
 
-          <Typography variant="h6" color="text.primary" sx={{ fontWeight: 700 }}>
-            {menuItems.find((item) => item.path === location.pathname)?.text || 'CampusSphere'}
-          </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Typography variant="h6" color="text.primary" sx={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: '-0.01em' }}>
+                {menuItems.find((item) => item.path === location.pathname)?.text || 'CampusSphere'}
+              </Typography>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {/* Command Palette trigger */}
-            <Tooltip title="Command Palette (Ctrl+K)">
-              <IconButton onClick={() => setCmdPaletteOpen(true)} color="inherit" sx={{ color: 'text.secondary' }}>
-                <SearchIcon />
+              {activeSession && (
+                <Chip
+                  label={`${activeSession.academicYear} (${activeSession.semesterType} TERM)`}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    display: { xs: 'none', md: 'inline-flex' },
+                    fontWeight: 700,
+                    fontSize: '0.68rem',
+                    height: 22,
+                    borderColor: `${theme.palette.primary.main}40`,
+                    bgcolor: `${theme.palette.primary.main}0A`,
+                    color: theme.palette.primary.main,
+                  }}
+                />
+              )}
+            </Box>
+          </Box>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            {/* Command Palette Trigger Search Pill */}
+            <Box
+              onClick={() => setCmdPaletteOpen(true)}
+              sx={{
+                display: { xs: 'none', sm: 'flex' },
+                alignItems: 'center',
+                gap: 1.5,
+                px: 1.75,
+                py: 0.75,
+                borderRadius: '20px',
+                bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                border: `1px solid ${theme.palette.divider}`,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                  borderColor: theme.palette.primary.main,
+                },
+              }}
+            >
+              <SearchIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+              <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.secondary', userSelect: 'none' }}>
+                Search commands &amp; pages...
+              </Typography>
+              <Box
+                sx={{
+                  px: 0.8,
+                  py: 0.2,
+                  borderRadius: '6px',
+                  bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  color: 'text.secondary',
+                  fontFamily: theme.typography.mono.fontFamily,
+                }}
+              >
+                Ctrl K
+              </Box>
+            </Box>
+
+            {/* Mobile Search Icon Button */}
+            <Tooltip title="Search (Ctrl+K)">
+              <IconButton onClick={() => setCmdPaletteOpen(true)} sx={{ display: { xs: 'flex', sm: 'none' }, color: 'text.secondary' }}>
+                <SearchIcon fontSize="small" />
               </IconButton>
             </Tooltip>
 
-            {/* Palette Switcher Button */}
-            <Tooltip title="Choose theme color">
-              <IconButton onClick={handlePresetMenuOpen} color="inherit" sx={{ color: 'text.secondary' }}>
-                <PaletteIcon />
+            {/* Theme Color Palette Switcher */}
+            <Tooltip title="Theme Preset Color">
+              <IconButton onClick={handlePresetMenuOpen} sx={{ color: 'text.secondary' }}>
+                <PaletteIcon fontSize="small" />
               </IconButton>
             </Tooltip>
 
@@ -353,96 +465,92 @@ export const AppLayout = () => {
               PaperProps={{
                 sx: {
                   mt: 1.5,
-                  borderRadius: 2,
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                  borderRadius: 3,
+                  boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
                   p: 1,
+                  minWidth: 160,
                 },
               }}
             >
-              <Typography variant="caption" sx={{ px: 2, py: 1, display: 'block', fontWeight: 700, color: 'text.secondary' }}>
-                THEME COLOR
+              <Typography variant="caption" sx={{ px: 2, py: 1, display: 'block', fontWeight: 800, color: 'text.secondary' }}>
+                ACCENT PRESET
               </Typography>
-              <MenuItem
-                onClick={() => {
-                  setColorPreset('indigo');
-                  handlePresetMenuClose();
-                }}
-                selected={colorPreset === 'indigo'}
-                sx={{ borderRadius: 1, mb: 0.5 }}
-              >
+              <MenuItem onClick={() => { setColorPreset('indigo'); handlePresetMenuClose(); }} selected={colorPreset === 'indigo'} sx={{ borderRadius: 1.5, mb: 0.5 }}>
                 <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#4f46e5', mr: 1.5 }} />
                 Indigo Blue
               </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  setColorPreset('emerald');
-                  handlePresetMenuClose();
-                }}
-                selected={colorPreset === 'emerald'}
-                sx={{ borderRadius: 1, mb: 0.5 }}
-              >
+              <MenuItem onClick={() => { setColorPreset('emerald'); handlePresetMenuClose(); }} selected={colorPreset === 'emerald'} sx={{ borderRadius: 1.5, mb: 0.5 }}>
                 <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#059669', mr: 1.5 }} />
                 Emerald Green
               </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  setColorPreset('rose');
-                  handlePresetMenuClose();
-                }}
-                selected={colorPreset === 'rose'}
-                sx={{ borderRadius: 1, mb: 0.5 }}
-              >
+              <MenuItem onClick={() => { setColorPreset('rose'); handlePresetMenuClose(); }} selected={colorPreset === 'rose'} sx={{ borderRadius: 1.5, mb: 0.5 }}>
                 <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#db2777', mr: 1.5 }} />
                 Rose Pink
               </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  setColorPreset('amber');
-                  handlePresetMenuClose();
-                }}
-                selected={colorPreset === 'amber'}
-                sx={{ borderRadius: 1, mb: 0.5 }}
-              >
+              <MenuItem onClick={() => { setColorPreset('amber'); handlePresetMenuClose(); }} selected={colorPreset === 'amber'} sx={{ borderRadius: 1.5, mb: 0.5 }}>
                 <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#d97706', mr: 1.5 }} />
                 Amber Sunset
               </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  setColorPreset('violet');
-                  handlePresetMenuClose();
-                }}
-                selected={colorPreset === 'violet'}
-                sx={{ borderRadius: 1 }}
-              >
+              <MenuItem onClick={() => { setColorPreset('violet'); handlePresetMenuClose(); }} selected={colorPreset === 'violet'} sx={{ borderRadius: 1.5 }}>
                 <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#7c3aed', mr: 1.5 }} />
                 Royal Violet
               </MenuItem>
             </Menu>
 
-            {/* Theme Toggle Button */}
-            <Tooltip title="Toggle light/dark theme">
-              <IconButton onClick={toggleTheme} color="inherit" sx={{ color: 'text.secondary' }}>
-                {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+            {/* Dark/Light Mode Switcher */}
+            <Tooltip title="Toggle Light/Dark Theme">
+              <IconButton onClick={toggleTheme} sx={{ color: 'text.secondary' }}>
+                {mode === 'dark' ? <Brightness7Icon fontSize="small" /> : <Brightness4Icon fontSize="small" />}
               </IconButton>
             </Tooltip>
 
-            {/* Profile Avatar & Menu */}
-            <Tooltip title="Account settings">
-              <IconButton onClick={handleProfileMenuOpen} sx={{ p: 0.5 }}>
-                <Avatar
-                  sx={{
-                    width: 36,
-                    height: 36,
-                    bgcolor: theme.palette.primary.main,
-                    fontSize: '0.95rem',
-                    fontWeight: 600,
-                  }}
-                >
-                  {getInitials(user?.name)}
-                </Avatar>
-              </IconButton>
-            </Tooltip>
+            {/* Persistent Notification Bell & Dropdown Panel */}
+            <NotificationMenu />
 
+            {/* User Profile Pill Button */}
+            <Box
+              onClick={handleProfileMenuOpen}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.25,
+                p: 0.5,
+                pl: 1,
+                borderRadius: '24px',
+                bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                border: `1px solid ${theme.palette.divider}`,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                },
+              }}
+            >
+              <Box sx={{ display: { xs: 'none', md: 'flex' }, flexDirection: 'column', alignItems: 'flex-end' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: '0.8rem', lineHeight: 1.1, color: 'text.primary' }}>
+                  {currentUser?.name || 'User'}
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.62rem', color: theme.palette.primary.main }}>
+                  {currentUser?.role?.replace('_', ' ') || 'GUEST'}
+                </Typography>
+              </Box>
+
+              <Avatar
+                src={currentUser?.profilePicUrl || ''}
+                sx={{
+                  width: 34,
+                  height: 34,
+                  bgcolor: theme.palette.primary.main,
+                  fontSize: '0.85rem',
+                  fontWeight: 800,
+                  boxShadow: `0 2px 8px ${theme.palette.primary.main}40`,
+                }}
+              >
+                {!currentUser?.profilePicUrl && getInitials(currentUser?.name)}
+              </Avatar>
+            </Box>
+
+            {/* User Profile Dropdown Menu */}
             <Menu
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
@@ -452,32 +560,39 @@ export const AppLayout = () => {
               PaperProps={{
                 sx: {
                   mt: 1.5,
-                  borderRadius: 2,
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                  minWidth: 150,
+                  borderRadius: 3,
+                  boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                  minWidth: 200,
+                  p: 1,
                 },
               }}
             >
-              <Box sx={{ px: 2, py: 1.5, minWidth: 160 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                  {user?.name || 'User Profile'}
+              <Box sx={{ px: 1.5, py: 1, mb: 1 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                  {currentUser?.name || 'User Profile'}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, wordBreak: 'break-all' }}>
-                  {user?.email || 'user@college.edu'}
+                  {currentUser?.email || 'user@college.edu'}
                 </Typography>
                 <Chip
-                  label={user?.role?.replace('_', ' ') || 'GUEST'}
+                  label={currentUser?.role?.replace('_', ' ') || 'GUEST'}
                   size="small"
                   color="primary"
-                  sx={{ fontSize: '0.65rem', height: 20, fontWeight: 700 }}
+                  sx={{ fontSize: '0.65rem', height: 20, fontWeight: 800 }}
                 />
               </Box>
-              <Divider />
-              <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/'); }}>Profile</MenuItem>
-              <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/settings'); }}>Settings</MenuItem>
-              <Divider />
-              <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
-                <ListItemIcon sx={{ color: 'error.main', minWidth: 30 }}>
+              <Divider sx={{ my: 0.5 }} />
+              <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/profile'); }} sx={{ borderRadius: 1.5 }}>
+                <ListItemIcon sx={{ minWidth: 28 }}><PersonIcon fontSize="small" /></ListItemIcon>
+                My Profile
+              </MenuItem>
+              <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/settings'); }} sx={{ borderRadius: 1.5 }}>
+                <ListItemIcon sx={{ minWidth: 28 }}><SettingsIcon fontSize="small" /></ListItemIcon>
+                Account Settings
+              </MenuItem>
+              <Divider sx={{ my: 0.5 }} />
+              <MenuItem onClick={handleLogout} sx={{ color: 'error.main', borderRadius: 1.5 }}>
+                <ListItemIcon sx={{ color: 'error.main', minWidth: 28 }}>
                   <LogoutIcon fontSize="small" />
                 </ListItemIcon>
                 Logout

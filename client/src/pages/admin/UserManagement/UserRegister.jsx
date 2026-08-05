@@ -19,6 +19,8 @@ import {
   useBranchesQuery,
 } from '../../../queries/collegeQueries';
 import { useUsersQuery, useRegisterMutation } from '../../../queries/userQueries';
+import { useAuth } from '../../../contexts/AuthContext';
+import GroupSelect from '../../../components/common/GroupSelect';
 
 // Validation Schema for Registration Form
 const registerFormSchema = z.object({
@@ -30,6 +32,8 @@ const registerFormSchema = z.object({
   courseId: z.string().optional().or(z.null()).or(z.literal('')),
   branchId: z.string().optional().or(z.null()).or(z.literal('')),
   semester: z.number().optional().or(z.null()),
+  group: z.string().optional().or(z.null()).or(z.literal('')),
+  rollNumber: z.string().optional().or(z.null()).or(z.literal('')),
   shift: z.string().optional().or(z.null()).or(z.literal('')),
 }).superRefine((data, ctx) => {
   if (data.role === 'HOD') {
@@ -54,6 +58,7 @@ const registerFormSchema = z.object({
 
 export const UserRegister = ({ open, onClose }) => {
   const theme = useTheme();
+  const { user } = useAuth();
 
   // Queries & Mutations
   const { data: depts } = useDepartmentsQuery();
@@ -83,6 +88,7 @@ export const UserRegister = ({ open, onClose }) => {
       courseId: '',
       branchId: '',
       semester: 1,
+      rollNumber: '',
       shift: '',
     },
   });
@@ -99,6 +105,7 @@ export const UserRegister = ({ open, onClose }) => {
       setValue('courseId', '');
       setValue('branchId', '');
       setValue('semester', 1);
+      setValue('rollNumber', '');
       setValue('shift', '');
       setHodWarning('');
     }
@@ -186,6 +193,7 @@ export const UserRegister = ({ open, onClose }) => {
         courseId: data.courseId || null,
         branchId: data.branchId || null,
         semester: data.role === 'STUDENT' ? (data.semester || 1) : null,
+        rollNumber: data.role === 'STUDENT' && data.rollNumber ? data.rollNumber.trim() : null,
         shift: data.role === 'HOD' ? data.shift : null,
       };
 
@@ -201,6 +209,7 @@ export const UserRegister = ({ open, onClose }) => {
         courseId: '',
         branchId: '',
         semester: 1,
+        rollNumber: '',
         shift: '',
       });
       setHodWarning('');
@@ -258,8 +267,8 @@ export const UserRegister = ({ open, onClose }) => {
               helperText={errors.role?.message}
             >
               <MenuItem value="">Choose Role...</MenuItem>
-              <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
-              <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>
+              {user?.role !== 'COLLEGE_ADMIN' && <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>}
+              {user?.role !== 'COLLEGE_ADMIN' && <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>}
               <MenuItem value="HOD">HOD (Dept. Head)</MenuItem>
               <MenuItem value="FACULTY">Faculty</MenuItem>
               <MenuItem value="STUDENT">Student</MenuItem>
@@ -379,6 +388,21 @@ export const UserRegister = ({ open, onClose }) => {
               {selectedRole === 'STUDENT' && (
                 <>
                   <Box>
+                    <Typography component="label" htmlFor="reg-rollno-input" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                      Roll Number
+                    </Typography>
+                    <TextField
+                      id="reg-rollno-input"
+                      fullWidth
+                      placeholder="e.g. 2026-CSE-042"
+                      size="small"
+                      {...register('rollNumber')}
+                      error={!!errors.rollNumber}
+                      helperText={errors.rollNumber?.message}
+                    />
+                  </Box>
+
+                  <Box>
                     <Typography component="label" htmlFor="reg-course-select" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
                       Degree Course
                     </Typography>
@@ -452,6 +476,25 @@ export const UserRegister = ({ open, onClose }) => {
                       </TextField>
                     </Grid>
                   </Grid>
+
+                  <Box sx={{ mt: 2 }}>
+                    <Typography component="label" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                      Student Group / Section
+                    </Typography>
+                    <Controller
+                      name="group"
+                      control={control}
+                      render={({ field }) => (
+                        <GroupSelect
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          allowFullBatch={false}
+                          label="Student Group"
+                          sx={{ width: '100%' }}
+                        />
+                      )}
+                    />
+                  </Box>
                 </>
               )}
             </Box>

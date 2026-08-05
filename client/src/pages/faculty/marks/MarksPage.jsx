@@ -3,27 +3,29 @@ import {
   Box,
   Typography,
   Button,
-  Paper,
-  Snackbar,
-  Alert,
-  IconButton,
   CircularProgress,
   Chip,
   Grid,
-  TextField,
-  MenuItem,
+  Card,
+  useTheme,
+  Avatar,
+  Paper,
 } from '@mui/material';
 import {
-  ArrowBack as BackIcon,
   Save as SaveIcon,
   Download as DownloadIcon,
+  FactCheckOutlined,
+  CheckCircleOutlined,
+  CancelOutlined,
+  PeopleOutlined,
+  PercentOutlined,
+  LockOutlined,
+  LockOpenOutlined,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
 
 // Child presenter components
 import MarksFilters from './components/MarksFilters';
 import MarksEntryTable from './components/MarksEntryTable';
-import MarksSummaryCard from './components/MarksSummaryCard';
 
 // Backend hooks
 import {
@@ -35,10 +37,12 @@ import {
 } from '../../../queries/facultyQueries';
 import { useUsersQuery } from '../../../queries/userQueries';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useToast } from '../../../contexts/ToastContext';
 
 export const MarksPage = () => {
-  const navigate = useNavigate();
+  const theme = useTheme();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   // State Management
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
@@ -48,13 +52,9 @@ export const MarksPage = () => {
   const [sortBy, setSortBy] = useState('rollAsc');
 
   // Active Gradebook State
-  const [status, setStatus] = useState('DRAFT');
+  const [, setStatus] = useState('DRAFT');
   const [records, setRecords] = useState([]);
-
-  // Mode States
-  const [isEditing] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
   // 1. Fetch dashboard stats for assigned subjects list
   const { data: dashboardData, isLoading: isDashboardLoading } = useFacultyDashboardQuery();
@@ -68,7 +68,7 @@ export const MarksPage = () => {
   }, [assignedSubjects, selectedSubjectId]);
 
   const currentSubject = useMemo(() => {
-    return assignedSubjects.find(s => String(s.id) === String(selectedSubjectId)) || null;
+    return assignedSubjects.find((s) => String(s.id) === String(selectedSubjectId)) || null;
   }, [assignedSubjects, selectedSubjectId]);
 
   // Section options
@@ -97,30 +97,32 @@ export const MarksPage = () => {
         maxMarks: asg.maxMarks || 100,
         passingMarks: Math.round((asg.maxMarks || 100) * 0.4),
         assessmentType: 'ASSIGNMENT',
+        marksEntryEnabled: true, // Homework assignments are always editable by faculty
       }));
     }
 
     return rawExams
       .filter((ex) => {
-        if (assessmentType === 'EXAM') return ex.examType === 'MID_TERM' || ex.examType === 'END_TERM';
+        if (assessmentType === 'EXAM') return ex.examType === 'MID_TERM' || ex.examType === 'END_TERM' || ex.type === 'INTERNAL' || ex.type === 'EXTERNAL';
         if (assessmentType === 'QUIZ') return ex.examType === 'QUIZ';
-        if (assessmentType === 'PRACTICAL') return ex.examType === 'LAB';
+        if (assessmentType === 'PRACTICAL') return ex.examType === 'LAB' || ex.type === 'PRACTICAL' || ex.type === 'VIVA';
         return true;
       })
       .map((ex) => ({
         id: ex._id,
-        name: ex.name,
-        title: ex.name,
-        maxMarks: ex.maxMarks,
-        passingMarks: ex.passingMarks,
-        assessmentType: ex.examType,
+        name: ex.name || ex.title,
+        title: ex.name || ex.title,
+        maxMarks: ex.maxMarks || ex.totalMarks || 100,
+        passingMarks: ex.passingMarks || 40,
+        assessmentType: ex.examType || ex.type,
+        marksEntryEnabled: Boolean(ex.marksEntryEnabled), // Controlled by HOD
       }));
   }, [rawExams, rawAssignments, assessmentType]);
 
   // Auto-select first assessment item when list updates
   useEffect(() => {
     if (availableAssessments.length > 0) {
-      const exists = availableAssessments.some(a => String(a.id) === String(selectedAssessmentId));
+      const exists = availableAssessments.some((a) => String(a.id) === String(selectedAssessmentId));
       if (!exists) {
         setSelectedAssessmentId(availableAssessments[0].id);
       }
@@ -132,6 +134,9 @@ export const MarksPage = () => {
   const activeAssessment = useMemo(() => {
     return availableAssessments.find((asg) => String(asg.id) === String(selectedAssessmentId)) || null;
   }, [selectedAssessmentId, availableAssessments]);
+
+  // Check HOD Permission Lock
+  const isMarksEntryAllowed = activeAssessment ? Boolean(activeAssessment.marksEntryEnabled) : false;
 
   // 3. Fetch student roster
   const cleanDeptId = typeof user?.departmentId === 'object'
@@ -208,10 +213,6 @@ export const MarksPage = () => {
     return 'F';
   };
 
-  const showToast = (message, severity = 'success') => {
-    setToast({ open: true, message, severity });
-  };
-
   const handleSubjectChange = (subjectId) => {
     setSelectedSubjectId(subjectId);
     setSelectedSectionId('ALL');
@@ -232,6 +233,7 @@ export const MarksPage = () => {
   };
 
   const handleRecordChange = (studentId, field, value) => {
+    if (!isMarksEntryAllowed) return; // Prevent mutation if locked
     setRecords((prev) =>
       prev.map((rec) => {
         if (rec.studentId !== studentId) return rec;
@@ -279,13 +281,17 @@ export const MarksPage = () => {
 
   const handleSaveMarks = () => {
     if (!selectedAssessmentId) return;
+    if (!isMarksEntryAllowed) {
+      showToast('Marks entry is currently locked by HOD. You cannot submit marks.', { severity: 'error' });
+      return;
+    }
     setIsSubmitting(true);
 
     const gradedRecords = records.filter((rec) => rec.marksObtained !== '');
 
     if (gradedRecords.length === 0) {
       setIsSubmitting(false);
-      showToast('No grades entered to save.', 'info');
+      showToast('No grades entered to save.');
       return;
     }
 
@@ -303,36 +309,30 @@ export const MarksPage = () => {
 
     Promise.all(promises)
       .then(() => {
-        setIsSubmitting(false);
         setStatus('PUBLISHED');
-        showToast('Gradebook saved & published successfully!', 'success');
+        showToast('Marks submitted and saved to database successfully!');
         refetchResults();
       })
       .catch((err) => {
+        showToast(`Failed to save marks: ${err.response?.data?.message || err.message}`, { severity: 'error' });
+      })
+      .finally(() => {
         setIsSubmitting(false);
-        showToast(`Save failed: ${err.response?.data?.message || err.message}`, 'error');
       });
   };
 
-  const handleExport = (type) => {
-    const filename = `marks_${activeAssessment?.name || 'grades'}_${selectedSectionId}.${type === 'csv' ? 'csv' : 'txt'}`;
+  const handleExportCSV = () => {
+    if (records.length === 0) return;
+    const filename = `gradebook_${currentSubject?.code || selectedSubjectId}_${activeAssessment?.name || 'assessment'}.csv`;
+    let content = 'Roll Number,Student Name,Email,Marks Obtained,Max Marks,Grade,Remarks\n';
+
+    sortedRecords.forEach((r) => {
+      const scoreStr = r.marksObtained === null ? 'ABSENT' : r.marksObtained;
+      content += `"${r.rollNumber}","${r.name}","${r.email}","${scoreStr}","${r.maxMarks}","${r.grade}","${r.remarks}"\n`;
+    });
+
     const element = document.createElement('a');
-    let content = '';
-
-    if (type === 'csv') {
-      content = 'Roll Number,Student Name,Marks Obtained,Max Marks,Grade,Remarks\n';
-      records.forEach((rec) => {
-        content += `"${rec.rollNumber}","${rec.name}","${rec.marksObtained ?? 'ABSENT'}","${rec.maxMarks}","${rec.grade}","${rec.remarks || ''}"\n`;
-      });
-      element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(content));
-    } else {
-      content = `--- GRADEBOOK REPORT ---\nAssessment: ${activeAssessment?.name || 'N/A'}\nSubject: ${currentSubject?.name}\nSection: ${selectedSectionId}\n\n`;
-      records.forEach((rec) => {
-        content += `${rec.rollNumber} - ${rec.name}: ${rec.marksObtained ?? 'ABSENT'}/${rec.maxMarks} (${rec.grade})\n`;
-      });
-      element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
-    }
-
+    element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(content));
     element.setAttribute('download', filename);
     element.style.display = 'none';
     document.body.appendChild(element);
@@ -340,181 +340,238 @@ export const MarksPage = () => {
     document.body.removeChild(element);
   };
 
+  const totalStudents = sortedRecords.length;
+  const gradedStudents = sortedRecords.filter((r) => r.marksObtained !== '' && r.marksObtained !== null);
+  const passCount = gradedStudents.filter((r) => (Number(r.marksObtained) / (r.maxMarks || 100)) >= 0.4).length;
+  const failCount = gradedStudents.length - passCount;
+  const avgScore = gradedStudents.length > 0
+    ? (gradedStudents.reduce((acc, r) => acc + Number(r.marksObtained), 0) / gradedStudents.length).toFixed(1)
+    : 0;
+
+  if (isDashboardLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress size={36} />
+      </Box>
+    );
+  }
+
   const filterSubjects = assignedSubjects.map((sub) => ({
     id: sub.id,
     name: sub.name,
     code: sub.code,
-    credits: sub.credits,
   }));
 
   return (
-    <Box sx={{ flexGrow: 1, p: { xs: 1, sm: 3 } }}>
-      {/* ── Page Header ── */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <IconButton
-            onClick={() => navigate('/faculty')}
-            size="small"
-            sx={{ bgcolor: 'action.hover', '&:hover': { bgcolor: 'action.selected' } }}
-          >
-            <BackIcon fontSize="small" />
-          </IconButton>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+      {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
+      <Card
+        sx={{
+          p: 3.5,
+          borderRadius: '16px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
+          boxShadow: 'none',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
-              Marks Entry & Gradebooks
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+              <Chip
+                icon={<FactCheckOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+                label="FACULTY EXAM MARKS & EVALUATION DESK"
+                size="small"
+                sx={{
+                  bgcolor: `${theme.palette.primary.main}15`,
+                  color: theme.palette.primary.main,
+                  fontWeight: 800,
+                  fontFamily: theme.typography.mono.fontFamily,
+                  letterSpacing: '0.05em',
+                  fontSize: '0.7rem',
+                }}
+              />
+            </Box>
+            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+              Student Marks & Gradebook Control Desk
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Grade exams and assignments, calculate averages, and save marks to MongoDB
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+              View student exam scores, inspect grade distributions, and submit student marks when unlocked by the Head of Department (HOD).
             </Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={handleExportCSV}
+              disabled={records.length === 0}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+            >
+              Export CSV Gradebook
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<SaveIcon />}
+              onClick={handleSaveMarks}
+              disabled={!isMarksEntryAllowed || isSubmitting || submitResultMutation.isPending}
+              sx={{
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontWeight: 700,
+                background: theme.palette.primary.gradient || theme.palette.primary.main,
+                color: '#ffffff',
+              }}
+            >
+              {isSubmitting || submitResultMutation.isPending ? 'Submitting...' : 'Save & Publish Marks'}
+            </Button>
           </Box>
         </Box>
-        {selectedAssessmentId && records.length > 0 && (
-          <Button
-            variant="outlined"
-            startIcon={<DownloadIcon />}
-            onClick={() => handleExport('csv')}
-            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}
-          >
-            Export CSV
-          </Button>
-        )}
-      </Box>
+      </Card>
 
-      {/* ── Filter Selectors Row ── */}
-      <Paper sx={{ p: 3, mb: 4, borderRadius: 3 }} elevation={0} variant="outlined">
-        {isDashboardLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-            <CircularProgress size={24} />
-          </Box>
-        ) : (
-          <MarksFilters
-            subjects={filterSubjects}
-            selectedSubjectId={selectedSubjectId}
-            onSubjectChange={handleSubjectChange}
-            sections={sectionsForSubject}
-            selectedSectionId={selectedSectionId}
-            onSectionChange={handleSectionChange}
-            assessmentType={assessmentType}
-            onTypeChange={handleTypeChange}
-            assessments={availableAssessments}
-            selectedAssessmentId={selectedAssessmentId}
-            onAssessmentChange={handleAssessmentChange}
-          />
-        )}
-      </Paper>
-
-      {/* ── Main Gradebook Workspace ── */}
-      {selectedAssessmentId ? (
-        isStudentsLoading || isResultsLoading || isExamsLoading || isAssignmentsLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-            <CircularProgress />
-          </Box>
-        ) : records.length > 0 ? (
-          <Grid container spacing={3}>
-            {/* Left: Interactive Marks Entry Table */}
-            <Grid item xs={12} lg={8}>
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3.5 }}>
-                {/* Header status bar */}
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                      Gradebook Roster ({activeAssessment?.name})
-                    </Typography>
-                    <Chip label={status} color={status === 'PUBLISHED' ? 'success' : 'default'} size="small" sx={{ fontWeight: 700 }} />
-                  </Box>
-
-                  {/* Actions buttons & Sort By Selector */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <TextField
-                      select
-                      size="small"
-                      label="Sort By"
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      sx={{
-                        width: 160,
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 2,
-                          fontSize: '0.85rem',
-                        },
-                      }}
-                      InputLabelProps={{ shrink: true }}
-                    >
-                      <MenuItem value="rollAsc">Roll Number ↑</MenuItem>
-                      <MenuItem value="rollDesc">Roll Number ↓</MenuItem>
-                      <MenuItem value="nameAsc">Name A-Z</MenuItem>
-                      <MenuItem value="nameDesc">Name Z-A</MenuItem>
-                      <MenuItem value="marksAsc">Marks ↑</MenuItem>
-                      <MenuItem value="marksDesc">Marks ↓</MenuItem>
-                    </TextField>
-
-                    <Button
-                      variant="contained"
-                      startIcon={<SaveIcon />}
-                      onClick={handleSaveMarks}
-                      disabled={isSubmitting}
-                      sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2, bgcolor: 'success.main', '&:hover': { bgcolor: 'success.dark' } }}
-                    >
-                      {isSubmitting ? 'Saving...' : 'Save Gradebook'}
-                    </Button>
-                  </Box>
-                </Box>
-
-                <MarksEntryTable
-                  records={sortedRecords}
-                  isEditing={isEditing}
-                  onMarksChange={(studentId, marks) => handleRecordChange(studentId, 'marksObtained', marks)}
-                  onRemarksChange={(studentId, remarks) => handleRecordChange(studentId, 'remarks', remarks)}
-                  onAbsentToggle={(studentId, isAbsent) => {
-                    handleRecordChange(studentId, 'marksObtained', isAbsent ? null : 0);
-                  }}
-                />
-              </Paper>
-            </Grid>
-
-            {/* Right: Dynamic Summary Performance Card */}
-            <Grid item xs={12} lg={4}>
-              <MarksSummaryCard records={records} />
-            </Grid>
-          </Grid>
-        ) : (
-          <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderRadius: 3 }}>
-            <Typography variant="body1" color="text.secondary">
-              No students found registered for section {selectedSectionId}.
-            </Typography>
-          </Paper>
-        )
-      ) : (
-        /* Empty Workflow state */
-        <Paper
-          variant="outlined"
+      {/* ── 2. HOD Permission Lock / Unlock Alert Banner ─────────────────── */}
+      {activeAssessment && (
+        <Card
           sx={{
-            p: 6,
-            textAlign: 'center',
-            borderRadius: 3.5,
-            bgcolor: 'background.paper',
+            p: 2.5,
+            borderRadius: '14px',
+            border: `1px solid ${isMarksEntryAllowed ? theme.palette.signal.success : theme.palette.warning.main}`,
+            bgcolor: isMarksEntryAllowed ? `${theme.palette.signal.success}0A` : `${theme.palette.warning.main}0A`,
+            boxShadow: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
           }}
         >
-          <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>
-            Select Assessment Item
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Choose a subject, section, assessment type (Assignment, Exam, Quiz, Practical), and an item to open the gradebook roster.
-          </Typography>
-        </Paper>
+          <Avatar sx={{ bgcolor: isMarksEntryAllowed ? `${theme.palette.signal.success}20` : `${theme.palette.warning.main}20`, color: isMarksEntryAllowed ? theme.palette.signal.success : theme.palette.warning.main }}>
+            {isMarksEntryAllowed ? <LockOpenOutlined /> : <LockOutlined />}
+          </Avatar>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: isMarksEntryAllowed ? theme.palette.signal.success : theme.palette.warning.main }}>
+              {isMarksEntryAllowed ? '🔓 MARKS ENTRY UNLOCKED BY HOD' : '🔒 MARKS ENTRY LOCKED BY HOD (READ-ONLY MODE)'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.2 }}>
+              {isMarksEntryAllowed
+                ? 'You are authorized by the Head of Department to enter, edit, and submit exam marks for this assessment.'
+                : 'Examinations are scheduled and controlled by the HOD. Marks entry for this assessment is currently locked. You can view existing student marks in read-only mode. Contact HOD to unlock marks entry.'}
+            </Typography>
+          </Box>
+        </Card>
       )}
 
-      {/* ── Toast Feedback notification ── */}
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={4000}
-        onClose={() => setToast({ ...toast, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert severity={toast.severity} variant="filled" sx={{ width: '100%', borderRadius: 2 }}>
-          {toast.message}
-        </Alert>
-      </Snackbar>
+      {/* ── 3. KPI Summary Grid ────────────────────────────────────────────── */}
+      <Grid container spacing={2.5}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+                  EVALUATED STUDENTS
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {totalStudents}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
+                <PeopleOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+                  PASSED STUDENTS (≥40%)
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {passCount}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.signal.success}15`, color: theme.palette.signal.success }}>
+                <CheckCircleOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
+                  FAILED / REMEDIAL (&lt;40%)
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {failCount}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.signal.error}15`, color: theme.palette.signal.error }}>
+                <CancelOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.primary.main }}>
+                  CLASS AVERAGE SCORE
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.primary.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {avgScore}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
+                <PercentOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* ── 4. Filters Bar ──────────────────────────────────────────────── */}
+      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <MarksFilters
+          subjects={filterSubjects}
+          selectedSubjectId={selectedSubjectId}
+          onSubjectChange={handleSubjectChange}
+          sections={sectionsForSubject}
+          selectedSectionId={selectedSectionId}
+          onSectionChange={handleSectionChange}
+          assessmentType={assessmentType}
+          onTypeChange={handleTypeChange}
+          assessments={availableAssessments}
+          selectedAssessmentId={selectedAssessmentId}
+          onAssessmentChange={handleAssessmentChange}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+        />
+      </Card>
+
+      {/* ── 5. Marks Entry Table Roster ────────────────────────────────────── */}
+      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        {isStudentsLoading || isResultsLoading || isExamsLoading || isAssignmentsLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : sortedRecords.length === 0 ? (
+          <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', borderRadius: '12px' }}>
+            <Typography variant="body1" color="text.secondary">
+              Select a subject and active exam to view student marks.
+            </Typography>
+          </Paper>
+        ) : (
+          <MarksEntryTable
+            records={sortedRecords}
+            onRecordChange={handleRecordChange}
+            disabled={!isMarksEntryAllowed || isSubmitting}
+          />
+        )}
+      </Card>
     </Box>
   );
 };

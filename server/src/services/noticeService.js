@@ -24,6 +24,38 @@ const buildVisibilityQuery = (user) => {
   };
 };
 
+const User = require('../models/User');
+const { createBulkNotifications } = require('./notificationService');
+
+const notifyNoticeRecipients = async (notice, authorId) => {
+  if (notice.status !== 'PUBLISHED') {
+    return;
+  }
+  try {
+    const filter = { isActive: true };
+    if (notice.targetRoles && notice.targetRoles.length > 0) {
+      filter.role = { $in: notice.targetRoles };
+    }
+    if (notice.targetDepartments && notice.targetDepartments.length > 0) {
+      filter.departmentId = { $in: notice.targetDepartments };
+    }
+
+    const users = await User.find(filter).select('_id');
+    const recipientIds = users.map((u) => u._id);
+
+    await createBulkNotifications(recipientIds, {
+      title: `📢 Notice: ${notice.title}`,
+      message: notice.content ? notice.content.substring(0, 120) : 'A new notice has been published on the board.',
+      category: 'NOTICE',
+      link: '/student/notices',
+      senderId: authorId,
+      metadata: { noticeId: notice._id },
+    });
+  } catch (err) {
+    logger.error(`Failed to dispatch notice notifications: ${err.message}`);
+  }
+};
+
 /**
  * Creates a new notice.
  */
@@ -34,6 +66,10 @@ const createNotice = async (noticeData, authorId) => {
     publishedBy: authorId,
     publishedAt: isPublished ? new Date() : null,
   });
+
+  if (isPublished) {
+    await notifyNoticeRecipients(newNotice, authorId);
+  }
 
   logger.info(`[Notice Created] ID: ${newNotice._id} - Status: ${newNotice.status} - By: ${authorId}`);
   return newNotice;

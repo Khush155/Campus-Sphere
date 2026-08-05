@@ -2,29 +2,30 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Grid,
-  Paper,
   Typography,
   Button,
-  Snackbar,
-  Alert,
-  IconButton,
   CircularProgress,
+  Card,
+  Chip,
+  useTheme,
+  Avatar,
 } from '@mui/material';
 import {
-  ArrowBack as BackIcon,
   Save as SubmitIcon,
   RestartAlt as ResetIcon,
-  CalendarToday as CalendarIcon,
   Download as DownloadIcon,
+  FactCheckOutlined,
+  CheckCircleOutlined,
+  CancelOutlined,
+  PeopleOutlined,
+  PercentOutlined,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
 
 // Attendance components
 import SubjectSelector from './components/SubjectSelector';
 import SectionSelector from './components/SectionSelector';
 import DateSelector from './components/DateSelector';
 import StudentAttendanceTable from './components/StudentAttendanceTable';
-import AttendanceSummaryCard from './components/AttendanceSummaryCard';
 
 // Backend hooks
 import {
@@ -34,6 +35,7 @@ import {
 } from '../../../queries/facultyQueries';
 import { useUsersQuery } from '../../../queries/userQueries';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useToast } from '../../../contexts/ToastContext';
 
 const formatDateToISO = (date) => {
   const d = new Date(date);
@@ -44,17 +46,15 @@ const formatDateToISO = (date) => {
 };
 
 export const AttendancePage = () => {
-  const navigate = useNavigate();
+  const theme = useTheme();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   // State Management
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedSectionId, setSelectedSectionId] = useState('ALL');
   const [selectedDate, setSelectedDate] = useState(formatDateToISO(new Date()));
   const [attendanceRecords, setAttendanceRecords] = useState({});
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
-  const [toastSeverity, setToastSeverity] = useState('success');
 
   // 1. Fetch dashboard stats for assigned subjects list
   const { data: dashboardData, isLoading: isDashboardLoading } = useFacultyDashboardQuery();
@@ -69,7 +69,7 @@ export const AttendancePage = () => {
 
   // Selected subject object
   const currentSubject = useMemo(() => {
-    return assignedSubjects.find(s => String(s.id) === String(selectedSubjectId)) || null;
+    return assignedSubjects.find((s) => String(s.id) === String(selectedSubjectId)) || null;
   }, [assignedSubjects, selectedSubjectId]);
 
   // Section options for current subject
@@ -99,7 +99,7 @@ export const AttendancePage = () => {
     return params;
   }, [cleanDeptId, selectedSectionId]);
 
-  const { data: studentsResponse, isLoading: isStudentsLoading } = useUsersQuery(userQueryParams);
+  const { data: studentsResponse } = useUsersQuery(userQueryParams);
   const rawStudents = useMemo(() => {
     if (Array.isArray(studentsResponse)) return studentsResponse;
     return studentsResponse?.data || [];
@@ -214,15 +214,11 @@ export const AttendancePage = () => {
 
     submitAttendanceMutation.mutate(payload, {
       onSuccess: () => {
-        setToastMsg('Attendance sheet saved and updated successfully!');
-        setToastSeverity('success');
-        setIsSubmitted(true);
+        showToast('Attendance sheet submitted and updated successfully!');
         refetchAttendance();
       },
       onError: (err) => {
-        setToastMsg(`Attendance submission failed: ${err.response?.data?.message || err.message}`);
-        setToastSeverity('error');
-        setIsSubmitted(true);
+        showToast(`Attendance submission failed: ${err.response?.data?.message || err.message}`, { severity: 'error' });
       },
     });
   };
@@ -255,8 +251,8 @@ export const AttendancePage = () => {
 
   if (isDashboardLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-        <CircularProgress />
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress size={36} />
       </Box>
     );
   }
@@ -270,151 +266,188 @@ export const AttendancePage = () => {
   }));
 
   return (
-    <Box sx={{ flexGrow: 1, p: { xs: 1, sm: 3 } }}>
-      {/* ── Page Header ── */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <IconButton onClick={() => navigate('/faculty')} size="small" sx={{ bgcolor: 'action.hover', '&:hover': { bgcolor: 'action.selected' } }}>
-            <BackIcon fontSize="small" />
-          </IconButton>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+      {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
+      <Card
+        sx={{
+          p: 3.5,
+          borderRadius: '16px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
+          boxShadow: 'none',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
-              Daily Attendance
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+              <Chip
+                icon={<FactCheckOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+                label="FACULTY LECTURE ATTENDANCE & SESSION MARKING DESK"
+                size="small"
+                sx={{
+                  bgcolor: `${theme.palette.primary.main}15`,
+                  color: theme.palette.primary.main,
+                  fontWeight: 800,
+                  fontFamily: theme.typography.mono.fontFamily,
+                  letterSpacing: '0.05em',
+                  fontSize: '0.7rem',
+                }}
+              />
+            </Box>
+            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+              Faculty Attendance & Daily Sessions
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Mark student attendance status, view statistics overview, and save records to MongoDB
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+              Mark daily class attendance, track Present/Absent/Medical Leave statuses, export attendance rosters, and sync session logs with department records.
             </Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={() => handleExport('csv')}
+              disabled={formattedStudents.length === 0}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+            >
+              Export CSV Roster
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<SubmitIcon />}
+              onClick={handleSubmit}
+              disabled={!canSubmit || submitAttendanceMutation.isPending}
+              sx={{
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontWeight: 700,
+                background: theme.palette.primary.gradient || theme.palette.primary.main,
+                color: '#ffffff',
+              }}
+            >
+              {submitAttendanceMutation.isPending ? 'Saving...' : 'Submit Attendance Sheet'}
+            </Button>
           </Box>
         </Box>
-        {isFormReady && formattedStudents.length > 0 && (
-          <Box sx={{ display: 'flex', gap: 1.5 }}>
-            <Button variant="outlined" size="small" startIcon={<DownloadIcon />} onClick={() => handleExport('csv')} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>
-              Export CSV
-            </Button>
-            <Button variant="outlined" size="small" startIcon={<DownloadIcon />} onClick={() => handleExport('txt')} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>
-              Export Text
-            </Button>
-          </Box>
-        )}
-      </Box>
+      </Card>
 
-      {/* ── Cascade Selectors Row ── */}
-      <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }} elevation={0} variant="outlined">
-        <Grid container spacing={3}>
+      {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
+      <Grid container spacing={2.5}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+                  ENROLLED STUDENTS
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {totalStudents}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
+                <PeopleOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+                  PRESENT STUDENTS
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {summaryCounts.present}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.signal.success}15`, color: theme.palette.signal.success }}>
+                <CheckCircleOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
+                  ABSENT STUDENTS
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {summaryCounts.absent}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.signal.error}15`, color: theme.palette.signal.error }}>
+                <CancelOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.primary.main }}>
+                  ATTENDANCE RATE
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.primary.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {attendancePercentage}%
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
+                <PercentOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* ── 3. Controls Bar: Subject, Section & Date ────────────────────────── */}
+      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Grid container spacing={2.5} alignItems="center">
           <Grid item xs={12} md={4}>
             <SubjectSelector subjects={filterSubjects} selectedSubjectId={selectedSubjectId} onSubjectChange={handleSubjectChange} />
           </Grid>
           <Grid item xs={12} md={4}>
-            <SectionSelector sections={sectionsForSubject} selectedSectionId={selectedSectionId} onSectionChange={handleSectionChange} disabled={!selectedSubjectId} />
+            <SectionSelector sections={sectionsForSubject} selectedSectionId={selectedSectionId} onSectionChange={handleSectionChange} />
           </Grid>
           <Grid item xs={12} md={4}>
-            <DateSelector selectedDate={selectedDate} onDateChange={handleDateChange} disabled={!selectedSectionId} />
+            <DateSelector selectedDate={selectedDate} onDateChange={handleDateChange} />
           </Grid>
         </Grid>
-      </Paper>
+      </Card>
 
-      {/* ── Form Workflow Area ── */}
-      {isFormReady ? (
-        isStudentsLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-            <CircularProgress />
-          </Box>
-        ) : formattedStudents.length > 0 ? (
-          <Grid container spacing={3}>
-            {/* Left Column: Student table */}
-            <Grid item xs={12} lg={8}>
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3.5 }}>
-                <StudentAttendanceTable
-                  students={formattedStudents}
-                  attendanceRecords={attendanceRecords}
-                  onStatusChange={handleStatusChange}
-                  onMarkAll={handleMarkAll}
-                />
-              </Paper>
-            </Grid>
-
-            {/* Right Column: Dynamic Statistics Card */}
-            <Grid item xs={12} lg={4}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <AttendanceSummaryCard
-                  present={summaryCounts.present}
-                  absent={summaryCounts.absent}
-                  medicalLeave={summaryCounts.medicalLeave}
-                  dutyLeave={summaryCounts.dutyLeave}
-                  percentage={attendancePercentage}
-                />
-
-                {/* Reset & Submit Buttons */}
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <Button
-                    variant="outlined"
-                    startIcon={<ResetIcon />}
-                    onClick={handleReset}
-                    fullWidth
-                    sx={{ textTransform: 'none', fontWeight: 700, py: 1.5, borderRadius: 2 }}
-                  >
-                    Reset Form
-                  </Button>
-                  <Button
-                    variant="contained"
-                    startIcon={<SubmitIcon />}
-                    onClick={handleSubmit}
-                    disabled={!canSubmit || submitAttendanceMutation.isPending}
-                    fullWidth
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: 700,
-                      py: 1.5,
-                      borderRadius: 2,
-                      bgcolor: 'primary.main',
-                      '&:hover': { bgcolor: 'primary.dark' },
-                    }}
-                  >
-                    {submitAttendanceMutation.isPending ? 'Saving...' : 'Submit Sheet'}
-                  </Button>
-                </Box>
-              </Box>
-            </Grid>
-          </Grid>
-        ) : (
-          <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', borderRadius: 3 }}>
-            <Typography variant="h6" fontWeight={700} sx={{ mb: 1 }}>No Students Found</Typography>
-            <Typography variant="body2" color="text.secondary">
-              No registered students found for the selected subject and section filter. Ensure students are enrolled in this department.
+      {/* ── 4. Student Attendance Table ────────────────────────────────────── */}
+      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5, flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+              Student Attendance Roster — {currentSubject?.name || 'Subject'}
             </Typography>
-          </Paper>
-        )
-      ) : (
-        /* Empty workflow state */
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 8,
-            textAlign: 'center',
-            borderRadius: 3.5,
-            bgcolor: 'background.paper',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <CalendarIcon sx={{ fontSize: 50, color: 'text.secondary', mb: 2 }} />
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-            Class Roster Waiting
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 400 }}>
-            Select a subject, section, and date above to load the student list sheet and mark daily attendance.
-          </Typography>
-        </Paper>
-      )}
+            <Typography variant="caption" color="text.secondary">
+              Date: <strong>{selectedDate}</strong> • Section: <strong>{selectedSectionId}</strong>
+            </Typography>
+          </Box>
 
-      {/* ── Toast Notifications ── */}
-      <Snackbar open={isSubmitted} autoHideDuration={4000} onClose={() => setIsSubmitted(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-        <Alert severity={toastSeverity} onClose={() => setIsSubmitted(false)} variant="filled" sx={{ width: '100%', borderRadius: 2 }}>
-          {toastMsg}
-        </Alert>
-      </Snackbar>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button size="small" variant="outlined" startIcon={<ResetIcon />} onClick={handleReset} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}>
+              Reset All Present
+            </Button>
+          </Box>
+        </Box>
+
+        <StudentAttendanceTable
+          students={formattedStudents}
+          attendanceRecords={attendanceRecords}
+          onStatusChange={handleStatusChange}
+          onMarkAll={handleMarkAll}
+          disabled={submitAttendanceMutation.isPending}
+        />
+      </Card>
     </Box>
   );
 };

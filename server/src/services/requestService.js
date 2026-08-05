@@ -6,6 +6,7 @@ const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
 const logger = require('../utils/logger');
 const { logAuditEvent } = require('../utils/auditLogger');
+const { createBulkNotifications } = require('./notificationService');
 
 // Helper to generate a 6-digit PIN
 const generatePin = () => {
@@ -61,6 +62,22 @@ const createRequest = async (requestData, requesterDeptId, createdBy, req) => {
     status: 'PENDING',
   });
 
+  // Notify target department HOD
+  try {
+    const targetHods = await User.find({ role: 'HOD', departmentId: faculty.departmentId }).select('_id');
+    const hodIds = targetHods.map((h) => h._id);
+    await createBulkNotifications(hodIds, {
+      title: `🔄 Cross-Dept Request Received`,
+      message: `A request for faculty ${faculty.name} has been submitted for ${subject.name}.`,
+      category: 'CROSS_DEPT',
+      link: '/hod/requests',
+      senderId: createdBy,
+      metadata: { requestId: crossRequest._id },
+    });
+  } catch (err) {
+    // Non-blocking
+  }
+
   await logAuditEvent({
     actorId: createdBy,
     action: 'CROSS_DEPT_REQUEST_CREATED',
@@ -108,6 +125,22 @@ const respondToRequest = async (requestId, targetDeptId, action, responseNotes, 
 
   if (responseNotes) {crossRequest.responseNotes = responseNotes;}
   await crossRequest.save();
+
+  // Notify requesting department HOD
+  try {
+    const requesterHods = await User.find({ role: 'HOD', departmentId: crossRequest.requesterDeptId }).select('_id');
+    const hodIds = requesterHods.map((h) => h._id);
+    await createBulkNotifications(hodIds, {
+      title: `🔄 Cross-Dept Request ${action === 'APPROVE' ? 'Approved' : 'Rejected'}`,
+      message: `Your cross-department request for faculty allocation was ${action === 'APPROVE' ? 'approved' : 'rejected'}.`,
+      category: 'CROSS_DEPT',
+      link: '/hod/requests',
+      senderId: actorId,
+      metadata: { requestId: crossRequest._id, action },
+    });
+  } catch (err) {
+    // Non-blocking
+  }
 
   await logAuditEvent({
     actorId,

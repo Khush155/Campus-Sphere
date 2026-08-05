@@ -6,6 +6,7 @@ const notificationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'Recipient reference is required'],
+      index: true,
     },
     title: {
       type: String,
@@ -20,19 +21,42 @@ const notificationSchema = new mongoose.Schema(
     category: {
       type: String,
       required: [true, 'Notification category is required'],
-      enum: {
-        values: ['ACADEMIC', 'ADMINISTRATIVE', 'GENERAL'],
-        message: 'Category must be ACADEMIC, ADMINISTRATIVE, or GENERAL',
-      },
+      enum: [
+        'ACADEMIC',
+        'ADMINISTRATIVE',
+        'GENERAL',
+        'NOTICE',
+        'LEAVE',
+        'CROSS_DEPT',
+        'ATTENDANCE_LOW',
+        'MARKS',
+        'ASSIGNMENT',
+        'FACULTY_ASSIGNMENT',
+        'FEE_PAYMENT',
+        'SYSTEM',
+      ],
       default: 'GENERAL',
+    },
+    link: {
+      type: String,
+      default: '',
+      trim: true,
     },
     isRead: {
       type: Boolean,
       default: false,
+      index: true,
+    },
+    readAt: {
+      type: Date,
+      default: null,
     },
     senderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
+    },
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
     },
   },
   {
@@ -40,8 +64,8 @@ const notificationSchema = new mongoose.Schema(
   }
 );
 
-// Indexes to speed up recipient query searches
-notificationSchema.index({ recipientId: 1, isRead: 1 });
+// Compound index for fast queries by recipient and unread state
+notificationSchema.index({ recipientId: 1, isRead: 1, createdAt: -1 });
 
 const Notification = mongoose.model('Notification', notificationSchema);
 

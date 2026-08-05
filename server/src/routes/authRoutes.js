@@ -53,7 +53,7 @@ router.get('/detect-role/:identifier', asyncHandler(authController.detectRole));
 router.post(
   '/register',
   authMiddleware,
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   asyncHandler(authController.register)
 );
 

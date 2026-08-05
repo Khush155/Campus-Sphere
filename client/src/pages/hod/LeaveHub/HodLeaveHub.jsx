@@ -1,17 +1,33 @@
-/* eslint-disable */
 import React, { useState, useMemo } from 'react';
-import { 
-  Box, Typography, Button, Dialog, DialogTitle, DialogContent, 
-  DialogActions, TextField, MenuItem, Chip, IconButton, Tooltip, Snackbar, Alert,
-  Grid, Card, CardContent, useTheme
+import {
+  Box,
+  Typography,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  Chip,
+  Grid,
+  Card,
+  useTheme,
+  CircularProgress,
+  Avatar,
+  Tooltip,
 } from '@mui/material';
 import {
-  CheckCircleOutlined, CancelOutlined, HourglassTopOutlined,
-  SearchOutlined, EventOutlined, PersonOutlined
+  SearchOutlined,
+  EventNoteOutlined,
+  RefreshOutlined,
+  CheckOutlined,
+  CloseOutlined,
 } from '@mui/icons-material';
 import DataTable from '../../../components/common/DataTable';
 import EmptyState from '../../../components/common/EmptyState';
 import { useLeaveQuery, useUpdateLeaveStatusMutation } from '../../../queries/hodQueries';
+import { useToast } from '../../../contexts/ToastContext';
 
 const LEAVE_TYPES = [
   { value: 'SICK', label: 'Sick Leave' },
@@ -21,8 +37,9 @@ const LEAVE_TYPES = [
   { value: 'MEDICAL', label: 'Medical Exemption Leave' },
 ];
 
-const HodLeaveHub = () => {
+export const HodLeaveHub = () => {
   const theme = useTheme();
+  const { showToast } = useToast();
 
   // Modal States for Approval & Rejection
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
@@ -36,10 +53,6 @@ const HodLeaveHub = () => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Toast Notification State
-  const [toast, setToast] = useState({ open: false, msg: '', severity: 'success' });
-  const showToast = (msg, severity = 'success') => setToast({ open: true, msg, severity });
-
   // Debounce search
   React.useEffect(() => {
     const handler = setTimeout(() => {
@@ -49,19 +62,19 @@ const HodLeaveHub = () => {
   }, [search]);
 
   // Query leave requests for department faculty
-  const { data: leaves = [], isLoading, isError } = useLeaveQuery({
+  const { data: leaves = [], isLoading, isError, refetch } = useLeaveQuery({
     status: statusFilter || undefined,
     leaveType: typeFilter || undefined,
   });
 
   const updateStatusMutation = useUpdateLeaveStatusMutation();
 
-  // Client-side search filtering (Faculty Name or Email)
+  // Client-side search filtering (Faculty Name, Email, or Reason)
   const filteredLeaves = useMemo(() => {
     if (!leaves) return [];
     if (!debouncedSearch) return leaves;
     const q = debouncedSearch.toLowerCase();
-    return leaves.filter(r => {
+    return leaves.filter((r) => {
       const name = r.userId?.name?.toLowerCase() || '';
       const email = r.userId?.email?.toLowerCase() || '';
       const reason = r.reason?.toLowerCase() || '';
@@ -72,9 +85,9 @@ const HodLeaveHub = () => {
   // Compute KPI Stats
   const stats = useMemo(() => {
     const total = leaves.length;
-    const pending = leaves.filter(l => l.status === 'PENDING').length;
-    const approved = leaves.filter(l => l.status === 'APPROVED').length;
-    const rejected = leaves.filter(l => l.status === 'REJECTED').length;
+    const pending = leaves.filter((l) => l.status === 'PENDING').length;
+    const approved = leaves.filter((l) => l.status === 'APPROVED').length;
+    const rejected = leaves.filter((l) => l.status === 'REJECTED').length;
     return { total, pending, approved, rejected };
   }, [leaves]);
 
@@ -93,14 +106,15 @@ const HodLeaveHub = () => {
   const handleApproveConfirm = () => {
     if (selectedLeave) {
       updateStatusMutation.mutate(
-        { id: selectedLeave._id, status: 'APPROVED', remarks },
+        { id: selectedLeave._id || selectedLeave.id, status: 'APPROVED', remarks },
         {
           onSuccess: () => {
             showToast(`Leave request approved for ${selectedLeave.userId?.name || 'Faculty Member'}.`);
             setApproveModalOpen(false);
             setSelectedLeave(null);
+            refetch();
           },
-          onError: (err) => showToast(err.response?.data?.message || 'Failed to approve leave', 'error')
+          onError: (err) => showToast(err.response?.data?.message || 'Failed to approve leave', { severity: 'error' }),
         }
       );
     }
@@ -109,277 +123,370 @@ const HodLeaveHub = () => {
   const handleRejectConfirm = () => {
     if (selectedLeave) {
       updateStatusMutation.mutate(
-        { id: selectedLeave._id, status: 'REJECTED', remarks },
+        { id: selectedLeave._id || selectedLeave.id, status: 'REJECTED', remarks },
         {
           onSuccess: () => {
             showToast(`Leave request rejected for ${selectedLeave.userId?.name || 'Faculty Member'}.`);
             setRejectModalOpen(false);
             setSelectedLeave(null);
+            refetch();
           },
-          onError: (err) => showToast(err.response?.data?.message || 'Failed to reject leave', 'error')
+          onError: (err) => showToast(err.response?.data?.message || 'Failed to reject leave', { severity: 'error' }),
         }
       );
     }
   };
 
   const columns = [
-    { 
-      id: 'faculty', 
+    {
+      id: 'faculty',
       label: 'Faculty Member',
       render: (row) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <PersonOutlined color="action" fontSize="small" />
+          <Avatar sx={{ width: 34, height: 34, bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main, fontWeight: 700 }}>
+            {row.userId?.name?.charAt(0) || 'F'}
+          </Avatar>
           <Box>
-            <Typography variant="body2" fontWeight={600}>{row.userId?.name || 'Faculty Member'}</Typography>
-            <Typography variant="caption" color="text.secondary">{row.userId?.email || '—'}</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+              {row.userId?.name || 'Faculty Member'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {row.userId?.email || '—'}
+            </Typography>
           </Box>
         </Box>
-      )
+      ),
     },
-    { 
-      id: 'leaveType', 
-      label: 'Leave Type',
+    {
+      id: 'leaveType',
+      label: 'Leave Category',
       render: (row) => (
-        <Chip 
-          label={row.leaveType || 'CASUAL'} 
-          size="small" 
-          color={row.leaveType === 'MEDICAL' || row.leaveType === 'SICK' ? 'info' : 'secondary'} 
-          variant="outlined" 
-          sx={{ fontWeight: 600 }}
+        <Chip
+          label={row.leaveType || 'CASUAL'}
+          size="small"
+          color={row.leaveType === 'MEDICAL' || row.leaveType === 'SICK' ? 'info' : row.leaveType === 'ACADEMIC' ? 'primary' : 'secondary'}
+          variant="outlined"
+          sx={{ fontWeight: 800, fontSize: '0.68rem' }}
         />
-      )
+      ),
     },
-    { 
-      id: 'startDate', 
+    {
+      id: 'startDate',
       label: 'Start Date',
-      render: (row) => row.startDate ? new Date(row.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+      render: (row) => (row.startDate ? new Date(row.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'),
     },
-    { 
-      id: 'endDate', 
+    {
+      id: 'endDate',
       label: 'End Date',
-      render: (row) => row.endDate ? new Date(row.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+      render: (row) => (row.endDate ? new Date(row.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'),
     },
-    { 
-      id: 'totalDays', 
+    {
+      id: 'totalDays',
       label: 'Duration',
-      render: (row) => <Chip label={`${row.totalDays || 1} day(s)`} size="small" variant="outlined" />
+      render: (row) => <Chip label={`${row.totalDays || 1} day(s)`} size="small" variant="outlined" sx={{ fontWeight: 700 }} />,
     },
-    { id: 'reason', label: 'Reason', render: (row) => row.reason || '—' },
-    { 
-      id: 'status', 
+    {
+      id: 'reason',
+      label: 'Reason for Leave',
+      render: (row) => (
+        <Typography variant="body2" sx={{ maxWidth: 220, truncate: true, fontStyle: 'italic' }}>
+          {`"${row.reason || 'No reason provided'}"`}
+        </Typography>
+      ),
+    },
+    {
+      id: 'status',
       label: 'Status',
       render: (row) => {
         const statusColors = { PENDING: 'warning', APPROVED: 'success', REJECTED: 'error' };
-        return (
-          <Chip 
-            label={row.status || 'PENDING'} 
-            size="small" 
-            color={statusColors[row.status] || 'default'} 
-            sx={{ fontWeight: 700 }}
-          />
-        );
-      }
+        return <Chip label={row.status || 'PENDING'} size="small" color={statusColors[row.status] || 'default'} sx={{ fontWeight: 800, fontSize: '0.65rem' }} />;
+      },
+    },
+    {
+      id: 'actions',
+      label: 'Quick Review',
+      render: (row) =>
+        row.status === 'PENDING' ? (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title="Approve Leave">
+              <Button
+                size="small"
+                variant="contained"
+                color="success"
+                startIcon={<CheckOutlined />}
+                onClick={() => openApproveModal(row)}
+                disabled={updateStatusMutation.isPending}
+                sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 700, fontSize: '0.72rem' }}
+              >
+                Approve
+              </Button>
+            </Tooltip>
+            <Tooltip title="Reject Leave">
+              <Button
+                size="small"
+                variant="outlined"
+                color="error"
+                startIcon={<CloseOutlined />}
+                onClick={() => openRejectModal(row)}
+                disabled={updateStatusMutation.isPending}
+                sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 600, fontSize: '0.72rem' }}
+              >
+                Reject
+              </Button>
+            </Tooltip>
+          </Box>
+        ) : (
+          <Typography variant="caption" color="text.disabled">—</Typography>
+        ),
     },
   ];
 
-  const customActions = (row) => {
-    if (row.status !== 'PENDING') return null;
-    return (
-      <Box sx={{ display: 'flex', gap: 0.5 }}>
-        <Tooltip title="Approve Faculty Leave">
-          <IconButton size="small" color="success" onClick={() => openApproveModal(row)} disabled={updateStatusMutation.isPending}>
-            <CheckCircleOutlined fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Reject Faculty Leave">
-          <IconButton size="small" color="error" onClick={() => openRejectModal(row)} disabled={updateStatusMutation.isPending}>
-            <CancelOutlined fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box>
-    );
-  };
-
   return (
-    <Box sx={{ p: { xs: 1, sm: 3 }, display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-        <Box>
-          <Typography variant="h4" fontWeight="bold" sx={{ color: theme.palette.ink?.[900] || 'text.primary' }}>
-            Faculty Leave Management
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Review and approve leave applications submitted by faculty members in your department.
-          </Typography>
-        </Box>
-      </Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+      {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
+      <Card
+        sx={{
+          p: 3.5,
+          borderRadius: '16px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
+          boxShadow: 'none',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+              <Chip
+                icon={<EventNoteOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+                label="DEPARTMENT FACULTY & STAFF LEAVE APPROVAL DESK"
+                size="small"
+                sx={{
+                  bgcolor: `${theme.palette.primary.main}15`,
+                  color: theme.palette.primary.main,
+                  fontWeight: 800,
+                  fontFamily: theme.typography.mono.fontFamily,
+                  letterSpacing: '0.05em',
+                  fontSize: '0.7rem',
+                }}
+              />
+            </Box>
+            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+              Faculty Staff Leave Management
+            </Typography>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+              Review leave applications submitted by department professors, manage casual/sick/academic leave quotas, and process approval remarks.
+            </Typography>
+          </Box>
 
-      {/* KPI Cards */}
-      <Grid container spacing={2}>
-        <Grid item xs={12} sm={3}>
-          <Card sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
-            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600}>TOTAL APPLICATIONS</Typography>
-              <Typography variant="h4" fontWeight={800} sx={{ mt: 0.5 }}>{stats.total}</Typography>
-            </CardContent>
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshOutlined />}
+              onClick={() => refetch()}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+            >
+              Refresh
+            </Button>
+          </Box>
+        </Box>
+      </Card>
+
+      {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
+      <Grid container spacing={2.5}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+              TOTAL APPLICATIONS
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+              {isLoading ? <CircularProgress size={24} /> : stats.total}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Submitted leave requests
+            </Typography>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={3}>
-          <Card sx={{ borderRadius: 3, border: `1px solid ${theme.palette.warning.light}`, bgcolor: 'warning.50' }}>
-            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-              <Typography variant="caption" color="warning.main" fontWeight={700}>PENDING APPROVAL</Typography>
-              <Typography variant="h4" fontWeight={800} color="warning.main" sx={{ mt: 0.5 }}>{stats.pending}</Typography>
-            </CardContent>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
+              PENDING APPROVAL
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+              {isLoading ? <CircularProgress size={24} /> : stats.pending}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Awaiting HOD action
+            </Typography>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={3}>
-          <Card sx={{ borderRadius: 3, border: `1px solid ${theme.palette.success.light}`, bgcolor: 'success.50' }}>
-            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-              <Typography variant="caption" color="success.main" fontWeight={700}>APPROVED LEAVES</Typography>
-              <Typography variant="h4" fontWeight={800} color="success.main" sx={{ mt: 0.5 }}>{stats.approved}</Typography>
-            </CardContent>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+              APPROVED LEAVES
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+              {isLoading ? <CircularProgress size={24} /> : stats.approved}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Sanctioned leave requests
+            </Typography>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={3}>
-          <Card sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
-            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600}>REJECTED</Typography>
-              <Typography variant="h4" fontWeight={800} color="error.main" sx={{ mt: 0.5 }}>{stats.rejected}</Typography>
-            </CardContent>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
+              REJECTED LEAVES
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+              {isLoading ? <CircularProgress size={24} /> : stats.rejected}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Declined leave requests
+            </Typography>
           </Card>
         </Grid>
       </Grid>
 
-      {/* Filter Bar */}
-      <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(28, 46, 69, 0.02)', border: `1px solid ${theme.palette.divider}` }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={4} md={4}>
+      {/* ── 3. Filters & Leave Directory Table ───────────────────────────── */}
+      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Grid container spacing={2} sx={{ mb: 3 }} alignItems="center">
+          <Grid item xs={12} sm={4}>
             <TextField
               fullWidth
               size="small"
-              placeholder="Search faculty name or email..."
+              placeholder="Search faculty name, email, or reason..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               InputProps={{
-                startAdornment: <SearchOutlined fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />,
+                startAdornment: <SearchOutlined sx={{ color: 'text.secondary', mr: 1, fontSize: 18 }} />,
               }}
-              sx={{ bgcolor: 'background.paper' }}
             />
           </Grid>
-          <Grid item xs={6} sm={4} md={4}>
+
+          <Grid item xs={12} sm={4}>
             <TextField
               select
               fullWidth
               size="small"
-              label="Filter by Status"
+              label="Leave Status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              sx={{ bgcolor: 'background.paper' }}
+              SelectProps={{ displayEmpty: true }}
+              InputLabelProps={{ shrink: true }}
             >
               <MenuItem value="">All Statuses</MenuItem>
-              <MenuItem value="PENDING">Pending Approval</MenuItem>
-              <MenuItem value="APPROVED">Approved</MenuItem>
-              <MenuItem value="REJECTED">Rejected</MenuItem>
+              <MenuItem value="PENDING">Pending Only</MenuItem>
+              <MenuItem value="APPROVED">Approved Only</MenuItem>
+              <MenuItem value="REJECTED">Rejected Only</MenuItem>
             </TextField>
           </Grid>
-          <Grid item xs={6} sm={4} md={4}>
+
+          <Grid item xs={12} sm={4}>
             <TextField
               select
               fullWidth
               size="small"
-              label="Filter by Leave Type"
+              label="Leave Category"
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              sx={{ bgcolor: 'background.paper' }}
+              SelectProps={{ displayEmpty: true }}
+              InputLabelProps={{ shrink: true }}
             >
-              <MenuItem value="">All Leave Types</MenuItem>
-              {LEAVE_TYPES.map(lt => (
-                <MenuItem key={lt.value} value={lt.value}>{lt.label}</MenuItem>
+              <MenuItem value="">All Categories</MenuItem>
+              {LEAVE_TYPES.map((t) => (
+                <MenuItem key={t.value} value={t.value}>
+                  {t.label}
+                </MenuItem>
               ))}
             </TextField>
           </Grid>
         </Grid>
-      </Box>
 
-      {/* Data Table */}
-      {filteredLeaves.length === 0 && !isLoading ? (
-        <EmptyState
-          type="leave"
-          title="No Faculty Leave Applications"
-          description="There are currently no faculty leave applications matching your filter criteria under your department."
-        />
-      ) : (
-        <DataTable 
-          columns={columns} 
-          data={filteredLeaves} 
-          isLoading={isLoading} 
-          isError={isError} 
-          emptyMessage="No leave records found."
-          customActions={customActions}
-        />
-      )}
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : filteredLeaves.length === 0 ? (
+          <EmptyState
+            type="reports"
+            title="No Leave Applications Found"
+            description="No faculty leave applications match the active search or filter criteria."
+          />
+        ) : (
+          <DataTable columns={columns} data={filteredLeaves} isLoading={isLoading} isError={isError} emptyMessage="No leave applications found." />
+        )}
+      </Card>
 
-      {/* Approve Confirmation Modal */}
-      <Dialog open={approveModalOpen} onClose={() => setApproveModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Approve Faculty Leave Request</DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            Approve leave for <strong>{selectedLeave?.userId?.name || 'Faculty Member'}</strong> ({selectedLeave?.leaveType}) from {selectedLeave?.startDate ? new Date(selectedLeave.startDate).toLocaleDateString('en-IN') : ''} to {selectedLeave?.endDate ? new Date(selectedLeave.endDate).toLocaleDateString('en-IN') : ''}?
+      {/* ── 4. Approve Leave Modal ────────────────────────────────────────── */}
+      <Dialog open={approveModalOpen} onClose={() => setApproveModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
+        <DialogTitle sx={{ fontWeight: 800, color: theme.palette.signal.success }}>Approve Faculty Leave Request</DialogTitle>
+        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Are you sure you want to approve leave for <strong>{selectedLeave?.userId?.name}</strong>?
           </Typography>
+
           <TextField
-            label="Approval Remarks (Optional)"
             fullWidth
             multiline
-            rows={2}
+            rows={3}
+            label="Optional HOD Remarks / Notes"
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
-            placeholder="Add any notes or substitute arrangements for this leave approval..."
+            placeholder="e.g. Approved. Alternate class coverage verified."
           />
         </DialogContent>
-        <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={() => setApproveModalOpen(false)}>Cancel</Button>
-          <Button onClick={handleApproveConfirm} color="success" variant="contained" disabled={updateStatusMutation.isPending} sx={{ borderRadius: 2 }}>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setApproveModalOpen(false)} variant="outlined" sx={{ borderRadius: '8px' }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={handleApproveConfirm}
+            disabled={updateStatusMutation.isPending}
+            sx={{ borderRadius: '8px', fontWeight: 700 }}
+          >
             {updateStatusMutation.isPending ? 'Approving...' : 'Confirm Approval'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Reject Confirmation Modal */}
-      <Dialog open={rejectModalOpen} onClose={() => setRejectModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Reject Faculty Leave Request</DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            Are you sure you want to reject the leave request for <strong>{selectedLeave?.userId?.name || 'Faculty Member'}</strong>?
+      {/* ── 5. Reject Leave Modal ─────────────────────────────────────────── */}
+      <Dialog open={rejectModalOpen} onClose={() => setRejectModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
+        <DialogTitle sx={{ fontWeight: 800, color: theme.palette.signal.error }}>Reject Faculty Leave Request</DialogTitle>
+        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Are you sure you want to decline leave for <strong>{selectedLeave?.userId?.name}</strong>?
           </Typography>
+
           <TextField
-            label="Rejection Reason / Remarks"
             fullWidth
             multiline
-            rows={2}
+            rows={3}
+            label="Reason / Remarks for Rejection"
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
-            placeholder="Explain why this leave application is being rejected..."
+            placeholder="e.g. Examination duties assigned for requested dates."
           />
         </DialogContent>
-        <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={() => setRejectModalOpen(false)}>Cancel</Button>
-          <Button onClick={handleRejectConfirm} color="error" variant="contained" disabled={updateStatusMutation.isPending} sx={{ borderRadius: 2 }}>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setRejectModalOpen(false)} variant="outlined" sx={{ borderRadius: '8px' }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleRejectConfirm}
+            disabled={updateStatusMutation.isPending}
+            sx={{ borderRadius: '8px', fontWeight: 700 }}
+          >
             {updateStatusMutation.isPending ? 'Rejecting...' : 'Confirm Rejection'}
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Toast Notification */}
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={4000}
-        onClose={() => setToast(t => ({ ...t, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert onClose={() => setToast(t => ({ ...t, open: false }))} severity={toast.severity} sx={{ width: '100%', borderRadius: 2 }}>
-          {toast.msg}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };

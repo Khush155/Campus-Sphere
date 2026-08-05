@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -11,6 +11,7 @@ import {
   Typography,
   Alert,
 } from '@mui/material';
+import { AccessTimeOutlined } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -35,20 +36,42 @@ const schema = z.object({
 }, {
   message: 'End time must be after start time',
   path: ['endTime']
+}).refine(data => {
+  const [h1] = data.startTime.split(':').map(Number);
+  const [h2, m2] = data.endTime.split(':').map(Number);
+  return h1 >= 9 && (h2 < 21 || (h2 === 21 && m2 === 0));
+}, {
+  message: 'Lectures must be scheduled between 9:00 AM and 9:00 PM',
+  path: ['endTime']
 });
 
-const AddSlotModal = ({ open, onClose, filters, existingSlots = [] }) => {
+
+
+const AddSlotModal = ({ open, onClose, filters, existingSlots = [], presets = null }) => {
   const { control, handleSubmit, watch, reset, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
       subjectId: '',
       facultyId: '',
-      dayOfWeek: '',
-      startTime: '09:00',
-      endTime: '10:00',
+      dayOfWeek: presets?.dayOfWeek || 'MONDAY',
+      startTime: presets?.startTime || '09:00',
+      endTime: presets?.endTime || '10:00',
       room: '',
     }
   });
+
+  useEffect(() => {
+    if (open) {
+      reset({
+        subjectId: '',
+        facultyId: '',
+        dayOfWeek: presets?.dayOfWeek || 'MONDAY',
+        startTime: presets?.startTime || '09:00',
+        endTime: presets?.endTime || '10:00',
+        room: '',
+      });
+    }
+  }, [open, presets, reset]);
 
   const [apiError, setApiError] = useState(null);
   const createMutation = useCreateSlotMutation();
@@ -102,13 +125,19 @@ const AddSlotModal = ({ open, onClose, filters, existingSlots = [] }) => {
       return;
     }
 
+    const targetGroup = filters.group || 'A';
+    if (!targetGroup) {
+      setApiError('A specific Group (e.g. Group A) must be selected before assigning a timetable slot.');
+      return;
+    }
+
     try {
       await createMutation.mutateAsync({
         ...data,
         courseId: filters.course,
         branchId: filters.branch,
         semester: Number(filters.semester),
-        group: filters.group || null,
+        group: targetGroup,
       });
       reset();
       onClose();
@@ -129,7 +158,7 @@ const AddSlotModal = ({ open, onClose, filters, existingSlots = [] }) => {
               Batch Target:
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Semester {filters.semester} {filters.group ? `(Group ${filters.group})` : '(Full Batch)'}
+              Semester {filters.semester} {filters.group ? `• Group ${filters.group}` : ''}
             </Typography>
           </Box>
 
@@ -194,35 +223,26 @@ const AddSlotModal = ({ open, onClose, filters, existingSlots = [] }) => {
               )}
             />
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Controller
-                name="startTime"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Start Time (HH:MM)"
-                    fullWidth
-                    error={!!errors.startTime}
-                    helperText={errors.startTime?.message}
-                    placeholder="09:00"
-                  />
-                )}
-              />
-              <Controller
-                name="endTime"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="End Time (HH:MM)"
-                    fullWidth
-                    error={!!errors.endTime}
-                    helperText={errors.endTime?.message}
-                    placeholder="10:00"
-                  />
-                )}
-              />
+            <Box
+              sx={{
+                p: 1.75,
+                borderRadius: 2,
+                bgcolor: (theme) => `${theme.palette.primary.main}0D`,
+                border: (theme) => `1px solid ${theme.palette.primary.main}30`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+              }}
+            >
+              <AccessTimeOutlined color="primary" />
+              <Box>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main', display: 'block', letterSpacing: '0.04em' }}>
+                  PERIOD TIME SLOT
+                </Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                  {watch('startTime') || '09:00'} – {watch('endTime') || '10:00'} ({watch('dayOfWeek')})
+                </Typography>
+              </Box>
             </Box>
 
             <Controller

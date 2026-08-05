@@ -11,6 +11,7 @@ const {
   createBranchSchema,
   updateBranchSchema,
   createSubjectSchema,
+  createBulkSubjectSchema,
   updateSubjectSchema,
 } = require('../validators/collegeValidator');
 
@@ -137,6 +138,22 @@ const createSubject = async (req, res, _next) => {
   return successResponse(res, 201, 'Subject created successfully.', subject);
 };
 
+const createBulkSubjects = async (req, res, _next) => {
+  const userDeptId = getIdString(req.user.departmentId || req.user.department?.id);
+  
+  // Ensure department is forced for HOD
+  if (req.user.role === ROLES.HOD) {
+    if (req.body.subjects && Array.isArray(req.body.subjects)) {
+      req.body.subjects = req.body.subjects.map(s => ({ ...s, departmentId: userDeptId }));
+    }
+  }
+
+  const validatedBody = createBulkSubjectSchema.parse(req.body);
+  const result = await collegeService.createBulkSubjects(userDeptId, validatedBody.subjects);
+  
+  return successResponse(res, 201, `Bulk import complete. Success: ${result.results.successful}, Failed: ${result.results.failed}`, result);
+};
+
 const getAllSubjects = async (req, res, _next) => {
   const subjects = await collegeService.getAllSubjects(req.query);
   return successResponse(res, 200, 'Subjects retrieved successfully.', subjects.data, subjects.meta);
@@ -193,6 +210,7 @@ module.exports = {
   updateBranch,
   deleteBranch,
   createSubject,
+  createBulkSubjects,
   getAllSubjects,
   getSubjectById,
   updateSubject,

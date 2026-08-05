@@ -1,4 +1,6 @@
 const LeaveRequest = require('../models/LeaveRequest');
+const User = require('../models/User');
+const { createNotification, createBulkNotifications } = require('./notificationService');
 const { assertHODDeptBound } = require('../utils/privilegeGuard');
 const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
@@ -45,6 +47,22 @@ const createLeaveRequest = async (leaveData, actor) => {
     isMedicalOverride: !!isMedicalOverride,
     medicalCertificateRef: medicalCertificateRef || null,
   });
+
+  // Notify Department HOD
+  try {
+    const hods = await User.find({ role: ROLES.HOD, departmentId: actor.departmentId }).select('_id');
+    const hodIds = hods.map((h) => h._id);
+    await createBulkNotifications(hodIds, {
+      title: `🌴 Leave Request Submitted: ${actor.name || 'Faculty Member'}`,
+      message: `A new ${leaveType} leave request has been submitted for review.`,
+      category: 'LEAVE',
+      link: '/hod/leave-management',
+      senderId: actor.id,
+      metadata: { leaveId: leave._id },
+    });
+  } catch (err) {
+    // Non-blocking logger
+  }
 
   return leave;
 };
@@ -110,6 +128,21 @@ const updateLeaveStatus = async (id, statusData, actor, req) => {
   }
 
   await leave.save();
+
+  // Notify requesting faculty member
+  try {
+    await createNotification({
+      recipientId: leave.userId,
+      title: `🌴 Leave Request ${status}: ${leave.leaveType}`,
+      message: `Your ${leave.leaveType} leave request has been ${status.toLowerCase()} by your HOD.${remarks ? ` Remarks: ${remarks}` : ''}`,
+      category: 'LEAVE',
+      link: '/faculty/leaves',
+      senderId: actor.id,
+      metadata: { leaveId: leave._id, status },
+    });
+  } catch (err) {
+    // Non-blocking
+  }
 
   // Audit Log
   await logAuditEvent({

@@ -19,16 +19,20 @@ import {
   CircularProgress,
   MenuItem,
   useTheme,
+  Grid,
+  InputAdornment,
 } from '@mui/material';
-import { EditOutlined, DeleteOutline } from '@mui/icons-material';
+import { EditOutlined, DeleteOutline, SearchOutlined } from '@mui/icons-material';
 import {
   useCoursesQuery,
+  useBranchesQuery,
   useCreateCourseMutation,
   useUpdateCourseMutation,
   useDeleteCourseMutation,
 } from '../../../queries/collegeQueries';
 import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
 import EmptyState from '../../../components/common/EmptyState';
+import { useToast } from '../../../contexts/ToastContext';
 
 // Schema for Course Validation
 const courseFormSchema = z.object({
@@ -50,6 +54,10 @@ const courseFormSchema = z.object({
 
 export const CourseTab = ({ setOnAddClick }) => {
   const theme = useTheme();
+  const { showToast } = useToast();
+
+  // Search state
+  const [search, setSearch] = useState('');
 
   // Toggles
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -58,6 +66,7 @@ export const CourseTab = ({ setOnAddClick }) => {
 
   // Queries
   const { data: courses, isLoading } = useCoursesQuery();
+  const { data: branches } = useBranchesQuery();
 
   // Mutations
   const createCourse = useCreateCourseMutation();
@@ -85,7 +94,7 @@ export const CourseTab = ({ setOnAddClick }) => {
 
   const durationValue = watch('durationYears');
 
-  // Auto-calculate semesters based on duration select: 2 semesters per year
+  // Auto-calculate semesters: 2 semesters per year
   useEffect(() => {
     if (durationValue) {
       setValue('semesters', Number(durationValue) * 2);
@@ -121,8 +130,8 @@ export const CourseTab = ({ setOnAddClick }) => {
     reset({
       name: course.name,
       code: course.code,
-      durationYears: course.durationYears,
-      semesters: course.semesters,
+      durationYears: course.durationYears || 4,
+      semesters: course.semesters || 8,
     });
     setDrawerOpen(true);
   };
@@ -131,25 +140,77 @@ export const CourseTab = ({ setOnAddClick }) => {
     try {
       if (editId) {
         await updateCourse.mutateAsync({ id: editId, data });
+        showToast('Degree course details updated successfully.');
       } else {
         await createCourse.mutateAsync(data);
+        showToast('Degree course created successfully.');
       }
       setDrawerOpen(false);
     } catch (err) {
-      // Handled globally
+      showToast(err.response?.data?.message || 'Failed to save course.', { severity: 'error' });
     }
   };
 
   const handleDeleteConfirm = async () => {
     if (deleteId) {
-      await deleteCourse.mutateAsync(deleteId);
-      setDeleteId(null);
+      try {
+        await deleteCourse.mutateAsync(deleteId);
+        showToast('Degree course deleted successfully.');
+        setDeleteId(null);
+      } catch (err) {
+        showToast(err.response?.data?.message || 'Failed to delete course.', { severity: 'error' });
+      }
     }
   };
 
+  // Dependency Guard for Course deletion
+  const getDeleteWarningMessage = () => {
+    if (!deleteId) return null;
+    const linkedBranches = branches?.filter(b => String(b.courseId?._id || b.courseId) === String(deleteId));
+    if (linkedBranches && linkedBranches.length > 0) {
+      return `⚠️ Warning: This degree course has ${linkedBranches.length} academic branch(es) registered under it (${linkedBranches.map(b => b.code).join(', ')}). Deleting it will impact dependent branches.`;
+    }
+    return null;
+  };
+
+  // Filter courses by search input
+  const filteredCourses = courses?.filter(
+    (c) =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.code.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <Box>
-      {/* 2. List Grid Table */}
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+      {/* 1. Search Bar */}
+      {courses && courses.length > 0 && (
+        <Card
+          sx={{
+            p: 2,
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: 'none',
+            borderRadius: '12px',
+            bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+          }}
+        >
+          <TextField
+            size="small"
+            placeholder="Search degree courses by name or code..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            fullWidth
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchOutlined sx={{ fontSize: 20, color: theme.palette.text.secondary }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Card>
+      )}
+
+      {/* 2. List Grid Container */}
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
           <CircularProgress size={32} sx={{ color: theme.palette.primary.main }} />
@@ -157,24 +218,33 @@ export const CourseTab = ({ setOnAddClick }) => {
       ) : !courses || courses.length === 0 ? (
         <EmptyState
           type="courses"
-          title="No Courses Registered"
-          description="Register standard degree courses (e.g. B.Tech, MCA) to design academic tracks."
+          title="No Degree Courses Configured"
+          description="Create a degree course structure (e.g. B.Tech, M.Tech, MCA) to define academic programs."
           actionText="Add Course"
           onAction={handleOpenCreate}
         />
+      ) : filteredCourses?.length === 0 ? (
+        <Card sx={{ p: 4, textAlign: 'center', borderRadius: '12px', border: `1px solid ${theme.palette.divider}` }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            No degree courses match your search &quot;{search}&quot;.
+          </Typography>
+        </Card>
       ) : (
         <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
-          <Table aria-label="courses catalog table">
-            <TableHead sx={{ bgcolor: 'rgba(28, 46, 69, 0.02)' }}>
+          <Table aria-label="courses directory table">
+            <TableHead sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(28, 46, 69, 0.02)' }}>
               <TableRow>
                 <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                  COURSE CODE
+                  CODE
                 </TableCell>
                 <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                  COURSE NAME
+                  DEGREE NAME
                 </TableCell>
                 <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   DURATION
+                </TableCell>
+                <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                  SEMESTERS COUNT
                 </TableCell>
                 <TableCell align="right" sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   ACTIONS
@@ -182,12 +252,12 @@ export const CourseTab = ({ setOnAddClick }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {courses.map((course, index) => (
+              {filteredCourses.map((course, index) => (
                 <TableRow
                   key={course._id}
                   className="staggered-row"
                   style={{ animationDelay: `${index * 25}ms` }}
-                  sx={{ '&:hover': { bgcolor: theme.custom.interaction.hoverTint } }}
+                  sx={{ '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' } }}
                 >
                   <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem', fontWeight: 600 }}>
                     {course.code}
@@ -195,8 +265,11 @@ export const CourseTab = ({ setOnAddClick }) => {
                   <TableCell sx={{ fontFamily: theme.typography.body1.fontFamily, fontSize: '0.88rem', fontWeight: 600 }}>
                     {course.name}
                   </TableCell>
-                  <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.85rem' }}>
+                  <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.82rem' }}>
                     {course.durationYears} {course.durationYears === 1 ? 'Year' : 'Years'}
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.82rem', fontWeight: 600 }}>
+                    {course.semesters || course.durationYears * 2} Semesters
                   </TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
@@ -215,28 +288,28 @@ export const CourseTab = ({ setOnAddClick }) => {
         </TableContainer>
       )}
 
-      {/* 3. Slide Drawer form container */}
+      {/* Slide Drawer Form Container */}
       <Drawer
         anchor="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        PaperProps={{ sx: { width: { xs: '100%', sm: 400 }, p: 4, bgcolor: theme.palette.background.paper } }}
+        PaperProps={{ sx: { width: { xs: '100%', sm: 420 }, p: 4, bgcolor: theme.palette.background.paper } }}
       >
         <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: 'flex', flexDirection: 'column', gap: 4.5, height: '100%', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
             <Box>
               <Typography variant="h5" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 700, color: theme.palette.ink[900], mb: 0.5 }}>
-                {editId ? 'Modify Course' : 'Create Course'}
+                {editId ? 'Modify Degree Course' : 'Create Degree Course'}
               </Typography>
               <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                {editId ? 'Update details of the degree program.' : 'Configure a new educational path.'}
+                {editId ? 'Update details of the degree program.' : 'Setup a new academic degree course.'}
               </Typography>
             </Box>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
               <Box>
                 <Typography component="label" htmlFor="course-name-input" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-                  Course Name
+                  Degree Course Name
                 </Typography>
                 <TextField
                   id="course-name-input"
@@ -256,7 +329,7 @@ export const CourseTab = ({ setOnAddClick }) => {
                 <TextField
                   id="course-code-input"
                   fullWidth
-                  placeholder="e.g. B.TECH"
+                  placeholder="e.g. BTECH"
                   disabled={!!editId}
                   {...register('code')}
                   error={!!errors.code}
@@ -266,39 +339,44 @@ export const CourseTab = ({ setOnAddClick }) => {
                 />
               </Box>
 
-              <Box>
-                <Typography component="label" htmlFor="course-duration-input" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-                  Duration (Years)
-                </Typography>
-                <TextField
-                  id="course-duration-input"
-                  select
-                  fullWidth
-                  {...register('durationYears', { valueAsNumber: true })}
-                  error={!!errors.durationYears}
-                  helperText={errors.durationYears?.message}
-                  size="small"
-                >
-                  <MenuItem value={1}>1 Year</MenuItem>
-                  <MenuItem value={2}>2 Years</MenuItem>
-                  <MenuItem value={3}>3 Years</MenuItem>
-                  <MenuItem value={4}>4 Years</MenuItem>
-                  <MenuItem value={5}>5 Years</MenuItem>
-                  <MenuItem value={6}>6 Years</MenuItem>
-                </TextField>
-              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography component="label" htmlFor="duration-input" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                    Duration (Years)
+                  </Typography>
+                  <TextField
+                    id="duration-input"
+                    select
+                    fullWidth
+                    {...register('durationYears', { valueAsNumber: true })}
+                    error={!!errors.durationYears}
+                    helperText={errors.durationYears?.message}
+                    size="small"
+                  >
+                    {[1, 2, 3, 4, 5, 6].map((yrs) => (
+                      <MenuItem key={yrs} value={yrs}>
+                        {yrs} {yrs === 1 ? 'Year' : 'Years'}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
 
-              <Box sx={{ p: 2, borderRadius: '8px', bgcolor: 'rgba(28, 46, 69, 0.02)', border: `1px dashed ${theme.palette.divider}` }}>
-                <Typography sx={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: theme.palette.ink[900], mb: 0.5, fontFamily: theme.typography.body2.fontFamily }}>
-                  AUTO-CALCULATED SEMESTERS
-                </Typography>
-                <Typography sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.85rem', fontWeight: 600, color: theme.palette.primary.main }}>
-                  {durationValue ? durationValue * 2 : 0} Semester
-                </Typography>
-                <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: theme.palette.text.secondary }}>
-                  Computed at a standard rate of 2 semesters per year.
-                </Typography>
-              </Box>
+                <Grid item xs={6}>
+                  <Typography component="label" htmlFor="semesters-input" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                    Total Semesters
+                  </Typography>
+                  <TextField
+                    id="semesters-input"
+                    type="number"
+                    fullWidth
+                    disabled
+                    {...register('semesters', { valueAsNumber: true })}
+                    error={!!errors.semesters}
+                    helperText={errors.semesters?.message}
+                    size="small"
+                  />
+                </Grid>
+              </Grid>
             </Box>
           </Box>
 
@@ -317,28 +395,29 @@ export const CourseTab = ({ setOnAddClick }) => {
               fullWidth
               disabled={isSaving}
               sx={{
-                bgcolor: theme.palette.primary.main,
-                color: theme.palette.ink[900],
+                background: theme.palette.primary.gradient || theme.palette.primary.main,
+                color: '#ffffff',
                 fontWeight: 700,
-                '&:hover': { bgcolor: theme.palette.primary.light },
+                boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
               }}
             >
-              {isSaving ? 'Saving...' : editId ? 'Update' : 'Create'}
+              {isSaving ? 'Saving...' : editId ? 'Update Course' : 'Create Course'}
             </Button>
           </Box>
         </Box>
       </Drawer>
 
-      {/* 4. Delete Modal Confirmation */}
+      {/* Confirmation Modal with Dependency Warning */}
       <ConfirmDeleteModal
-        open={!!deleteId}
+        open={Boolean(deleteId)}
+        title="Delete Degree Course"
+        description={
+          getDeleteWarningMessage() ||
+          "Are you sure you want to delete this degree course? This action cannot be undone if branches or students are associated with it."
+        }
         onClose={() => setDeleteId(null)}
         onConfirm={handleDeleteConfirm}
-        title="Delete Course"
-        description="Are you sure you want to delete this course? This action is permanent and might fail if branches or subjects are linked to it."
-        actionText="Delete"
-        typedConfirmation
-        confirmationWord="DELETE"
+        isDeleting={deleteCourse.isPending}
       />
     </Box>
   );

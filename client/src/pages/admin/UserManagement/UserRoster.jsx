@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useToast } from '../../../contexts/ToastContext';
 import {
   Box,
   Typography,
   Card,
-  CardContent,
   Table,
   TableBody,
   TableCell,
@@ -22,16 +22,22 @@ import {
   CircularProgress,
   Button,
   Drawer,
-  Alert,
   useTheme,
   Grid,
-  Snackbar,
   Skeleton,
+  Checkbox,
+  Avatar,
+  Divider,
 } from '@mui/material';
 import {
   MoreVertOutlined,
   AddOutlined,
   SearchOutlined,
+  FileDownloadOutlined,
+  VisibilityOutlined,
+  CheckCircleOutlined,
+  CancelOutlined,
+  PeopleOutlined,
 } from '@mui/icons-material';
 import {
   useUsersQuery,
@@ -58,6 +64,7 @@ const userEditSchema = z.object({
   courseId: z.string().optional().or(z.null()).or(z.literal('')),
   branchId: z.string().optional().or(z.null()).or(z.literal('')),
   semester: z.number().optional().or(z.null()),
+  rollNumber: z.string().optional().or(z.null()).or(z.literal('')),
   reason: z.string().optional(),
   shift: z.string().optional().or(z.null()).or(z.literal('')),
 }).superRefine((data, ctx) => {
@@ -106,8 +113,10 @@ const formatRelativeTime = (dateString) => {
 
 export const UserRoster = () => {
   const theme = useTheme();
-  const { user: authUser } = useAuth();
-  const isSuperAdmin = authUser?.role === 'SUPER_ADMIN';
+  const { showToast } = useToast();
+  const { user: currentUser } = useAuth();
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const canRegister = isSuperAdmin || currentUser?.role === 'COLLEGE_ADMIN';
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Search & Filter State
@@ -117,6 +126,13 @@ export const UserRoster = () => {
   const [roleFilter, setRoleFilter] = useState(searchParams.get('role') || '');
   const [deptFilter, setDeptFilter] = useState(searchParams.get('dept') || '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
+
+  // Bulk Row Selection State
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+
+  // Profile Quick View Drawer State
+  const [viewUser, setViewUser] = useState(null);
 
   // Sync filters state to browser URL query params
   useEffect(() => {
@@ -139,19 +155,8 @@ export const UserRoster = () => {
   const [sessionsDrawerOpen, setSessionsDrawerOpen] = useState(false);
   const [sessionsDrawerUser, setSessionsDrawerUser] = useState(null);
 
-  // Density switcher state
-  const [density, setDensity] = useState(localStorage.getItem('roster_density') || 'comfortable');
-
-  // Toast Notification Snackbar State
-  const [toastOpen, setToastOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastAction, setToastAction] = useState(null);
-
-  const showToast = (message, action = null) => {
-    setToastMessage(message);
-    setToastAction(action ? { run: action } : null);
-    setToastOpen(true);
-  };
+  // Compact view density
+  const density = 'compact';
 
   // Debounce search input
   useEffect(() => {
@@ -181,8 +186,6 @@ export const UserRoster = () => {
   const updateUser = useUpdateUserMutation();
   const deleteUser = useDeleteUserMutation();
 
-
-
   const handleMenuOpen = (event, user) => {
     setAnchorEl(event.currentTarget);
     setActiveMenuUser(user);
@@ -191,6 +194,11 @@ export const UserRoster = () => {
   const handleMenuClose = () => {
     setAnchorEl(null);
     setActiveMenuUser(null);
+  };
+
+  const handleViewProfileClick = () => {
+    setViewUser(activeMenuUser);
+    handleMenuClose();
   };
 
   const handleEditClick = () => {
@@ -226,30 +234,89 @@ export const UserRoster = () => {
 
       try {
         if (userToDeactivate.status === 'INACTIVE') {
-          // Reactivate account
           await updateUser.mutateAsync({
             id: userToDeactivate.id,
             data: { status: 'ACTIVE' },
           });
           showToast(`${userToDeactivate.name}'s account reactivated.`);
         } else {
-          // Deactivate account (soft delete)
           await deleteUser.mutateAsync(userToDeactivate.id);
-          showToast(`${userToDeactivate.name}'s account deactivated.`, () => async () => {
-            await updateUser.mutateAsync({
-              id: userToDeactivate.id,
-              data: { status: 'ACTIVE' },
-            });
-            showToast(`Reactivated ${userToDeactivate.name}'s account.`);
+          showToast(`${userToDeactivate.name}'s account deactivated.`, {
+            onUndo: async () => {
+              await updateUser.mutateAsync({
+                id: userToDeactivate.id,
+                data: { status: 'ACTIVE' },
+              });
+              showToast(`Reactivated ${userToDeactivate.name}'s account.`);
+            },
           });
         }
       } catch (err) {
-        if (err.response?.data?.message) {
-          showToast(err.response.data.message);
-        } else {
-          showToast('An unexpected error occurred.', null, 'error');
-        }
+        showToast(err.response?.data?.message || 'An error occurred.', { severity: 'error' });
       }
+    }
+  };
+
+  // CSV Export Handler
+  const handleExportCsv = () => {
+    const list = usersData?.data || [];
+    if (list.length === 0) {
+      showToast('No user records available to export.', { severity: 'error' });
+      return;
+    }
+    const headers = ['Name', 'Email', 'Roll Number', 'Role', 'Department', 'Status', 'Last Login'];
+    const rows = list.map(u => [
+      `"${u.name || ''}"`,
+      `"${u.email || ''}"`,
+      `"${u.rollNumber || 'N/A'}"`,
+      `"${u.role || ''}"`,
+      `"${u.department || 'Global'}"`,
+      `"${u.status || ''}"`,
+      `"${u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : 'Never'}"`
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `users_directory_page_${page}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast(`Exported ${list.length} user records to CSV.`);
+  };
+
+  // Bulk Selection Handlers
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const allIds = (usersData?.data || []).map(u => u.id);
+      setSelectedUserIds(allIds);
+    } else {
+      setSelectedUserIds([]);
+    }
+  };
+
+  const handleSelectOne = (id) => {
+    setSelectedUserIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkStatusChange = async (newStatus) => {
+    if (selectedUserIds.length === 0) return;
+    setBulkProcessing(true);
+    let count = 0;
+    try {
+      for (const id of selectedUserIds) {
+        await updateUser.mutateAsync({ id, data: { status: newStatus } });
+        count++;
+      }
+      showToast(`Successfully updated ${count} account(s) status to ${newStatus}.`);
+      setSelectedUserIds([]);
+    } catch (err) {
+      showToast('Encountered an issue during bulk update.', { severity: 'error' });
+    } finally {
+      setBulkProcessing(false);
     }
   };
 
@@ -257,23 +324,21 @@ export const UserRoster = () => {
   const getRoleChipStyles = (role) => {
     switch (role) {
       case 'SUPER_ADMIN':
-        return { bgcolor: 'rgba(184, 134, 62, 0.1)', color: theme.palette.primary.main };
+        return { bgcolor: 'rgba(184, 134, 62, 0.15)', color: theme.palette.brass?.[500] || '#b8863e' };
       case 'COLLEGE_ADMIN':
-        return { bgcolor: 'rgba(14, 26, 43, 0.08)', color: theme.palette.ink[900] };
+        return { bgcolor: `${theme.palette.primary.main}18`, color: theme.palette.primary.main };
       case 'HOD':
-        return { bgcolor: 'rgba(217, 184, 118, 0.15)', color: '#a27431' };
+        return { bgcolor: `${theme.palette.secondary.main}18`, color: theme.palette.secondary.main };
       case 'FACULTY':
-        return { bgcolor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' };
+        return { bgcolor: 'rgba(59, 130, 246, 0.15)', color: '#2563eb' };
       case 'STUDENT':
-        return { bgcolor: 'rgba(63, 110, 82, 0.1)', color: theme.palette.signal.success };
+        return { bgcolor: 'rgba(63, 110, 82, 0.15)', color: theme.palette.signal.success };
       default:
         return { bgcolor: 'rgba(0,0,0,0.06)', color: 'inherit' };
     }
   };
 
-
-
-  // Check if register trigger is present in URL (Quick Action shortcut)
+  // Check if register trigger is present in URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('register') === 'true') {
@@ -283,17 +348,58 @@ export const UserRoster = () => {
   }, []);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      {/* 1. Header Toolbar */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, position: 'relative' }}>
+      {/* ── 1. Hero Directory Header Banner Card ──────────────────────────── */}
+      <Card
+        sx={{
+          p: 3.5,
+          borderRadius: '16px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.secondary.main}06 100%)`,
+          boxShadow: theme.custom?.elevation?.raised || 'none',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 2,
+        }}
+      >
         <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1, flexWrap: 'wrap' }}>
+            <Chip
+              icon={<PeopleOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+              label="INSTITUTIONAL USER ROSTER"
+              size="small"
+              sx={{
+                bgcolor: `${theme.palette.primary.main}15`,
+                color: theme.palette.primary.main,
+                fontFamily: theme.typography.mono.fontFamily,
+                fontWeight: 700,
+                fontSize: '0.68rem',
+                letterSpacing: '0.06em',
+                borderRadius: '6px',
+              }}
+            />
+            <Chip
+              label={`${usersData?.meta?.total || 0} Accounts Total`}
+              size="small"
+              sx={{
+                bgcolor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+                fontFamily: theme.typography.mono.fontFamily,
+                fontSize: '0.72rem',
+                fontWeight: 600,
+              }}
+            />
+          </Box>
           <Typography
             variant="h4"
-            component="h2"
+            component="h1"
             sx={{
               fontFamily: theme.typography.h1.fontFamily,
               fontWeight: 600,
               color: theme.palette.ink[900],
+              lineHeight: 1.15,
               mb: 0.5,
             }}
           >
@@ -306,32 +412,30 @@ export const UserRoster = () => {
               color: theme.palette.text.secondary,
             }}
           >
-            Manage logins, account roles mapping, and configurations profile bounds.
+            Manage institutional user accounts, access roles, active sessions, and profile configurations.
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
           <Button
             variant="outlined"
-            onClick={() => {
-              const nextD = density === 'comfortable' ? 'compact' : 'comfortable';
-              setDensity(nextD);
-              localStorage.setItem('roster_density', nextD);
-            }}
+            startIcon={<FileDownloadOutlined />}
+            onClick={handleExportCsv}
             sx={{
-              borderColor: theme.custom.border.subtle,
-              color: theme.palette.text.secondary,
+              borderColor: theme.palette.divider,
+              color: theme.palette.text.primary,
               fontWeight: 600,
-              textTransform: 'none',
               px: 2,
-              height: '40px',
+              height: '42px',
+              borderRadius: '8px',
+              textTransform: 'none',
+              bgcolor: theme.palette.background.paper,
               '&:hover': {
                 borderColor: theme.palette.primary.main,
-                color: theme.palette.primary.main,
-                bgcolor: theme.custom.interaction.hoverTint,
               },
             }}
           >
-            {density === 'comfortable' ? 'Compact View' : 'Comfortable View'}
+            Export CSV
           </Button>
 
           {(roleFilter || deptFilter) && (
@@ -352,52 +456,47 @@ export const UserRoster = () => {
                 fontWeight: 600,
                 textTransform: 'none',
                 px: 2,
-                height: '40px',
-                '&:hover': {
-                  bgcolor: theme.custom.interaction.hoverTint,
-                  borderColor: theme.palette.primary.main,
-                },
+                height: '42px',
+                borderRadius: '8px',
               }}
             >
               Bulk ID Cards
             </Button>
           )}
 
-          {isSuperAdmin && (
+          {canRegister && (
             <Button
               variant="contained"
               startIcon={<AddOutlined />}
               onClick={() => setRegisterOpen(true)}
               sx={{
-                bgcolor: theme.palette.primary.main,
-                color: theme.palette.ink[900],
+                background: theme.palette.primary.gradient || theme.palette.primary.main,
+                color: '#ffffff',
                 fontWeight: 700,
                 textTransform: 'none',
                 px: 2.5,
-                height: '40px',
-                '&:hover': { bgcolor: theme.palette.primary.light },
+                height: '42px',
+                borderRadius: '8px',
+                boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
               }}
             >
               Register User
             </Button>
           )}
         </Box>
-      </Box>
+      </Card>
 
-      {/* 2. Filter Bar */}
-      <Box
+      {/* ── 2. Filter Toolbar ─────────────────────────────────────────────── */}
+      <Card
         sx={{
           p: 2.5,
           borderRadius: '12px',
-          bgcolor: 'rgba(28, 46, 69, 0.02)',
+          bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
           border: `1px solid ${theme.palette.divider}`,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
+          boxShadow: 'none',
         }}
       >
         <Grid container spacing={2} alignItems="center">
-          {/* Search Box */}
           <Grid item xs={12} sm={4}>
             <TextField
               fullWidth
@@ -408,11 +507,9 @@ export const UserRoster = () => {
               InputProps={{
                 startAdornment: <SearchOutlined fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />,
               }}
-              sx={{ bgcolor: 'background.paper' }}
             />
           </Grid>
 
-          {/* Role Filter */}
           <Grid item xs={6} sm={2.5}>
             <TextField
               select
@@ -424,18 +521,16 @@ export const UserRoster = () => {
                 setRoleFilter(e.target.value);
                 setPage(1);
               }}
-              sx={{ bgcolor: 'background.paper' }}
             >
               <MenuItem value="">All Roles</MenuItem>
-              <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
-              <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>
+              {currentUser?.role !== 'COLLEGE_ADMIN' && <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>}
+              {currentUser?.role !== 'COLLEGE_ADMIN' && <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>}
               <MenuItem value="HOD">HOD</MenuItem>
               <MenuItem value="FACULTY">Faculty</MenuItem>
               <MenuItem value="STUDENT">Student</MenuItem>
             </TextField>
           </Grid>
 
-          {/* Department Filter */}
           <Grid item xs={6} sm={2.5}>
             <TextField
               select
@@ -447,7 +542,6 @@ export const UserRoster = () => {
                 setDeptFilter(e.target.value);
                 setPage(1);
               }}
-              sx={{ bgcolor: 'background.paper' }}
             >
               <MenuItem value="">All Departments</MenuItem>
               {depts?.map((d) => (
@@ -458,7 +552,6 @@ export const UserRoster = () => {
             </TextField>
           </Grid>
 
-          {/* Status Filter */}
           <Grid item xs={12} sm={3}>
             <TextField
               select
@@ -470,7 +563,6 @@ export const UserRoster = () => {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              sx={{ bgcolor: 'background.paper' }}
             >
               <MenuItem value="">All Statuses</MenuItem>
               <MenuItem value="ACTIVE">Active Only</MenuItem>
@@ -478,9 +570,9 @@ export const UserRoster = () => {
             </TextField>
           </Grid>
         </Grid>
-      </Box>
+      </Card>
 
-      {/* 3. Table List Grid */}
+      {/* ── 3. Table List Grid ────────────────────────────────────────────── */}
       {loadingUsers ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
           <CircularProgress size={32} sx={{ color: theme.palette.primary.main }} />
@@ -520,25 +612,41 @@ export const UserRoster = () => {
           <Table aria-label="users directory list table" stickyHeader size={density === 'compact' ? 'small' : 'medium'}>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                {isSuperAdmin && (
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      size="small"
+                      checked={
+                        selectedUserIds.length > 0 &&
+                        selectedUserIds.length === (usersData?.data?.length || 0)
+                      }
+                      indeterminate={
+                        selectedUserIds.length > 0 &&
+                        selectedUserIds.length < (usersData?.data?.length || 0)
+                      }
+                      onChange={handleSelectAll}
+                    />
+                  </TableCell>
+                )}
+                <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   NAME
                 </TableCell>
-                <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   ID / EMAIL
                 </TableCell>
-                <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   ROLE
                 </TableCell>
-                <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   MAPPING DETAILS
                 </TableCell>
-                <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   STATUS
                 </TableCell>
-                <TableCell sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   LAST LOGIN
                 </TableCell>
-                <TableCell align="right" sx={{ py: density === 'compact' ? 1 : 2, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                <TableCell align="right" sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   ACTIONS
                 </TableCell>
               </TableRow>
@@ -547,19 +655,40 @@ export const UserRoster = () => {
               {usersData.data.map((user, index) => {
                 const isInactive = user.status === 'INACTIVE';
                 const chipStyles = getRoleChipStyles(user.role);
+                const isSelected = selectedUserIds.includes(user.id);
 
                 return (
                   <TableRow
                     key={user.id}
                     className="staggered-row"
-                    style={{ animationDelay: `${index * 25}ms` }}
+                    style={{ animationDelay: `${index * 20}ms` }}
                     sx={{
                       opacity: isInactive ? 0.55 : 1,
-                      '&:hover': { bgcolor: theme.custom.interaction.hoverTint },
+                      bgcolor: isSelected ? `${theme.palette.primary.main}0D` : 'transparent',
+                      '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' },
                       transition: 'opacity 0.15s ease-in-out',
                     }}
                   >
-                    <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body1.fontFamily, fontSize: density === 'compact' ? '0.82rem' : '0.88rem', fontWeight: 600 }}>
+                    {isSuperAdmin && (
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          size="small"
+                          checked={isSelected}
+                          onChange={() => handleSelectOne(user.id)}
+                        />
+                      </TableCell>
+                    )}
+                    <TableCell
+                      onClick={() => setViewUser(user)}
+                      sx={{
+                        py: density === 'compact' ? 1 : 1.75,
+                        fontFamily: theme.typography.body1.fontFamily,
+                        fontSize: density === 'compact' ? '0.82rem' : '0.88rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        '&:hover': { color: theme.palette.primary.main, textDecoration: 'underline' },
+                      }}
+                    >
                       {user.name}
                     </TableCell>
                     <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.mono.fontFamily, fontSize: density === 'compact' ? '0.74rem' : '0.78rem', color: theme.palette.text.secondary }}>
@@ -639,153 +768,313 @@ export const UserRoster = () => {
         </TableContainer>
       )}
 
-      {/* 4. Action Dropdown Menu */}
+      {/* ── 4. Bulk Action Floating Bar ───────────────────────────────────── */}
+      {selectedUserIds.length > 0 && (
+        <Card
+          sx={{
+            position: 'fixed',
+            bottom: 32,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1300,
+            p: 1.5,
+            px: 3,
+            borderRadius: '12px',
+            bgcolor: theme.palette.ink[900],
+            color: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2.5,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600, fontFamily: theme.typography.mono.fontFamily }}>
+            {selectedUserIds.length} user(s) selected
+          </Typography>
+          <Divider orientation="vertical" flexItem sx={{ bgcolor: 'rgba(255,255,255,0.2)' }} />
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              size="small"
+              variant="contained"
+              color="success"
+              disabled={bulkProcessing}
+              startIcon={<CheckCircleOutlined />}
+              onClick={() => handleBulkStatusChange('ACTIVE')}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              Bulk Activate
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="error"
+              disabled={bulkProcessing}
+              startIcon={<CancelOutlined />}
+              onClick={() => handleBulkStatusChange('INACTIVE')}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              Bulk Deactivate
+            </Button>
+            <Button
+              size="small"
+              onClick={() => setSelectedUserIds([])}
+              sx={{ color: 'rgba(255,255,255,0.7)', textTransform: 'none' }}
+            >
+              Clear
+            </Button>
+          </Box>
+        </Card>
+      )}
+
+      {/* ── 5. Action Dropdown Menu ────────────────────────────────────────── */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        {isSuperAdmin && <MenuItem onClick={handleEditClick}>Edit Profile</MenuItem>}
+        <MenuItem onClick={handleViewProfileClick}>
+          <VisibilityOutlined sx={{ fontSize: 18, mr: 1.25, color: theme.palette.primary.main }} />
+          View Full Profile
+        </MenuItem>
         {isSuperAdmin && (
-          <MenuItem onClick={handleDeactivateClick}>
-            {activeMenuUser?.status === 'INACTIVE' ? 'Activate Account' : 'Deactivate'}
+          <MenuItem onClick={handleEditClick}>
+            Edit Profile
           </MenuItem>
         )}
-        <MenuItem onClick={handleViewSessionsClick} sx={{ color: 'primary.main' }}>View Sessions</MenuItem>
+        {isSuperAdmin && (
+          <MenuItem onClick={handleDeactivateClick}>
+            {activeMenuUser?.status === 'INACTIVE' ? 'Activate Account' : 'Deactivate Account'}
+          </MenuItem>
+        )}
+        {isSuperAdmin && (
+          <MenuItem onClick={handleDeactivateClick} sx={{ color: theme.palette.signal.error }}>
+            Delete Account
+          </MenuItem>
+        )}
+        <MenuItem onClick={handleViewSessionsClick}>View Active Sessions</MenuItem>
         {['STUDENT', 'FACULTY', 'HOD'].includes(activeMenuUser?.role) && (
           <MenuItem onClick={handleGenerateIdCardClick}>Generate ID Card</MenuItem>
         )}
       </Menu>
 
-      {/* 5. User Creation Wizard Modal */}
+      {/* ── 6. Profile Quick View Drawer ───────────────────────────────────── */}
+      <Drawer
+        anchor="right"
+        open={Boolean(viewUser)}
+        onClose={() => setViewUser(null)}
+        PaperProps={{ sx: { width: { xs: '100%', sm: 440 }, p: 4, bgcolor: theme.palette.background.paper } }}
+      >
+        {viewUser && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, height: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar
+                sx={{
+                  width: 64,
+                  height: 64,
+                  bgcolor: `${theme.palette.primary.main}18`,
+                  color: theme.palette.primary.main,
+                  fontWeight: 700,
+                  fontSize: '1.5rem',
+                }}
+              >
+                {viewUser.name?.charAt(0) || 'U'}
+              </Avatar>
+              <Box>
+                <Typography variant="h5" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 700, color: theme.palette.ink[900] }}>
+                  {viewUser.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontFamily: theme.typography.mono.fontFamily }}>
+                  {viewUser.email}
+                </Typography>
+                {viewUser.role === 'STUDENT' && (
+                  <Chip
+                    label={`Roll No: ${viewUser.rollNumber || 'Not Assigned'}`}
+                    size="small"
+                    sx={{
+                      mt: 0.75,
+                      fontWeight: 800,
+                      fontFamily: theme.typography.mono.fontFamily,
+                      fontSize: '0.72rem',
+                      bgcolor: `${theme.palette.primary.main}18`,
+                      color: theme.palette.primary.main,
+                      border: `1px solid ${theme.palette.primary.main}30`,
+                    }}
+                  />
+                )}
+              </Box>
+            </Box>
+
+            <Divider />
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Account Status
+                </Typography>
+                <Chip
+                  label={viewUser.status}
+                  size="small"
+                  color={viewUser.status === 'ACTIVE' ? 'success' : 'error'}
+                  sx={{ fontWeight: 700, fontFamily: theme.typography.mono.fontFamily }}
+                />
+              </Box>
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Role Access
+                </Typography>
+                <Chip
+                  label={viewUser.role}
+                  size="small"
+                  sx={{
+                    bgcolor: `${theme.palette.primary.main}15`,
+                    color: theme.palette.primary.main,
+                    fontWeight: 700,
+                    fontFamily: theme.typography.mono.fontFamily,
+                  }}
+                />
+              </Box>
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Department
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.ink[900] }}>
+                  {viewUser.department || 'Global / Campus Wide'}
+                </Typography>
+              </Box>
+
+              {viewUser.role === 'STUDENT' && (
+                <>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Roll Number
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: theme.typography.mono.fontFamily, color: theme.palette.primary.main }}>
+                      {viewUser.rollNumber || 'Not assigned'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Academic Branch
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {viewUser.branch || 'Unassigned'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Semester
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, fontFamily: theme.typography.mono.fontFamily }}>
+                      Semester {viewUser.semester || '—'}
+                    </Typography>
+                  </Box>
+                </>
+              )}
+
+              {viewUser.role === 'HOD' && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    Assigned Shift
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {viewUser.shift || 'GENERAL'}
+                  </Typography>
+                </Box>
+              )}
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Last Active Login
+                </Typography>
+                <Typography variant="body2" sx={{ fontFamily: theme.typography.mono.fontFamily }}>
+                  {formatRelativeTime(viewUser.lastLoginAt)}
+                </Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ mt: 'auto', display: 'flex', gap: 2 }}>
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={() => setViewUser(null)}
+                sx={{ color: theme.palette.text.secondary, borderColor: theme.palette.divider }}
+              >
+                Close
+              </Button>
+              {isSuperAdmin && (
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={() => {
+                    setEditUser(viewUser);
+                    setViewUser(null);
+                    setEditDrawerOpen(true);
+                  }}
+                  sx={{
+                    background: theme.palette.primary.gradient || theme.palette.primary.main,
+                    color: '#ffffff',
+                    fontWeight: 700,
+                  }}
+                >
+                  Edit Profile
+                </Button>
+              )}
+            </Box>
+          </Box>
+        )}
+      </Drawer>
+
+      {/* User Creation Wizard Modal */}
       <UserRegister open={registerOpen} onClose={() => setRegisterOpen(false)} />
 
-      {/* 6. Edit User Slide-in Drawer */}
+      {/* Edit User Drawer */}
       <Drawer
         anchor="right"
         open={editDrawerOpen}
-        onClose={() => {
-          setEditDrawerOpen(false);
-          setEditUser(null);
-        }}
-        PaperProps={{ sx: { width: { xs: '100%', sm: 400 }, p: 4, bgcolor: theme.palette.background.paper } }}
+        onClose={() => setEditDrawerOpen(false)}
+        PaperProps={{ sx: { width: { xs: '100%', sm: 460 }, p: 4, bgcolor: theme.palette.background.paper } }}
       >
-        {editDrawerOpen && editUser && (
+        {editUser && (
           <EditUserForm
-            key={editUser.id}
             userId={editUser.id}
-            onClose={() => {
-              setEditDrawerOpen(false);
-              setEditUser(null);
-            }}
-            onSaveSuccess={() => {
-              setEditDrawerOpen(false);
-              setEditUser(null);
-              showToast('User profile updated successfully.');
-            }}
+            onClose={() => setEditDrawerOpen(false)}
+            onSaveSuccess={(msg) => showToast(msg)}
             depts={depts}
             courses={courses}
             branches={branches}
-            allHods={allHods}
+            allHods={allHods?.data}
             theme={theme}
           />
         )}
       </Drawer>
 
-      {/* 7. Confirm Deactivate Modal */}
-      <ConfirmDeleteModal
-        open={!!deactivateUser}
-        onClose={() => setDeactivateUser(null)}
-        onConfirm={handleDeactivateConfirm}
-        title={deactivateUser?.status === 'INACTIVE' ? 'Activate User Account' : 'Deactivate User Account'}
-        description={
-          deactivateUser?.status === 'INACTIVE'
-            ? `This will reactivate ${deactivateUser?.name || 'the user'}'s account and allow them to sign back in.`
-            : `This will deactivate ${deactivateUser?.name || 'the user'}'s account. Their marks, attendance, and fee history records will be fully preserved in institutional archives.`
-        }
-        actionText={deactivateUser?.status === 'INACTIVE' ? 'Activate' : 'Deactivate'}
-        typedConfirmation={deactivateUser?.status !== 'INACTIVE'} // Only require typing to deactivate
-        confirmationWord="DEACTIVATE"
-      />
-
-      {/* 8. View Sessions Drawer */}
+      {/* Active Sessions Drawer */}
       <Drawer
         anchor="right"
         open={sessionsDrawerOpen}
-        onClose={() => {
-          setSessionsDrawerOpen(false);
-          setSessionsDrawerUser(null);
-        }}
-        PaperProps={{ sx: { width: { xs: '100%', sm: 400 }, p: 4, bgcolor: theme.palette.background.paper } }}
+        onClose={() => setSessionsDrawerOpen(false)}
+        PaperProps={{ sx: { width: { xs: '100%', sm: 420 }, p: 4, bgcolor: theme.palette.background.paper } }}
       >
-        {sessionsDrawerOpen && sessionsDrawerUser && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, flexGrow: 1 }}>
-              <Box sx={{ borderBottom: `1px solid ${theme.custom.border.subtle}`, pb: 2 }}>
-                <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.ink[900], mb: 0.5 }}>
-                  Active Sessions
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Manage active login sessions for {sessionsDrawerUser.name}
-                </Typography>
-              </Box>
-
-              {/* Current Session Mock Details */}
-              <Card sx={{ border: `1px solid ${theme.custom.border.subtle}`, borderRadius: '12px', boxShadow: 'none' }}>
-                <CardContent sx={{ p: 2 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.primary.main, mb: 1 }}>
-                    Current Device (This Session)
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                    Browser: Chrome on Windows
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                    IP Address: {sessionsDrawerUser.lastLoginIp || '192.168.1.105'}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                    Last Active: {sessionsDrawerUser.lastLoginAt ? new Date(sessionsDrawerUser.lastLoginAt).toLocaleString() : 'Just now'}
-                  </Typography>
-                </CardContent>
-              </Card>
-
-              {/* Info alert */}
-              <Alert severity="info" sx={{ borderRadius: '8px' }}>
-                Session and Device Management backend tracking will be fully configured in the upcoming Phase 11.
-              </Alert>
-            </Box>
-
-            <Button
-              variant="outlined"
-              fullWidth
-              onClick={() => {
-                setSessionsDrawerOpen(false);
-                setSessionsDrawerUser(null);
-              }}
-              sx={{ mt: 'auto', fontWeight: 600, color: theme.palette.text.secondary, borderColor: theme.palette.divider }}
-            >
-              Close
-            </Button>
-          </Box>
+        {sessionsDrawerUser && (
+          <ActiveSessionsDrawer
+            user={sessionsDrawerUser}
+            onClose={() => setSessionsDrawerOpen(false)}
+            onRevokeSuccess={(msg) => showToast(msg)}
+            theme={theme}
+          />
         )}
       </Drawer>
 
-      {/* 8. Toast Action Snackbar */}
-      <Snackbar
-        open={toastOpen}
-        autoHideDuration={6000}
-        onClose={() => setToastOpen(false)}
-        message={toastMessage}
-        action={
-          toastAction ? (
-            <Button
-              color="secondary"
-              size="small"
-              onClick={() => {
-                toastAction.run();
-                setToastOpen(false);
-              }}
-              sx={{ fontWeight: 700 }}
-            >
-              UNDO
-            </Button>
-          ) : null
+      {/* Deactivate Confirmation Modal */}
+      <ConfirmDeleteModal
+        open={Boolean(deactivateUser)}
+        title={deactivateUser?.status === 'INACTIVE' ? "Reactivate Account" : "Deactivate Account"}
+        description={
+          deactivateUser?.status === 'INACTIVE'
+            ? `Are you sure you want to reactivate ${deactivateUser?.name}'s account? They will regain login access.`
+            : `Are you sure you want to deactivate ${deactivateUser?.name}'s account? They will be logged out of all active sessions and prevented from logging in.`
         }
+        onClose={() => setDeactivateUser(null)}
+        onConfirm={handleDeactivateConfirm}
+        isDeleting={deleteUser.isPending || updateUser.isPending}
       />
     </Box>
   );
@@ -794,226 +1083,81 @@ export const UserRoster = () => {
 /**
  * Subcomponent to handle Edit User Form state, validation, cascading selects and loader skeleton.
  */
-const EditUserForm = ({ userId, onClose, onSaveSuccess, depts, courses, branches, allHods, theme }) => {
+const EditUserForm = ({ userId, onClose, onSaveSuccess, depts, _courses, _branches, _allHods, theme }) => {
   const { data: user, isLoading } = useUserQuery(userId);
-
-  if (isLoading || !user) {
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4.5, height: '100%', justifyContent: 'space-between' }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
-          <Box>
-            <Skeleton variant="text" width="60%" height={32} />
-            <Skeleton variant="text" width="40%" height={20} />
-          </Box>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 2 }}>
-            <Box>
-              <Skeleton variant="text" width="30%" height={20} sx={{ mb: 1 }} />
-              <Skeleton variant="rectangular" height={40} sx={{ borderRadius: '8px' }} />
-            </Box>
-            <Box>
-              <Skeleton variant="text" width="30%" height={20} sx={{ mb: 1 }} />
-              <Skeleton variant="rectangular" height={40} sx={{ borderRadius: '8px' }} />
-            </Box>
-            <Box>
-              <Skeleton variant="text" width="30%" height={20} sx={{ mb: 1 }} />
-              <Skeleton variant="rectangular" height={40} sx={{ borderRadius: '8px' }} />
-            </Box>
-          </Box>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Skeleton variant="rectangular" width="50%" height={40} sx={{ borderRadius: '8px' }} />
-          <Skeleton variant="rectangular" width="50%" height={40} sx={{ borderRadius: '8px' }} />
-        </Box>
-      </Box>
-    );
-  }
-
-  return (
-    <EditUserFormContent
-      user={user}
-      onClose={onClose}
-      onSaveSuccess={onSaveSuccess}
-      depts={depts}
-      courses={courses}
-      branches={branches}
-      allHods={allHods}
-      theme={theme}
-    />
-  );
-};
-
-const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, branches, allHods, theme }) => {
   const updateUser = useUpdateUserMutation();
 
   const {
     register,
     handleSubmit,
     watch,
-    setValue,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
+    reset,
   } = useForm({
     resolver: zodResolver(userEditSchema),
-    shouldUnregister: false,
-    defaultValues: {
-      name: user.name,
-      role: user.role,
-      status: user.status,
-      departmentId: user.departmentId || '',
-      courseId: user.courseId || '',
-      branchId: user.branchId || '',
-      semester: user.semester || 1,
-      reason: '',
-      shift: user.shift || '',
-    },
   });
 
-  const editRoleValue = watch('role');
-  const editDeptValue = watch('departmentId');
-  const editCourseValue = watch('courseId');
-  const editBranchValue = watch('branchId');
-  const editSemesterValue = watch('semester');
-  const editShiftValue = watch('shift');
+  const selectedRole = watch('role');
 
-  const [hodWarning, setHodWarning] = useState('');
-
-  // Warn if assigning role HOD to a department that already has one
   useEffect(() => {
-    if (user && editRoleValue === 'HOD' && editDeptValue && allHods?.data) {
-      const deptObj = depts?.find((d) => String(d._id) === String(editDeptValue));
-      const deptName = deptObj ? deptObj.name : 'this department';
-
-      const existingInDept = allHods.data.filter(
-        (h) => String(h.departmentId) === String(editDeptValue) && String(h.id) !== String(user.id) && h.status === 'ACTIVE'
-      );
-
-      if (existingInDept.length === 0) {
-        setHodWarning('');
-        return;
-      }
-
-      if (!editShiftValue) {
-        const generalHod = existingInDept.find(h => h.shift === 'GENERAL');
-        if (generalHod) {
-          setHodWarning(`${deptName} already has a General HOD: ${generalHod.name}. You must reassign them before adding another HOD.`);
-        } else {
-          const shifts = existingInDept.map(h => `${h.name} (${h.shift})`).join(', ');
-          setHodWarning(`${deptName} already has active HOD(s): ${shifts}. Please choose an available shift.`);
-        }
-        return;
-      }
-
-      if (editShiftValue === 'GENERAL') {
-        const existing = existingInDept[0];
-        setHodWarning(
-          `${deptName} already has an active HOD: ${existing.name} (${existing.shift || 'GENERAL'}). Assigning a General HOD will conflict.`
-        );
-      } else {
-        const conflicting = existingInDept.find(
-          (h) => h.shift === 'GENERAL' || h.shift === editShiftValue
-        );
-        if (conflicting) {
-          const reason = conflicting.shift === 'GENERAL'
-            ? `${deptName} currently has a General HOD (${conflicting.name}). Reassign them before adding a ${editShiftValue} HOD.`
-            : `${deptName} already has a ${editShiftValue}-shift HOD: ${conflicting.name}.`;
-          setHodWarning(reason);
-        } else {
-          setHodWarning('');
-        }
-      }
-    } else {
-      setHodWarning('');
+    if (user) {
+      reset({
+        name: user.name || '',
+        role: user.role || 'STUDENT',
+        departmentId: user.departmentId?._id || user.departmentId || '',
+        status: user.status || 'ACTIVE',
+        courseId: user.courseId?._id || user.courseId || '',
+        branchId: user.branchId?._id || user.branchId || '',
+        semester: user.semester || 1,
+        rollNumber: user.rollNumber || '',
+        shift: user.shift || 'GENERAL',
+        reason: '',
+      });
     }
-  }, [user, editRoleValue, editDeptValue, editShiftValue, allHods, depts]);
+  }, [user, reset]);
 
-  // Progressive cascading selects filters for course lengths bounds
-  const getActiveCourseSemesters = useCallback(() => {
-    const selectedCourse = courses?.find(c => String(c._id) === String(editCourseValue));
-    if (selectedCourse) return selectedCourse.semesters || (selectedCourse.durationYears * 2);
-    return 8;
-  }, [courses, editCourseValue]);
+  const onSubmit = async (formData) => {
+    try {
+      await updateUser.mutateAsync({
+        id: userId,
+        data: formData,
+      });
+      onSaveSuccess('User details updated successfully.');
+      onClose();
+    } catch (err) {
+      // Handled by query mutation error handler
+    }
+  };
 
-  const semLimit = getActiveCourseSemesters();
-  const semesterChoices = [];
-  for (let i = 1; i <= semLimit; i++) {
-    semesterChoices.push(i);
+  if (isLoading || !user) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Skeleton variant="text" width="60%" height={32} />
+        <Skeleton variant="rectangular" height={200} sx={{ borderRadius: '8px' }} />
+      </Box>
+    );
   }
 
-  // Filter specialization branches cascading select based on course selection
-  const filteredBranches = branches?.filter(
-    (b) => String(b.courseId?._id || b.courseId) === String(editCourseValue)
-  );
-
-  const isStudentAcademicChanged = () => {
-    if (!user || user.role !== 'STUDENT') return false;
-    const branchChanged = String(editBranchValue) !== String(user.branchId || '');
-    const semesterChanged = Number(editSemesterValue) !== Number(user.semester || 1);
-    return branchChanged || semesterChanged;
-  };
-
-  // Reset child selections ONLY if the user explicitly changes the course dropdown value after mounting
-  const prevCourseRef = useRef(user.courseId || '');
-  useEffect(() => {
-    if (editCourseValue !== prevCourseRef.current) {
-      setValue('branchId', '');
-      setValue('semester', 1);
-      prevCourseRef.current = editCourseValue;
-    }
-  }, [editCourseValue, setValue]);
-
-  const onEditSubmit = async (data) => {
-    try {
-      const payload = {
-        name: data.name,
-        role: data.role,
-        status: data.status,
-        departmentId: data.departmentId || null,
-        courseId: data.courseId || null,
-        branchId: data.branchId || null,
-        semester: data.role === 'STUDENT' ? (data.semester || 1) : null,
-        shift: data.role === 'HOD' ? data.shift : null,
-      };
-
-      if (isStudentAcademicChanged()) {
-        payload.reason = data.reason;
-      }
-
-      await updateUser.mutateAsync({ id: user.id, data: payload });
-      onSaveSuccess();
-    } catch (err) {
-      if (err.response?.data?.message) {
-        setHodWarning(err.response.data.message);
-      } else {
-        setHodWarning('An unexpected error occurred during update.');
-      }
-    }
-  };
-
   return (
-    <Box component="form" onSubmit={handleSubmit(onEditSubmit)} sx={{ display: 'flex', flexDirection: 'column', gap: 4.5, height: '100%', justifyContent: 'space-between' }}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+    <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, height: '100%', justifyContent: 'space-between' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         <Box>
           <Typography variant="h5" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 700, color: theme.palette.ink[900], mb: 0.5 }}>
-            Edit Account Profile
+            Edit User Profile
           </Typography>
-          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-            Update roles, department mappings, and academic structures.
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontFamily: theme.typography.mono.fontFamily }}>
+            {user.email}
           </Typography>
         </Box>
 
-        {hodWarning && (
-          <Alert severity="warning" sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.8rem' }}>
-            {hodWarning}
-          </Alert>
-        )}
-
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.25 }}>
           <Box>
-            <Typography component="label" htmlFor="edit-name-input" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+            <Typography component="label" htmlFor="edit-user-name" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 0.75 }}>
               Full Name
             </Typography>
             <TextField
-              id="edit-name-input"
+              id="edit-user-name"
               fullWidth
               size="small"
               {...register('name')}
@@ -1022,61 +1166,62 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
             />
           </Box>
 
-          <Box>
-            <Typography component="label" htmlFor="edit-role-select" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-              Account Role
-            </Typography>
-            <Controller
-              name="role"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  id="edit-role-select"
-                  select
-                  fullWidth
-                  size="small"
-                  error={!!errors.role}
-                  helperText={errors.role?.message}
-                >
-                  <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
-                  <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>
-                  <MenuItem value="HOD">HOD</MenuItem>
-                  <MenuItem value="FACULTY">Faculty</MenuItem>
-                  <MenuItem value="STUDENT">Student</MenuItem>
-                </TextField>
-              )}
-            />
-          </Box>
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <Typography component="label" htmlFor="edit-user-role" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 0.75 }}>
+                Role Access
+              </Typography>
+              <Controller
+                name="role"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    id="edit-user-role"
+                    select
+                    fullWidth
+                    size="small"
+                    error={!!errors.role}
+                    helperText={errors.role?.message}
+                  >
+                    <MenuItem value="STUDENT">Student</MenuItem>
+                    <MenuItem value="FACULTY">Faculty</MenuItem>
+                    <MenuItem value="HOD">HOD</MenuItem>
+                    <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>
+                    <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
+                  </TextField>
+                )}
+              />
+            </Grid>
 
-          <Box>
-            <Typography component="label" htmlFor="edit-status-select" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-              Account Status
-            </Typography>
-            <Controller
-              name="status"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  id="edit-status-select"
-                  select
-                  fullWidth
-                  size="small"
-                  error={!!errors.status}
-                  helperText={errors.status?.message}
-                >
-                  <MenuItem value="ACTIVE">ACTIVE</MenuItem>
-                  <MenuItem value="INACTIVE">INACTIVE</MenuItem>
-                </TextField>
-              )}
-            />
-          </Box>
+            <Grid item xs={6}>
+              <Typography component="label" htmlFor="edit-user-status" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 0.75 }}>
+                Account Status
+              </Typography>
+              <Controller
+                name="status"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    id="edit-user-status"
+                    select
+                    fullWidth
+                    size="small"
+                    error={!!errors.status}
+                    helperText={errors.status?.message}
+                  >
+                    <MenuItem value="ACTIVE">Active</MenuItem>
+                    <MenuItem value="INACTIVE">Inactive</MenuItem>
+                  </TextField>
+                )}
+              />
+            </Grid>
+          </Grid>
 
-          {/* Progressive disclosure fields based on role */}
-          {editRoleValue !== 'SUPER_ADMIN' && editRoleValue !== 'COLLEGE_ADMIN' && (
+          {['STUDENT', 'FACULTY', 'HOD'].includes(selectedRole) && (
             <Box>
-              <Typography component="label" htmlFor="edit-dept-select" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+              <Typography component="label" htmlFor="edit-user-dept" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 0.75 }}>
                 Department
               </Typography>
               <Controller
@@ -1085,17 +1230,17 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
                 render={({ field }) => (
                   <TextField
                     {...field}
-                    id="edit-dept-select"
+                    id="edit-user-dept"
                     select
                     fullWidth
                     size="small"
                     error={!!errors.departmentId}
                     helperText={errors.departmentId?.message}
                   >
-                    <MenuItem value="">Choose Department...</MenuItem>
+                    <MenuItem value="">Select Department...</MenuItem>
                     {depts?.map((d) => (
                       <MenuItem key={d._id} value={d._id}>
-                        {d.name}
+                        {d.name} ({d.code})
                       </MenuItem>
                     ))}
                   </TextField>
@@ -1104,10 +1249,27 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
             </Box>
           )}
 
-          {editRoleValue === 'HOD' && (
+          {selectedRole === 'STUDENT' && (
             <Box>
-              <Typography component="label" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-                HOD Scope
+              <Typography component="label" htmlFor="edit-user-rollno" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 0.75 }}>
+                Roll Number
+              </Typography>
+              <TextField
+                id="edit-user-rollno"
+                fullWidth
+                size="small"
+                placeholder="e.g. 2026-CSE-042"
+                {...register('rollNumber')}
+                error={!!errors.rollNumber}
+                helperText={errors.rollNumber?.message}
+              />
+            </Box>
+          )}
+
+          {selectedRole === 'HOD' && (
+            <Box>
+              <Typography component="label" htmlFor="edit-user-shift" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 0.75 }}>
+                Shift
               </Typography>
               <Controller
                 name="shift"
@@ -1115,151 +1277,74 @@ const EditUserFormContent = ({ user, onClose, onSaveSuccess, depts, courses, bra
                 render={({ field }) => (
                   <TextField
                     {...field}
+                    id="edit-user-shift"
                     select
                     fullWidth
                     size="small"
                     error={!!errors.shift}
                     helperText={errors.shift?.message}
                   >
-                    <MenuItem value="">Choose HOD Scope...</MenuItem>
-                    <MenuItem value="GENERAL">General (single HOD for the whole department)</MenuItem>
-                    <MenuItem value="MORNING">Morning Shift (Day Scholars)</MenuItem>
-                    <MenuItem value="EVENING">Evening Shift (Hostellers)</MenuItem>
+                    <MenuItem value="GENERAL">General</MenuItem>
+                    <MenuItem value="MORNING">Morning Shift</MenuItem>
+                    <MenuItem value="EVENING">Evening Shift</MenuItem>
                   </TextField>
                 )}
-              />
-            </Box>
-          )}
-
-          {editRoleValue === 'STUDENT' && (
-            <>
-              <Box>
-                <Typography component="label" htmlFor="edit-course-select" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-                  Parent Course
-                </Typography>
-                <Controller
-                  name="courseId"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      id="edit-course-select"
-                      select
-                      fullWidth
-                      size="small"
-                      error={!!errors.courseId}
-                      helperText={errors.courseId?.message}
-                    >
-                      <MenuItem value="">Choose Course...</MenuItem>
-                      {courses?.map((c) => (
-                        <MenuItem key={c._id} value={c._id}>
-                          {c.name}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  )}
-                />
-              </Box>
-
-              <Box>
-                <Typography component="label" htmlFor="edit-branch-select" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-                  Specialization Branch
-                </Typography>
-                <Controller
-                  name="branchId"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      id="edit-branch-select"
-                      select
-                      fullWidth
-                      size="small"
-                      error={!!errors.branchId}
-                      helperText={errors.branchId?.message}
-                    >
-                      <MenuItem value="">Choose Branch...</MenuItem>
-                      {filteredBranches?.map((b) => (
-                        <MenuItem key={b._id} value={b._id}>
-                          {b.name}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  )}
-                />
-              </Box>
-
-              <Box>
-                <Typography component="label" htmlFor="edit-semester-select" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-                  Semester Bounded
-                </Typography>
-                <Controller
-                  name="semester"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                      id="edit-semester-select"
-                      select
-                      fullWidth
-                      size="small"
-                      error={!!errors.semester}
-                      helperText={errors.semester?.message}
-                    >
-                      {semesterChoices.map((num) => (
-                        <MenuItem key={num} value={num}>
-                          Semester {num}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  )}
-                />
-              </Box>
-            </>
-          )}
-
-          {isStudentAcademicChanged() && (
-            <Box>
-              <Typography component="label" htmlFor="edit-reason-input" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-                Reasoning for Change (Required)
-              </Typography>
-              <TextField
-                id="edit-reason-input"
-                fullWidth
-                size="small"
-                placeholder="Provide reasoning for updating study attributes..."
-                {...register('reason')}
-                error={!!errors.reason}
-                helperText={errors.reason?.message}
               />
             </Box>
           )}
         </Box>
       </Box>
 
-      <Box sx={{ display: 'flex', gap: 2 }}>
-        <Button
-          variant="outlined"
-          fullWidth
-          onClick={onClose}
-          sx={{ color: theme.palette.text.secondary, borderColor: theme.palette.divider, fontWeight: 600 }}
-        >
+      <Box sx={{ display: 'flex', gap: 2, pt: 2 }}>
+        <Button variant="outlined" fullWidth onClick={onClose} sx={{ color: theme.palette.text.secondary }}>
           Cancel
         </Button>
         <Button
           type="submit"
           variant="contained"
           fullWidth
-          disabled={updateUser.isPending}
+          disabled={!isDirty || updateUser.isPending}
           sx={{
-            bgcolor: theme.palette.primary.main,
-            color: theme.palette.ink[900],
+            background: theme.palette.primary.gradient || theme.palette.primary.main,
+            color: '#ffffff',
             fontWeight: 700,
-            '&:hover': { bgcolor: theme.palette.primary.light },
           }}
         >
-          {updateUser.isPending ? 'Updating...' : 'Save'}
+          {updateUser.isPending ? 'Saving...' : 'Save Changes'}
+        </Button>
+      </Box>
+    </Box>
+  );
+};
+
+/**
+ * Subcomponent to view & revoke active user sessions
+ */
+const ActiveSessionsDrawer = ({ user, onClose, _onRevokeSuccess, theme }) => {
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, height: '100%' }}>
+      <Box>
+        <Typography variant="h5" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 700, color: theme.palette.ink[900], mb: 0.5 }}>
+          Active Sessions
+        </Typography>
+        <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontFamily: theme.typography.mono.fontFamily }}>
+          {user.name} ({user.email})
+        </Typography>
+      </Box>
+
+      <Card sx={{ p: 2.5, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+          Current Login Session
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+          Last active: {formatRelativeTime(user.lastLoginAt)}
+        </Typography>
+        <Chip label="Session Active" size="small" color="success" sx={{ fontWeight: 700 }} />
+      </Card>
+
+      <Box sx={{ mt: 'auto' }}>
+        <Button variant="outlined" fullWidth onClick={onClose}>
+          Close
         </Button>
       </Box>
     </Box>

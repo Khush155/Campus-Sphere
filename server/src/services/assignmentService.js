@@ -2,6 +2,7 @@ const FacultyAssignment = require('../models/FacultyAssignment');
 const User = require('../models/User');
 const Subject = require('../models/Subject');
 const AppError = require('../utils/AppError');
+const { createNotification } = require('./notificationService');
 const ERROR_CODES = require('../constants/errorCodes');
 const logger = require('../utils/logger');
 const { logAuditEvent } = require('../utils/auditLogger');
@@ -65,6 +66,22 @@ const createAssignment = async ({ facultyId, subjectId, group, assignedBy, depar
   });
 
   logger.info(`[Faculty Assigned] Faculty: ${facultyId} to Subject: ${subjectId} Group: ${group || 'FULL_BATCH'} by HOD: ${assignedBy}`);
+
+  // Notify assigned faculty member
+  try {
+    const subject = await Subject.findById(subjectId);
+    await createNotification({
+      recipientId: facultyId,
+      title: `📚 Subject Assignment Updated`,
+      message: `You have been assigned to teach ${subject?.name || 'a subject'}${group ? ` (Group ${group})` : ' (Full Batch)'}.`,
+      category: 'FACULTY_ASSIGNMENT',
+      link: '/faculty',
+      senderId: assignedBy,
+      metadata: { subjectId, group },
+    });
+  } catch (err) {
+    // Non-blocking
+  }
 
   // 5. Audit Log
   await logAuditEvent({

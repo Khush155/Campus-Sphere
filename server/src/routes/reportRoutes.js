@@ -13,8 +13,8 @@ router.use(authMiddleware);
 // HOD Overview metrics
 router.get('/hod', roleMiddleware(ROLES.HOD, ROLES.COLLEGE_ADMIN, ROLES.SUPER_ADMIN), asyncHandler(reportController.getHodReports));
 
-// Enforce SUPER_ADMIN roles for remaining reports endpoints
-router.use(roleMiddleware(ROLES.SUPER_ADMIN));
+// Enforce admin roles for report export endpoints
+router.use(roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN));
 
 // Retrieve available types
 router.get('/types', asyncHandler(reportController.getReportTypes));

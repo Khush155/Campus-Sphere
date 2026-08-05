@@ -2,62 +2,71 @@ import { createTheme } from '@mui/material/styles';
 import { motionTokens } from './motionTokens';
 import { elevationTokens } from './elevationTokens';
 
-// Definition of premium design tokens for each color preset
+// Definition of premium, luxury design tokens for each color preset
 const COLOR_PRESETS = {
   indigo: {
     light: {
-      primary: { main: '#4f46e5', light: '#818cf8', dark: '#3730a3' },
-      secondary: { main: '#06b6d4', light: '#22d3ee', dark: '#0891b2' },
+      primary: { main: '#4338ca', light: '#6366f1', dark: '#312e81' },
+      secondary: { main: '#0284c7', light: '#38bdf8', dark: '#0369a1' },
+      gradient: 'linear-gradient(135deg, #4338ca 0%, #0284c7 100%)',
     },
     dark: {
-      primary: { main: '#6366f1', light: '#a5b4fc', dark: '#4338ca' },
-      secondary: { main: '#22d3ee', light: '#67e8f9', dark: '#0891b2' },
+      primary: { main: '#6366f1', light: '#818cf8', dark: '#4338ca' },
+      secondary: { main: '#38bdf8', light: '#7dd3fc', dark: '#0284c7' },
+      gradient: 'linear-gradient(135deg, #6366f1 0%, #38bdf8 100%)',
     },
   },
   emerald: {
     light: {
-      primary: { main: '#059669', light: '#34d399', dark: '#047857' },
+      primary: { main: '#059669', light: '#10b981', dark: '#047857' },
       secondary: { main: '#0d9488', light: '#2dd4bf', dark: '#0f766e' },
+      gradient: 'linear-gradient(135deg, #059669 0%, #0d9488 100%)',
     },
     dark: {
-      primary: { main: '#10b981', light: '#6ee7b7', dark: '#065f46' },
-      secondary: { main: '#14b8a6', light: '#5eead4', dark: '#115e59' },
+      primary: { main: '#10b981', light: '#34d399', dark: '#059669' },
+      secondary: { main: '#2dd4bf', light: '#5eead4', dark: '#0d9488' },
+      gradient: 'linear-gradient(135deg, #10b981 0%, #2dd4bf 100%)',
     },
   },
   rose: {
     light: {
-      primary: { main: '#db2777', light: '#f472b6', dark: '#9d174d' },
-      secondary: { main: '#ea580c', light: '#fb923c', dark: '#9a3412' },
+      primary: { main: '#e11d48', light: '#f43f5e', dark: '#be123c' },
+      secondary: { main: '#9333ea', light: '#c084fc', dark: '#7e22ce' },
+      gradient: 'linear-gradient(135deg, #e11d48 0%, #9333ea 100%)',
     },
     dark: {
-      primary: { main: '#f43f5e', light: '#fda4af', dark: '#9f1239' },
-      secondary: { main: '#fb923c', light: '#fdbb2d', dark: '#c2410c' },
+      primary: { main: '#fb7185', light: '#fda4af', dark: '#e11d48' },
+      secondary: { main: '#c084fc', light: '#e9d5ff', dark: '#9333ea' },
+      gradient: 'linear-gradient(135deg, #fb7185 0%, #c084fc 100%)',
     },
   },
   amber: {
     light: {
-      primary: { main: '#d97706', light: '#fbbf24', dark: '#92400e' },
-      secondary: { main: '#4f46e5', light: '#818cf8', dark: '#3730a3' },
+      primary: { main: '#d97706', light: '#f59e0b', dark: '#b45309' },
+      secondary: { main: '#4338ca', light: '#6366f1', dark: '#312e81' },
+      gradient: 'linear-gradient(135deg, #d97706 0%, #4338ca 100%)',
     },
     dark: {
-      primary: { main: '#f59e0b', light: '#fde047', dark: '#78350f' },
+      primary: { main: '#fbbf24', light: '#fde047', dark: '#d97706' },
       secondary: { main: '#818cf8', light: '#a5b4fc', dark: '#4338ca' },
+      gradient: 'linear-gradient(135deg, #fbbf24 0%, #818cf8 100%)',
     },
   },
   violet: {
     light: {
-      primary: { main: '#7c3aed', light: '#a78bfa', dark: '#5b21b6' },
-      secondary: { main: '#db2777', light: '#f472b6', dark: '#9d174d' },
+      primary: { main: '#7c3aed', light: '#8b5cf6', dark: '#6d28d9' },
+      secondary: { main: '#0891b2', light: '#06b6d4', dark: '#0e7490' },
+      gradient: 'linear-gradient(135deg, #7c3aed 0%, #0891b2 100%)',
     },
     dark: {
-      primary: { main: '#8b5cf6', light: '#c084fc', dark: '#6d28d9' },
-      secondary: { main: '#f472b6', light: '#f9a8d4', dark: '#be185d' },
+      primary: { main: '#a78bfa', light: '#c084fc', dark: '#7c3aed' },
+      secondary: { main: '#22d3ee', light: '#67e8f9', dark: '#0891b2' },
+      gradient: 'linear-gradient(135deg, #a78bfa 0%, #22d3ee 100%)',
     },
   },
 };
 
 const getDesignTokens = (mode, presetName = 'indigo') => {
-  // Fallback to indigo if invalid preset name is supplied
   const activePreset = COLOR_PRESETS[presetName] ? COLOR_PRESETS[presetName] : COLOR_PRESETS.indigo;
   const colors = activePreset[mode];
 
@@ -66,6 +75,7 @@ const getDesignTokens = (mode, presetName = 'indigo') => {
       mode,
       primary: {
         ...colors.primary,
+        gradient: colors.gradient,
         contrastText: '#ffffff',
       },
       secondary: {
@@ -74,55 +84,66 @@ const getDesignTokens = (mode, presetName = 'indigo') => {
       },
       brass: {
         500: '#B8863E',
+        400: '#C99A4F',
         300: '#D9B876',
+        100: '#F5EBD8',
       },
       slateCustom: {
-        500: '#5B6B7C',
+        900: '#0F172A',
+        700: '#334155',
+        500: '#64748B',
+        200: '#E2E8F0',
       },
       signal: {
         error: '#B3432B',
         success: '#3F6E52',
+        warning: '#D97706',
+        info: '#0284C7',
       },
       ...(mode === 'light'
         ? {
-            // Ink & Parchment Institutional Brand Colors
+            // Ink & Parchment Institutional Brand Colors (Light)
             ink: {
               900: '#0E1A2B',
+              800: '#152438',
               700: '#1C2E45',
             },
             parchment: {
-              50: '#F7F5EF',
-              100: '#EDE9DD',
+              50: '#F8F6F0',
+              100: '#EFECE1',
             },
             background: {
-              default: '#f8fafc', // Slate 50
-              paper: '#ffffff',
+              default: '#F8FAFC',
+              paper: '#FFFFFF',
             },
             text: {
-              primary: '#0f172a', // Slate 900
-              secondary: '#475569', // Slate 600
+              primary: '#0E1A2B',
+              secondary: '#475569',
+              disabled: '#94A3B8',
             },
-            divider: '#e2e8f0', // Slate 200
+            divider: '#E2E8F0',
           }
         : {
-            // Ink & Parchment Inverted for Dark Mode readability
+            // Sleek Luxury Deep Midnight Slate (Dark)
             ink: {
-              900: '#f8fafc', // Light slate
-              700: '#cbd5e1', // Muted light slate
+              900: '#F8FAFC',
+              800: '#E2E8F0',
+              700: '#CBD5E1',
             },
             parchment: {
-              50: '#0b0f19', // Deep dark slate background
-              100: '#1e293b', // Dark container slate
+              50: '#080C14',
+              100: '#141D2C',
             },
             background: {
-              default: '#0b0f19', // Deep dark slate
-              paper: '#111827', // Gray 900
+              default: '#080C14', // Deepest midnight slate
+              paper: '#0F1726', // Premium card background
             },
             text: {
-              primary: '#f8fafc', // Slate 50
-              secondary: '#94a3b8', // Slate 400
+              primary: '#F8FAFC',
+              secondary: '#94A3B8',
+              disabled: '#64748B',
             },
-            divider: '#1f2937', // Gray 800
+            divider: 'rgba(255, 255, 255, 0.08)',
           }),
     },
     typography: {
@@ -130,11 +151,11 @@ const getDesignTokens = (mode, presetName = 'indigo') => {
       h1: { fontFamily: '"Fraunces", "Source Serif 4", serif', fontWeight: 600, letterSpacing: '-0.025em', fontSize: '2.5rem' },
       h2: { fontFamily: '"Fraunces", "Source Serif 4", serif', fontWeight: 600, letterSpacing: '-0.02em', fontSize: '2rem' },
       h3: { fontFamily: '"Fraunces", "Source Serif 4", serif', fontWeight: 600, letterSpacing: '-0.015em', fontSize: '1.75rem' },
-      h4: { fontFamily: '"Fraunces", "Source Serif 4", serif', fontWeight: 600, letterSpacing: '-0.01em', fontSize: '1.75rem', lineHeight: 1.2 }, // 28px
-      h5: { fontFamily: '"Fraunces", "Source Serif 4", serif', fontWeight: 600, fontSize: '1.25rem' }, // 20px
-      h6: { fontFamily: '"IBM Plex Sans", sans-serif', fontWeight: 600, fontSize: '1rem', letterSpacing: '0.01em' }, // 16px section heading
-      body1: { fontFamily: '"IBM Plex Sans", sans-serif', fontSize: '0.875rem', lineHeight: 1.5 }, // 14px
-      body2: { fontFamily: '"IBM Plex Sans", sans-serif', fontSize: '0.75rem', lineHeight: 1.5 }, // 12px
+      h4: { fontFamily: '"Fraunces", "Source Serif 4", serif', fontWeight: 600, letterSpacing: '-0.01em', fontSize: '1.75rem', lineHeight: 1.2 },
+      h5: { fontFamily: '"Fraunces", "Source Serif 4", serif', fontWeight: 600, fontSize: '1.25rem' },
+      h6: { fontFamily: '"IBM Plex Sans", sans-serif', fontWeight: 600, fontSize: '1rem', letterSpacing: '0.01em' },
+      body1: { fontFamily: '"IBM Plex Sans", sans-serif', fontSize: '0.875rem', lineHeight: 1.5 },
+      body2: { fontFamily: '"IBM Plex Sans", sans-serif', fontSize: '0.75rem', lineHeight: 1.5 },
       button: {
         fontFamily: '"IBM Plex Sans", sans-serif',
         textTransform: 'none',
@@ -144,7 +165,7 @@ const getDesignTokens = (mode, presetName = 'indigo') => {
       },
       mono: {
         fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: '0.8125rem', // ~13px
+        fontSize: '0.8125rem',
         letterSpacing: '0.02em',
       },
     },
@@ -156,6 +177,8 @@ const getDesignTokens = (mode, presetName = 'indigo') => {
         styleOverrides: {
           paper: {
             transition: 'transform 250ms cubic-bezier(0.32, 0.72, 0, 1) !important',
+            backgroundColor: mode === 'light' ? '#FFFFFF' : '#0F1726',
+            borderColor: mode === 'light' ? '#E2E8F0' : 'rgba(255, 255, 255, 0.08)',
           },
         },
       },
@@ -173,25 +196,23 @@ const getDesignTokens = (mode, presetName = 'indigo') => {
         styleOverrides: {
           root: {
             borderRadius: '8px',
-            padding: '8px 16px',
-            transition: 'all 0.2s ease-in-out',
+            padding: '8px 18px',
+            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
             boxShadow: 'none',
             '&:hover': {
-              boxShadow: mode === 'light' 
-                ? `0 4px 12px ${colors.primary.main}26`
-                : `0 4px 14px ${colors.primary.main}40`,
+              boxShadow: mode === 'light'
+                ? `0 6px 16px ${colors.primary.main}30`
+                : `0 6px 18px ${colors.primary.main}45`,
               transform: 'translateY(-1px)',
-            },
-            '&.Mui-focusVisible': {
-              outline: `2px solid ${colors.primary.main}`,
-              outlineOffset: '2px',
             },
           },
           containedPrimary: {
-            background: `linear-gradient(135deg, ${colors.primary.main} 0%, ${colors.primary.light} 100%)`,
+            background: colors.gradient,
             color: '#ffffff',
+            fontWeight: 700,
             '&:hover': {
-              background: `linear-gradient(135deg, ${colors.primary.dark} 0%, ${colors.primary.main} 100%)`,
+              background: colors.gradient,
+              filter: 'brightness(1.1)',
             },
           },
         },
@@ -200,43 +221,42 @@ const getDesignTokens = (mode, presetName = 'indigo') => {
         styleOverrides: {
           root: {
             borderRadius: 16,
-            boxShadow: mode === 'light' ? elevationTokens.light.raised : elevationTokens.dark.raised,
-            border: mode === 'light' ? '1px solid #f1f5f9' : '1px solid #1f2937',
-            transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+            backgroundColor: mode === 'light' ? '#FFFFFF' : '#141D2C',
+            boxShadow: mode === 'light'
+              ? '0 4px 20px rgba(14, 26, 43, 0.04)'
+              : '0 4px 24px rgba(0, 0, 0, 0.35)',
+            border: mode === 'light' ? '1px solid #E2E8F0' : '1px solid rgba(255, 255, 255, 0.08)',
+            transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease',
             '&:hover': {
-              transform: 'translateY(-2px)',
-              boxShadow: mode === 'light' ? elevationTokens.light.overlay : elevationTokens.dark.overlay,
+              borderColor: mode === 'light' ? '#CBD5E1' : 'rgba(255, 255, 255, 0.16)',
             },
           },
         },
       },
-      MuiInputBase: {
+      MuiChip: {
         styleOverrides: {
           root: {
-            borderRadius: '8px',
-            '&.Mui-focusVisible': {
-              outline: `2px solid ${colors.primary.main}`,
-              outlineOffset: '2px',
-            },
+            borderRadius: '6px',
+            fontWeight: 600,
           },
         },
       },
     },
-    // Theme extensions for elevated surfaces, hover states and focus visible rings
     custom: {
       surface: {
-        base: mode === 'light' ? '#f8fafc' : '#0b0f19',
-        raised: mode === 'light' ? '#ffffff' : '#111827',
-        overlay: mode === 'light' ? '#ffffff' : '#1e293b',
-        sunken: mode === 'light' ? '#f1f5f9' : '#0f172a',
+        base: mode === 'light' ? '#F8FAFC' : '#080C14',
+        raised: mode === 'light' ? '#FFFFFF' : '#141D2C',
+        overlay: mode === 'light' ? '#FFFFFF' : '#1A2436',
+        sunken: mode === 'light' ? '#F1F5F9' : '#0F1726',
       },
       interaction: {
-        hoverTint: `${colors.primary.main}0f`,
-        pressTint: `${colors.primary.main}1f`,
+        hoverTint: `${colors.primary.main}0d`,
+        pressTint: `${colors.primary.main}1a`,
         focusRing: `2px solid ${colors.primary.main}`,
       },
       border: {
-        subtle: mode === 'light' ? '#e2e8f0' : '#1f2937',
+        subtle: mode === 'light' ? '#E2E8F0' : 'rgba(255, 255, 255, 0.08)',
+        strong: mode === 'light' ? '#CBD5E1' : 'rgba(255, 255, 255, 0.18)',
       },
       elevation: mode === 'light' ? elevationTokens.light : elevationTokens.dark,
       motion: motionTokens,

@@ -57,7 +57,7 @@ export const NoticesAndEvents = ({ notices, events }) => {
   };
 
   return (
-    <Paper sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Paper sx={{ p: 3, borderRadius: '16px', border: (theme) => `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
       {/* ── Section Header ── */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
         {activeTab === 0 ? (

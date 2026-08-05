@@ -22,7 +22,7 @@ const register = async (req, res, _next) => {
   // Validate request body against register Zod schema
   const validatedBody = registerSchema.parse(req.body);
 
-  const registeredUser = await authService.registerUser(validatedBody);
+  const registeredUser = await authService.registerUser(validatedBody, req.user);
 
   return successResponse(res, 201, 'User registered successfully.', registeredUser);
 };
@@ -78,13 +78,14 @@ const refresh = async (req, res, next) => {
     return next(new AppError('Session expired. Please log in again.', 401, ERROR_CODES.UNAUTHORIZED));
   }
 
-  const { accessToken, refreshToken } = await authService.refreshAccessToken(tokenToRefresh);
+  const { accessToken, refreshToken, user } = await authService.refreshAccessToken(tokenToRefresh);
 
   // Set rotated refresh token in HttpOnly cookie
   res.cookie('refreshToken', refreshToken, cookieOptions);
 
   return successResponse(res, 200, 'Session token refreshed successfully.', {
     accessToken,
+    user,
   });
 };
 

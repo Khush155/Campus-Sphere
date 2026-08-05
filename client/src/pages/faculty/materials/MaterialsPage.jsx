@@ -1,12 +1,9 @@
-/* eslint-disable */
 import React, { useState, useMemo } from 'react';
 import {
   Box,
   Typography,
   Grid,
   Card,
-  CardContent,
-  CardActions,
   Button,
   IconButton,
   Dialog,
@@ -17,16 +14,14 @@ import {
   MenuItem,
   Chip,
   Paper,
-  Snackbar,
-  Alert,
   Divider,
   CircularProgress,
   Tabs,
   Tab,
-  Tooltip,
+  useTheme,
+  Avatar,
 } from '@mui/material';
 import {
-  ArrowBack as BackIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
   Download as DownloadIcon,
@@ -34,15 +29,15 @@ import {
   PictureAsPdf as PdfIcon,
   Slideshow as PptIcon,
   YouTube as VideoIcon,
-  InsertDriveFile as FileIcon,
   Link as LinkIcon,
   Note as NoteIcon,
   Search as SearchIcon,
-  FolderZip as FolderIcon,
-  MenuBook as BookIcon,
-  VisibilityOutlined as EyeIcon,
+  MenuBookOutlined,
+  FolderOutlined,
+  VisibilityOutlined,
+  RefreshOutlined,
+  CloudUploadOutlined,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
 
 // Backend hooks
 import {
@@ -51,6 +46,9 @@ import {
   useUploadMaterialMutation,
   useDeleteMaterialMutation,
 } from '../../../queries/facultyQueries';
+import { useToast } from '../../../contexts/ToastContext';
+import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
+import EmptyState from '../../../components/common/EmptyState';
 
 const UNIT_OPTIONS = [
   'General Reference',
@@ -62,7 +60,8 @@ const UNIT_OPTIONS = [
 ];
 
 export const MaterialsPage = () => {
-  const navigate = useNavigate();
+  const theme = useTheme();
+  const { showToast } = useToast();
 
   // Filter States
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
@@ -74,11 +73,8 @@ export const MaterialsPage = () => {
   // Dialog & Detail Modal States
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [viewingMaterial, setViewingMaterial] = useState(null);
-  const [deleteId, setDeleteId] = useState(null);
-
-  // Toast State
-  const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
-  const showToast = (message, severity = 'success') => setToast({ open: true, message, severity });
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   // Upload Form State
   const [newMaterial, setNewMaterial] = useState({
@@ -115,7 +111,7 @@ export const MaterialsPage = () => {
   ], []);
 
   // 2. Fetch study materials from backend
-  const { data: rawMaterials = [], isLoading: isMaterialsLoading } = useMaterialsQuery({
+  const { data: rawMaterials = [], isLoading: isMaterialsLoading, refetch } = useMaterialsQuery({
     subjectId: selectedSubjectId || undefined,
     group: selectedSectionId !== 'ALL' ? selectedSectionId : undefined,
   });
@@ -152,6 +148,7 @@ export const MaterialsPage = () => {
   }, [rawMaterials]);
 
   const handleUploadOpen = () => {
+    setSelectedFile(null);
     setNewMaterial({
       title: '',
       type: 'PDF',
@@ -167,48 +164,65 @@ export const MaterialsPage = () => {
 
   const handleSaveMaterial = () => {
     if (!newMaterial.title || !newMaterial.subjectId) {
-      showToast('Please enter title and select a subject.', 'error');
+      showToast('Please enter title and select a subject.', { severity: 'error' });
       return;
     }
 
-    if (newMaterial.type !== 'NOTE' && !newMaterial.url) {
-      showToast('Please enter resource link or file URL.', 'error');
+    if (!selectedFile && newMaterial.type !== 'NOTE' && !newMaterial.url) {
+      showToast('Please select a local document file or enter a resource URL.', { severity: 'error' });
       return;
     }
 
-    const payload = {
-      title: newMaterial.title.trim(),
-      type: newMaterial.type,
-      subjectId: newMaterial.subjectId,
-      semester: currentSubject?.semester || 1,
-      group: newMaterial.sectionId || 'ALL',
-      unit: newMaterial.unit || 'General Reference',
-      url: newMaterial.type === 'NOTE' ? 'N/A' : (newMaterial.url.trim() || 'https://campus.edu/files/resource'),
-      description: newMaterial.description.trim(),
-      fileSize: newMaterial.type === 'NOTE' ? '0 KB' : (newMaterial.fileSize || '2.5 MB'),
-    };
+    let payload;
+    if (selectedFile) {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('title', newMaterial.title.trim());
+      formData.append('type', newMaterial.type);
+      formData.append('subjectId', newMaterial.subjectId);
+      formData.append('semester', currentSubject?.semester || 1);
+      formData.append('group', newMaterial.sectionId || 'ALL');
+      formData.append('unit', newMaterial.unit || 'General Reference');
+      formData.append('url', newMaterial.url.trim() || 'N/A');
+      formData.append('description', newMaterial.description.trim());
+      formData.append('fileSize', newMaterial.fileSize || '2.5 MB');
+      payload = formData;
+    } else {
+      payload = {
+        title: newMaterial.title.trim(),
+        type: newMaterial.type,
+        subjectId: newMaterial.subjectId,
+        semester: currentSubject?.semester || 1,
+        group: newMaterial.sectionId || 'ALL',
+        unit: newMaterial.unit || 'General Reference',
+        url: newMaterial.type === 'NOTE' ? 'N/A' : (newMaterial.url.trim() || 'https://campus.edu/files/resource'),
+        description: newMaterial.description.trim(),
+        fileSize: newMaterial.type === 'NOTE' ? '0 KB' : (newMaterial.fileSize || '2.5 MB'),
+      };
+    }
 
     uploadMaterialMutation.mutate(payload, {
       onSuccess: () => {
         setIsUploadOpen(false);
-        showToast('Study material uploaded successfully!', 'success');
+        setSelectedFile(null);
+        showToast('Study material uploaded successfully!');
       },
       onError: (err) => {
-        showToast(`Upload failed: ${err.response?.data?.message || err.message}`, 'error');
+        showToast(`Upload failed: ${err.response?.data?.message || err.message}`, { severity: 'error' });
       },
     });
   };
 
-  const handleConfirmDelete = () => {
-    if (!deleteId) return;
-    deleteMaterialMutation.mutate(deleteId, {
+  const handleDeleteConfirm = () => {
+    if (!deleteTargetId) return;
+    deleteMaterialMutation.mutate(deleteTargetId, {
       onSuccess: () => {
-        setDeleteId(null);
-        showToast('Material deleted successfully.', 'success');
+        setDeleteTargetId(null);
+        showToast('Material deleted successfully!');
       },
       onError: (err) => {
-        setDeleteId(null);
-        showToast(`Delete failed: ${err.response?.data?.message || err.message}`, 'error');
+        setDeleteTargetId(null);
+        showToast(`Delete failed: ${err.response?.data?.message || err.message}`, { severity: 'error' });
       },
     });
   };
@@ -217,555 +231,537 @@ export const MaterialsPage = () => {
   const getIconForType = (type) => {
     switch (type) {
       case 'PDF':
-        return <PdfIcon sx={{ fontSize: 32, color: '#ef4444' }} />;
+        return <PdfIcon sx={{ fontSize: 28, color: '#ef4444' }} />;
       case 'PPT':
-        return <PptIcon sx={{ fontSize: 32, color: '#3b82f6' }} />;
+        return <PptIcon sx={{ fontSize: 28, color: '#3b82f6' }} />;
       case 'YOUTUBE':
-        return <VideoIcon sx={{ fontSize: 32, color: '#dc2626' }} />;
+        return <VideoIcon sx={{ fontSize: 28, color: '#dc2626' }} />;
       case 'NOTE':
-        return <NoteIcon sx={{ fontSize: 32, color: '#f59e0b' }} />;
+        return <NoteIcon sx={{ fontSize: 28, color: '#f59e0b' }} />;
       default:
-        return <LinkIcon sx={{ fontSize: 32, color: '#6366f1' }} />;
+        return <LinkIcon sx={{ fontSize: 28, color: '#6366f1' }} />;
     }
   };
 
   if (isDashboardLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-        <CircularProgress />
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress size={36} />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ flexGrow: 1, p: { xs: 1, sm: 3 } }}>
-      {/* ── Page Header ── */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <IconButton
-            onClick={() => navigate('/faculty')}
-            size="small"
-            sx={{ bgcolor: 'action.hover', '&:hover': { bgcolor: 'action.selected' } }}
-          >
-            <BackIcon fontSize="small" />
-          </IconButton>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+      {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
+      <Card
+        sx={{
+          p: 3.5,
+          borderRadius: '16px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
+          boxShadow: 'none',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
-              Study & Course Materials
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+              <Chip
+                icon={<FolderOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+                label="FACULTY STUDY & COURSE MATERIALS VAULT"
+                size="small"
+                sx={{
+                  bgcolor: `${theme.palette.primary.main}15`,
+                  color: theme.palette.primary.main,
+                  fontWeight: 800,
+                  fontFamily: theme.typography.mono.fontFamily,
+                  letterSpacing: '0.05em',
+                  fontSize: '0.7rem',
+                }}
+              />
+            </Box>
+            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+              Study & Course Materials Vault
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Upload and manage course PDFs, lecture slides, video tutorials, unit notes, and reference guides
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+              Upload lecture slides, course syllabus PDFs, unit notes, lab manuals, and video tutorial links for your assigned department subjects.
             </Typography>
           </Box>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleUploadOpen}
-          sx={{
-            textTransform: 'none',
-            fontWeight: 700,
-            borderRadius: 2.5,
-            px: 3,
-            py: 1,
-            bgcolor: '#4f46e5',
-            '&:hover': { bgcolor: '#4338ca' },
-          }}
-        >
-          Upload Material
-        </Button>
-      </Box>
 
-      {/* ── Summary KPI Cards ── */}
-      <Grid container spacing={2.5} sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshOutlined />}
+              onClick={() => refetch()}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+            >
+              Refresh Vault
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleUploadOpen}
+              sx={{
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontWeight: 700,
+                background: theme.palette.primary.gradient || theme.palette.primary.main,
+                color: '#ffffff',
+              }}
+            >
+              Upload New Material
+            </Button>
+          </Box>
+        </Box>
+      </Card>
+
+      {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
+      <Grid container spacing={2.5}>
         <Grid item xs={12} sm={6} md={3}>
-          <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{ p: 1.5, borderRadius: 2.5, bgcolor: 'rgba(79, 70, 229, 0.1)', color: '#4f46e5' }}>
-              <BookIcon fontSize="large" />
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+                  TOTAL RESOURCES
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {stats.total}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
+                <MenuBookOutlined />
+              </Avatar>
             </Box>
-            <Box>
-              <Typography variant="h5" fontWeight={800}>{stats.total}</Typography>
-              <Typography variant="caption" color="text.secondary">Total Resources Shared</Typography>
-            </Box>
-          </Paper>
+          </Card>
         </Grid>
+
         <Grid item xs={12} sm={6} md={3}>
-          <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{ p: 1.5, borderRadius: 2.5, bgcolor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
-              <PdfIcon fontSize="large" />
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
+                  PDFs & DECKS
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {stats.pdfs}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.signal.error}15`, color: theme.palette.signal.error }}>
+                <PdfIcon />
+              </Avatar>
             </Box>
-            <Box>
-              <Typography variant="h5" fontWeight={800}>{stats.pdfs}</Typography>
-              <Typography variant="caption" color="text.secondary">PDFs & Presentation Decks</Typography>
-            </Box>
-          </Paper>
+          </Card>
         </Grid>
+
         <Grid item xs={12} sm={6} md={3}>
-          <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{ p: 1.5, borderRadius: 2.5, bgcolor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
-              <VideoIcon fontSize="large" />
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info.main }}>
+                  VIDEO & LINKS
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {stats.videos}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.info.main}15`, color: theme.palette.info.main }}>
+                <VideoIcon />
+              </Avatar>
             </Box>
-            <Box>
-              <Typography variant="h5" fontWeight={800}>{stats.videos}</Typography>
-              <Typography variant="caption" color="text.secondary">Videos & External Links</Typography>
-            </Box>
-          </Paper>
+          </Card>
         </Grid>
+
         <Grid item xs={12} sm={6} md={3}>
-          <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{ p: 1.5, borderRadius: 2.5, bgcolor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
-              <NoteIcon fontSize="large" />
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
+                  UNIT NOTES
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {stats.notes}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.warning.main}15`, color: theme.palette.warning.main }}>
+                <NoteIcon />
+              </Avatar>
             </Box>
-            <Box>
-              <Typography variant="h5" fontWeight={800}>{stats.notes}</Typography>
-              <Typography variant="caption" color="text.secondary">Class Notes & Guides</Typography>
-            </Box>
-          </Paper>
+          </Card>
         </Grid>
       </Grid>
 
-      {/* ── Filters & Search Row ── */}
-      <Paper sx={{ p: 3, mb: 4, borderRadius: 3 }} elevation={0} variant="outlined">
-        <Grid container spacing={2.5} alignItems="center">
-          {/* Subject Dropdown */}
-          <Grid item xs={12} sm={6} md={3}>
+      {/* ── 3. Filters Bar & Format Tabs ─────────────────────────────────── */}
+      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Grid container spacing={2} sx={{ mb: 2.5 }} alignItems="center">
+          <Grid item xs={12} sm={4}>
             <TextField
               select
               fullWidth
               size="small"
-              label="Subject"
+              label="Select Subject"
               value={selectedSubjectId}
               onChange={(e) => {
                 setSelectedSubjectId(e.target.value);
                 setSelectedSectionId('ALL');
               }}
-              InputLabelProps={{ shrink: true }}
             >
               {assignedSubjects.map((sub) => (
                 <MenuItem key={sub.id} value={sub.id}>
-                  {sub.code} - {sub.name}
+                  {sub.name} ({sub.code})
                 </MenuItem>
               ))}
             </TextField>
           </Grid>
 
-          {/* Section Selector */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={3}>
             <TextField
               select
               fullWidth
               size="small"
-              label="Section / Batch"
+              label="Section / Group"
               value={selectedSectionId}
               onChange={(e) => setSelectedSectionId(e.target.value)}
-              InputLabelProps={{ shrink: true }}
             >
               {sectionsOptions.map((sec) => (
-                <MenuItem key={sec.id} value={sec.id}>
-                  {sec.name}
-                </MenuItem>
+                <MenuItem key={sec.id} value={sec.id}>{sec.name}</MenuItem>
               ))}
             </TextField>
           </Grid>
 
-          {/* Unit / Module Selector */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={3}>
             <TextField
               select
               fullWidth
               size="small"
-              label="Unit / Syllabus Module"
+              label="Syllabus Unit Filter"
               value={selectedUnit}
               onChange={(e) => setSelectedUnit(e.target.value)}
-              InputLabelProps={{ shrink: true }}
             >
               <MenuItem value="ALL">All Syllabus Units</MenuItem>
-              {UNIT_OPTIONS.map((unit) => (
-                <MenuItem key={unit} value={unit}>
-                  {unit}
-                </MenuItem>
+              {UNIT_OPTIONS.map((u) => (
+                <MenuItem key={u} value={u}>{u}</MenuItem>
               ))}
             </TextField>
           </Grid>
 
-          {/* Search Box */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={2}>
             <TextField
               fullWidth
               size="small"
-              placeholder="Search by title or topic..."
+              placeholder="Search notes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               InputProps={{
-                startAdornment: <SearchIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />,
+                startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 0.5, fontSize: 18 }} />,
               }}
             />
           </Grid>
         </Grid>
 
-        <Divider sx={{ my: 2 }} />
+        <Divider sx={{ mb: 2 }} />
 
-        {/* Type Tabs Filter */}
+        {/* Format Type Tabs */}
         <Tabs
           value={activeTypeTab}
-          onChange={(e, val) => setActiveTypeTab(val)}
+          onChange={(_, val) => setActiveTypeTab(val)}
+          indicatorColor="primary"
+          textColor="primary"
           variant="scrollable"
           scrollButtons="auto"
-          sx={{ minHeight: 38, '& .MuiTab-root': { textTransform: 'none', fontWeight: 700, minHeight: 38 } }}
         >
-          <Tab label="All Material Types" value="ALL" />
-          <Tab label="PDF Documents" value="PDF" />
-          <Tab label="Lecture Slides (PPT)" value="PPT" />
-          <Tab label="YouTube Video Tutorials" value="YOUTUBE" />
-          <Tab label="External Links" value="LINK" />
-          <Tab label="Written Notes" value="NOTE" />
+          <Tab value="ALL" label="All Formats" />
+          <Tab value="PDF" label="PDF Documents" />
+          <Tab value="PPT" label="Lecture Decks" />
+          <Tab value="YOUTUBE" label="Video Tutorials" />
+          <Tab value="NOTE" label="Unit Notes" />
+          <Tab value="LINK" label="External Links" />
         </Tabs>
-      </Paper>
+      </Card>
 
-      {/* ── Materials Grid Workspace ── */}
+      {/* ── 4. Main Resource Cards Grid ──────────────────────────────────── */}
       {isMaterialsLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
+          <CircularProgress size={32} />
         </Box>
-      ) : filteredMaterials.length > 0 ? (
-        <Grid container spacing={3}>
+      ) : filteredMaterials.length === 0 ? (
+        <Card sx={{ p: 4, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <EmptyState
+            type="reports"
+            title="No Study Materials Uploaded"
+            description="No lecture notes, PDFs, or videos match your search filters for this subject."
+          />
+        </Card>
+      ) : (
+        <Grid container spacing={2.5}>
           {filteredMaterials.map((item) => (
-            <Grid item xs={12} sm={6} md={4} key={item._id}>
+            <Grid item xs={12} sm={6} md={4} key={item._id || item.id}>
               <Card
-                variant="outlined"
                 sx={{
-                  height: '100%',
+                  p: 2.5,
+                  borderRadius: '16px',
+                  border: `1px solid ${theme.palette.divider}`,
+                  boxShadow: 'none',
                   display: 'flex',
                   flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  borderRadius: 3.5,
-                  transition: 'all 0.2s ease',
+                  justify: 'space-between',
+                  height: '100%',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
                   '&:hover': {
                     transform: 'translateY(-3px)',
-                    boxShadow: '0 12px 28px rgba(0,0,0,0.08)',
-                    borderColor: 'primary.main',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
                   },
                 }}
               >
-                <CardContent sx={{ p: 2.5, pb: 1 }}>
-                  {/* Top Bar: Format icon + Unit chip */}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                    <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'action.hover' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       {getIconForType(item.type)}
+                      <Box>
+                        <Chip
+                          label={item.type || 'DOCUMENT'}
+                          size="small"
+                          color={item.type === 'PDF' ? 'error' : item.type === 'YOUTUBE' ? 'error' : 'primary'}
+                          sx={{ fontWeight: 800, fontSize: '0.62rem', height: 18 }}
+                        />
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+                          {item.fileSize || '2.5 MB'}
+                        </Typography>
+                      </Box>
                     </Box>
-                    <Chip
-                      label={item.unit || 'General'}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                      sx={{ fontWeight: 700, fontSize: '0.72rem' }}
-                    />
+
+                    <IconButton size="small" color="error" onClick={() => setDeleteTargetId(item._id || item.id)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
                   </Box>
 
-                  {/* Material Title */}
-                  <Typography
-                    variant="subtitle1"
-                    sx={{
-                      fontWeight: 800,
-                      lineHeight: 1.3,
-                      mb: 1,
-                      cursor: 'pointer',
-                      '&:hover': { color: 'primary.main' },
-                    }}
-                    onClick={() => setViewingMaterial(item)}
-                  >
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800, color: theme.palette.ink[900], lineHeight: 1.3 }}>
                     {item.title}
                   </Typography>
 
-                  {/* Description preview */}
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      minHeight: 40,
-                      mb: 2,
-                      fontSize: '0.85rem',
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {item.description || 'No additional description provided.'}
+                  <Chip label={item.unit || 'General Reference'} size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.65rem', alignSelf: 'flex-start' }} />
+
+                  {item.description && (
+                    <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {item.description}
+                    </Typography>
+                  )}
+                </Box>
+
+                <Box sx={{ mt: 2, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Section: <strong>{item.group || 'All'}</strong>
                   </Typography>
 
-                  {/* Metadata Chips: Subject, Section & File Size */}
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <Chip label={item.subjectId?.code || 'SUB'} size="small" sx={{ fontWeight: 700, fontSize: '0.7rem' }} />
-                    <Chip label={`Sec: ${item.group || 'ALL'}`} size="small" variant="outlined" sx={{ fontWeight: 600, fontSize: '0.7rem' }} />
-                    {item.type !== 'NOTE' && (
-                      <Chip label={item.fileSize || '1.5 MB'} size="small" variant="outlined" sx={{ fontWeight: 500, fontSize: '0.7rem' }} />
-                    )}
-                  </Box>
-                </CardContent>
-
-                <Divider sx={{ my: 1 }} />
-
-                <CardActions sx={{ justifyContent: 'space-between', px: 2, py: 1.5 }}>
-                  {/* Action Link Button */}
                   <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Tooltip title="View Material Details">
-                      <IconButton size="small" color="primary" onClick={() => setViewingMaterial(item)}>
-                        <EyeIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    {item.type !== 'NOTE' && item.url && item.url !== 'N/A' && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<VisibilityOutlined />}
+                      onClick={() => setViewingMaterial(item)}
+                      sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 600, fontSize: '0.72rem' }}
+                    >
+                      View
+                    </Button>
+                    {item.url && item.url !== 'N/A' && (
                       <Button
                         size="small"
-                        startIcon={item.type === 'YOUTUBE' || item.type === 'LINK' ? <LaunchIcon fontSize="small" /> : <DownloadIcon fontSize="small" />}
+                        variant="contained"
+                        startIcon={item.type === 'PDF' || item.type === 'PPT' ? <DownloadIcon /> : <LaunchIcon />}
                         href={item.url}
                         target="_blank"
-                        sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.8rem' }}
+                        sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 700, fontSize: '0.72rem' }}
                       >
-                        {item.type === 'YOUTUBE' ? 'Watch Video' : item.type === 'LINK' ? 'Open Link' : 'Download'}
+                        {item.type === 'PDF' || item.type === 'PPT' ? 'Download' : 'Open Link'}
                       </Button>
                     )}
                   </Box>
-
-                  {/* Delete Option */}
-                  <Tooltip title="Delete Resource">
-                    <IconButton onClick={() => setDeleteId(item._id)} size="small" color="error">
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </CardActions>
+                </Box>
               </Card>
             </Grid>
           ))}
         </Grid>
-      ) : (
-        /* Empty State */
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 8,
-            textAlign: 'center',
-            borderRadius: 3.5,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <FileIcon sx={{ fontSize: 56, color: 'text.secondary', mb: 2 }} />
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-            No Materials Found
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 450, mb: 3 }}>
-            No study materials match your current subject, section, or unit filters. Click below to add a new course resource.
-          </Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleUploadOpen}
-            sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none', bgcolor: '#4f46e5' }}
-          >
-            Upload Material Now
-          </Button>
-        </Paper>
       )}
 
-      {/* ── View Detail Dialog Modal ── */}
-      <Dialog open={Boolean(viewingMaterial)} onClose={() => setViewingMaterial(null)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+      {/* ── 5. Upload New Material Modal ──────────────────────────────────── */}
+      <Dialog open={isUploadOpen} onClose={() => setIsUploadOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Upload New Study Material</DialogTitle>
+        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {/* File Picker Component */}
+          <Box
+            sx={{
+              border: `2px dashed ${theme.palette.primary.main}40`,
+              p: 2.5,
+              borderRadius: '12px',
+              textAlign: 'center',
+              bgcolor: `${theme.palette.primary.main}05`,
+            }}
+          >
+            <Button
+              variant="outlined"
+              component="label"
+              startIcon={<CloudUploadOutlined />}
+              sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+            >
+              Choose Document File (PDF, PPT, DOC, Video)
+              <input
+                type="file"
+                hidden
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    const file = e.target.files[0];
+                    setSelectedFile(file);
+                    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+                    const ext = file.name.split('.').pop()?.toUpperCase() || '';
+                    let formatType = 'PDF';
+                    if (['PPT', 'PPTX'].includes(ext)) formatType = 'PPT';
+                    if (['MP4', 'MKV', 'WEBM'].includes(ext)) formatType = 'YOUTUBE';
+                    if (['TXT', 'MD', 'DOC', 'DOCX'].includes(ext)) formatType = 'NOTE';
+
+                    setNewMaterial((prev) => ({
+                      ...prev,
+                      title: prev.title || file.name.replace(/\.[^/.]+$/, ''),
+                      type: formatType,
+                      fileSize: sizeMB > 0.1 ? `${sizeMB} MB` : `${Math.round(file.size / 1024)} KB`,
+                    }));
+                  }
+                }}
+              />
+            </Button>
+            {selectedFile ? (
+              <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.signal.success, mt: 1 }}>
+                📁 Selected File: {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(1)} MB)
+              </Typography>
+            ) : (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                Or paste an external Google Drive / Web URL below
+              </Typography>
+            )}
+          </Box>
+
+          <TextField
+            label="Material Title"
+            value={newMaterial.title}
+            onChange={(e) => setNewMaterial({ ...newMaterial, title: e.target.value })}
+            required
+            fullWidth
+          />
+
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <TextField
+                select
+                label="Format Type"
+                value={newMaterial.type}
+                onChange={(e) => setNewMaterial({ ...newMaterial, type: e.target.value })}
+                fullWidth
+              >
+                <MenuItem value="PDF">PDF Document</MenuItem>
+                <MenuItem value="PPT">Presentation Deck (PPTX)</MenuItem>
+                <MenuItem value="YOUTUBE">YouTube Video Lesson</MenuItem>
+                <MenuItem value="NOTE">Unit Reading Note</MenuItem>
+                <MenuItem value="LINK">External Web Link</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                select
+                label="Target Group/Section"
+                value={newMaterial.sectionId}
+                onChange={(e) => setNewMaterial({ ...newMaterial, sectionId: e.target.value })}
+                fullWidth
+              >
+                {sectionsOptions.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+          </Grid>
+
+          <TextField
+            select
+            label="Syllabus Unit"
+            value={newMaterial.unit}
+            onChange={(e) => setNewMaterial({ ...newMaterial, unit: e.target.value })}
+            fullWidth
+          >
+            {UNIT_OPTIONS.map((u) => (
+              <MenuItem key={u} value={u}>{u}</MenuItem>
+            ))}
+          </TextField>
+
+          {!selectedFile && newMaterial.type !== 'NOTE' && (
+            <TextField
+              label="Resource Link / File URL"
+              placeholder="https://drive.google.com/file/d/..."
+              value={newMaterial.url}
+              onChange={(e) => setNewMaterial({ ...newMaterial, url: e.target.value })}
+              fullWidth
+            />
+          )}
+
+          <TextField
+            label="Description & Instructions"
+            value={newMaterial.description}
+            onChange={(e) => setNewMaterial({ ...newMaterial, description: e.target.value })}
+            fullWidth
+            multiline
+            rows={3}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setIsUploadOpen(false)} variant="outlined" sx={{ borderRadius: '8px' }}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleSaveMaterial} disabled={uploadMaterialMutation.isPending} sx={{ borderRadius: '8px', fontWeight: 700 }}>
+            {uploadMaterialMutation.isPending ? 'Uploading...' : 'Publish Material'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── 6. Resource View Modal ────────────────────────────────────────── */}
+      <Dialog open={Boolean(viewingMaterial)} onClose={() => setViewingMaterial(null)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
         {viewingMaterial && (
           <>
-            <DialogTitle sx={{ fontWeight: 800, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h6" fontWeight={800}>{viewingMaterial.title}</Typography>
-              <Chip label={viewingMaterial.type} color="primary" size="small" sx={{ fontWeight: 700 }} />
-            </DialogTitle>
-            <DialogContent dividers sx={{ p: 3 }}>
-              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2, mb: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="caption" color="text.secondary">Syllabus Unit:</Typography>
-                  <Typography variant="caption" fontWeight={700}>{viewingMaterial.unit || 'General Reference'}</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="caption" color="text.secondary">Subject Code:</Typography>
-                  <Typography variant="caption" fontWeight={700}>{viewingMaterial.subjectId?.code || 'N/A'}</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="caption" color="text.secondary">Target Section:</Typography>
-                  <Typography variant="caption" fontWeight={700}>{viewingMaterial.group || 'All Sections'}</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="caption" color="text.secondary">Uploaded By:</Typography>
-                  <Typography variant="caption" fontWeight={700}>{viewingMaterial.uploadedBy?.name || 'Faculty Member'}</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="caption" color="text.secondary">Upload Date:</Typography>
-                  <Typography variant="caption" fontWeight={700}>
-                    {new Date(viewingMaterial.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
-                  </Typography>
-                </Box>
+            <DialogTitle sx={{ fontWeight: 800 }}>{viewingMaterial.title}</DialogTitle>
+            <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Chip label={viewingMaterial.type} color="primary" size="small" sx={{ fontWeight: 800 }} />
+                <Chip label={viewingMaterial.unit || 'General Reference'} variant="outlined" size="small" sx={{ fontWeight: 700 }} />
               </Box>
 
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>Description & Instructions:</Typography>
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, color: 'text.primary' }}>
-                {viewingMaterial.description || 'No additional notes or instructions provided.'}
+              <Typography variant="body1" sx={{ whiteSpace: 'pre-line', lineHeight: 1.6 }}>
+                {viewingMaterial.description || 'No additional description provided.'}
               </Typography>
-            </DialogContent>
-            <DialogActions sx={{ p: 2.5 }}>
-              <Button onClick={() => setViewingMaterial(null)}>Close</Button>
-              {viewingMaterial.type !== 'NOTE' && viewingMaterial.url && viewingMaterial.url !== 'N/A' && (
-                <Button
-                  variant="contained"
-                  href={viewingMaterial.url}
-                  target="_blank"
-                  startIcon={viewingMaterial.type === 'YOUTUBE' ? <LaunchIcon /> : <DownloadIcon />}
-                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-                >
-                  {viewingMaterial.type === 'YOUTUBE' ? 'Open YouTube Video' : 'Download Resource'}
-                </Button>
+
+              {viewingMaterial.url && viewingMaterial.url !== 'N/A' && (
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: '8px', bgcolor: 'rgba(0,0,0,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="caption" sx={{ wordBreak: 'break-all', maxWidth: '70%' }}>
+                    {viewingMaterial.url}
+                  </Typography>
+                  <Button variant="contained" size="small" href={viewingMaterial.url} target="_blank" startIcon={<LaunchIcon />}>
+                    Open Resource
+                  </Button>
+                </Paper>
               )}
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+              <Button onClick={() => setViewingMaterial(null)} variant="contained" sx={{ borderRadius: '8px', fontWeight: 700 }}>
+                Close
+              </Button>
             </DialogActions>
           </>
         )}
       </Dialog>
 
-      {/* ── Upload Dialog Modal ── */}
-      <Dialog open={isUploadOpen} onClose={() => setIsUploadOpen(false)} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Upload Course Resource</DialogTitle>
-        <DialogContent dividers>
-          <Grid container spacing={2.5}>
-            <Grid item xs={12}>
-              <TextField
-                label="Resource Title"
-                fullWidth
-                required
-                placeholder="E.g., Unit 1 Lecture Slides - Data Structures"
-                value={newMaterial.title}
-                onChange={(e) => setNewMaterial({ ...newMaterial, title: e.target.value })}
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                select
-                label="Material Format / Type"
-                fullWidth
-                value={newMaterial.type}
-                onChange={(e) => setNewMaterial({ ...newMaterial, type: e.target.value })}
-              >
-                <MenuItem value="PDF">PDF Document</MenuItem>
-                <MenuItem value="PPT">Lecture Slides (PPT)</MenuItem>
-                <MenuItem value="YOUTUBE">YouTube Video Tutorial</MenuItem>
-                <MenuItem value="LINK">External Link / Website</MenuItem>
-                <MenuItem value="NOTE">Written Notes / Instructions</MenuItem>
-              </TextField>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                select
-                label="Syllabus Unit / Module"
-                fullWidth
-                value={newMaterial.unit}
-                onChange={(e) => setNewMaterial({ ...newMaterial, unit: e.target.value })}
-              >
-                {UNIT_OPTIONS.map((unit) => (
-                  <MenuItem key={unit} value={unit}>{unit}</MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                select
-                label="Target Subject"
-                fullWidth
-                required
-                value={newMaterial.subjectId}
-                onChange={(e) => setNewMaterial({ ...newMaterial, subjectId: e.target.value })}
-              >
-                {assignedSubjects.map((sub) => (
-                  <MenuItem key={sub.id} value={sub.id}>
-                    {sub.code} - {sub.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                select
-                label="Target Section / Group"
-                fullWidth
-                value={newMaterial.sectionId}
-                onChange={(e) => setNewMaterial({ ...newMaterial, sectionId: e.target.value })}
-              >
-                {sectionsOptions.map((sec) => (
-                  <MenuItem key={sec.id} value={sec.id}>{sec.name}</MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-
-            {newMaterial.type !== 'NOTE' && (
-              <Grid item xs={12}>
-                <TextField
-                  label="Resource Link / URL"
-                  fullWidth
-                  required
-                  value={newMaterial.url}
-                  onChange={(e) => setNewMaterial({ ...newMaterial, url: e.target.value })}
-                  placeholder={newMaterial.type === 'YOUTUBE' ? 'https://www.youtube.com/watch?v=...' : 'https://drive.google.com/file/...'}
-                />
-              </Grid>
-            )}
-
-            <Grid item xs={12}>
-              <TextField
-                label="Description & Instructions"
-                fullWidth
-                multiline
-                rows={3}
-                value={newMaterial.description}
-                onChange={(e) => setNewMaterial({ ...newMaterial, description: e.target.value })}
-                placeholder="Enter lecture overview or guidelines for students..."
-              />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setIsUploadOpen(false)}>Cancel</Button>
-          <Button
-            onClick={handleSaveMaterial}
-            variant="contained"
-            disabled={uploadMaterialMutation.isPending}
-            sx={{ borderRadius: 2, fontWeight: 700, bgcolor: '#4f46e5' }}
-          >
-            {uploadMaterialMutation.isPending ? 'Uploading...' : 'Upload Resource'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── Delete Confirmation Dialog ── */}
-      <Dialog open={Boolean(deleteId)} onClose={() => setDeleteId(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Delete Study Material</DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2">
-            Are you sure you want to delete this study resource? This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDeleteId(null)}>Cancel</Button>
-          <Button color="error" variant="contained" onClick={handleConfirmDelete} disabled={deleteMaterialMutation.isPending} sx={{ borderRadius: 2 }}>
-            {deleteMaterialMutation.isPending ? 'Deleting...' : 'Delete'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── Alert Toast ── */}
-      <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-        <Alert severity={toast.severity} variant="filled" sx={{ borderRadius: 2 }}>
-          {toast.message}
-        </Alert>
-      </Snackbar>
+      {/* ── 7. Confirm Delete Modal ───────────────────────────────────────── */}
+      <ConfirmDeleteModal
+        open={Boolean(deleteTargetId)}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Study Material?"
+        description="Are you sure you want to delete this study resource? Students will no longer be able to access or download it."
+        isLoading={deleteMaterialMutation.isPending}
+      />
     </Box>
   );
 };

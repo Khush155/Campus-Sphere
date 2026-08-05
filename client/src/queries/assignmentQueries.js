@@ -33,6 +33,8 @@ export const useCreateAssignmentMutation = () => {
   });
 };
 
+export const useAssignFacultyMutation = useCreateAssignmentMutation;
+
 export const useRevokeAssignmentMutation = () => {
   const queryClient = useQueryClient();
 

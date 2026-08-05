@@ -20,8 +20,9 @@ import {
   useTheme,
   Skeleton,
   MenuItem,
+  LinearProgress,
 } from '@mui/material';
-import { AddOutlined, PlayArrowOutlined } from '@mui/icons-material';
+import { AddOutlined, PlayArrowOutlined, DateRangeOutlined, CheckCircleOutlined } from '@mui/icons-material';
 
 import {
   useActiveSessionQuery,
@@ -32,6 +33,7 @@ import {
 import Pagination from '../../../components/common/Pagination';
 import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
 import EmptyState from '../../../components/common/EmptyState';
+import { useToast } from '../../../contexts/ToastContext';
 
 const sessionFormSchema = z.object({
   academicYear: z
@@ -53,6 +55,7 @@ const sessionFormSchema = z.object({
 
 export const AcademicCalendar = () => {
   const theme = useTheme();
+  const { showToast } = useToast();
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
 
@@ -75,6 +78,8 @@ export const AcademicCalendar = () => {
     handleSubmit,
     control,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(sessionFormSchema),
@@ -86,6 +91,19 @@ export const AcademicCalendar = () => {
       status: 'ACTIVE',
     },
   });
+
+  const yearValue = watch('academicYear');
+
+  // Auto-format YYYY input to YYYY-YY (e.g. "2026" -> "2026-27")
+  const handleYearChange = (e) => {
+    const val = e.target.value;
+    if (/^\d{4}$/.test(val)) {
+      const nextYr = (parseInt(val.slice(2), 10) + 1).toString().padStart(2, '0');
+      setValue('academicYear', `${val}-${nextYr}`);
+    } else {
+      setValue('academicYear', val);
+    }
+  };
 
   const handleOpenCreate = () => {
     reset({
@@ -101,10 +119,11 @@ export const AcademicCalendar = () => {
   const handleFormSubmit = async (data) => {
     try {
       await createSession.mutateAsync(data);
+      showToast('Academic session created successfully.');
       setDrawerOpen(false);
       setPage(1);
     } catch (err) {
-      // Handled by global handlers
+      showToast(err.response?.data?.message || 'Failed to create academic session.', { severity: 'error' });
     }
   };
 
@@ -112,9 +131,10 @@ export const AcademicCalendar = () => {
     if (activateTargetId) {
       try {
         await activateSession.mutateAsync(activateTargetId);
+        showToast('Academic session activated successfully.');
         setActivateTargetId(null);
       } catch (err) {
-        // Handled globally
+        showToast(err.response?.data?.message || 'Failed to activate session.', { severity: 'error' });
       }
     }
   };
@@ -141,44 +161,125 @@ export const AcademicCalendar = () => {
     });
   };
 
+  // Calculate progress percentage of active term
+  const calculateTermProgress = (startStr, endStr) => {
+    if (!startStr || !endStr) return { percentage: 0, weeksPassed: 0, totalWeeks: 0 };
+    const start = new Date(startStr).getTime();
+    const end = new Date(endStr).getTime();
+    const now = new Date().getTime();
+
+    if (now <= start) return { percentage: 0, weeksPassed: 0, totalWeeks: Math.ceil((end - start) / (1000 * 60 * 60 * 24 * 7)) };
+    if (now >= end) {
+      const weeks = Math.ceil((end - start) / (1000 * 60 * 60 * 24 * 7));
+      return { percentage: 100, weeksPassed: weeks, totalWeeks: weeks };
+    }
+
+    const totalDuration = end - start;
+    const elapsed = now - start;
+    const percentage = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
+    const totalWeeks = Math.ceil(totalDuration / (1000 * 60 * 60 * 24 * 7));
+    const weeksPassed = Math.ceil(elapsed / (1000 * 60 * 60 * 24 * 7));
+
+    return { percentage, weeksPassed, totalWeeks };
+  };
+
+  const activeProgress = activeSession ? calculateTermProgress(activeSession.termStartDate, activeSession.termEndDate) : null;
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, p: 4 }}>
-      {/* Page Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+      {/* ── 1. Hero Header Banner Card ─────────────────────────────────────── */}
+      <Card
+        sx={{
+          p: 3.5,
+          borderRadius: '16px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}0F 0%, ${theme.palette.brass?.[500] || '#b8863e'}08 100%)`,
+          boxShadow: theme.custom?.elevation?.raised || 'none',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 2,
+        }}
+      >
         <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1, flexWrap: 'wrap' }}>
+            <Chip
+              icon={<DateRangeOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+              label="ACADEMIC SESSION TIMELINE"
+              size="small"
+              sx={{
+                bgcolor: `${theme.palette.primary.main}15`,
+                color: theme.palette.primary.main,
+                fontFamily: theme.typography.mono.fontFamily,
+                fontWeight: 700,
+                fontSize: '0.68rem',
+                letterSpacing: '0.06em',
+                borderRadius: '6px',
+              }}
+            />
+            {activeSession && (
+              <Chip
+                label={`${activeSession.academicYear} (${activeSession.semesterType} Sem)`}
+                size="small"
+                sx={{
+                  bgcolor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
+                  fontFamily: theme.typography.mono.fontFamily,
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                }}
+              />
+            )}
+          </Box>
           <Typography
             variant="h4"
+            component="h1"
             sx={{
               fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 700,
+              fontWeight: 600,
               color: theme.palette.ink[900],
+              lineHeight: 1.15,
               mb: 0.5,
             }}
           >
             Academic Sessions & Calendar
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Configure terms, active academic years, and toggle semester boundaries.
+          <Typography
+            variant="body2"
+            sx={{
+              fontFamily: theme.typography.body2.fontFamily,
+              color: theme.palette.text.secondary,
+              maxWidth: 640,
+            }}
+          >
+            Configure academic terms, active academic years, and toggle semester boundaries.
           </Typography>
         </Box>
+
         <Button
           variant="contained"
           startIcon={<AddOutlined />}
           onClick={handleOpenCreate}
           sx={{
-            bgcolor: theme.palette.primary.main,
-            color: theme.palette.ink[900],
+            background: theme.palette.primary.gradient || theme.palette.primary.main,
+            color: '#ffffff',
             fontWeight: 700,
-            textTransform: 'none',
+            px: 3,
+            py: 1.25,
             borderRadius: '8px',
-            '&:hover': { bgcolor: theme.palette.primary.light },
+            textTransform: 'none',
+            boxShadow: `0 4px 16px ${theme.palette.primary.main}40`,
+            '&:hover': {
+              filter: 'brightness(1.1)',
+            },
           }}
         >
           Create Session
         </Button>
-      </Box>
+      </Card>
 
-      {/* Prominent Active Session Card */}
+      {/* ── 2. Prominent Active Session Card with Progress Bar ──────────────── */}
       {loadingActive ? (
         <Card sx={{ p: 3, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
           <Skeleton variant="text" width="40%" height={32} />
@@ -187,38 +288,67 @@ export const AcademicCalendar = () => {
       ) : activeSession ? (
         <Card
           sx={{
-            p: 4,
-            border: `1px solid ${theme.palette.primary.main}`,
-            background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, rgba(217, 184, 118, 0.05) 100%)`,
+            p: 3.5,
+            border: `1px solid ${theme.palette.primary.main}40`,
+            background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.primary.main}08 100%)`,
             boxShadow: 'none',
             borderRadius: '16px',
             position: 'relative',
-            overflow: 'hidden',
           }}
         >
-          <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+            <Box>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontFamily: theme.typography.h1.fontFamily,
+                  fontWeight: 700,
+                  color: theme.palette.ink[900],
+                  mb: 0.5,
+                }}
+              >
+                {activeSession.semesterType === 'ODD' ? 'Odd Semester' : 'Even Semester'} {activeSession.academicYear}
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                Term Duration: <strong>{formatDate(activeSession.termStartDate)}</strong> to{' '}
+                <strong>{formatDate(activeSession.termEndDate)}</strong>
+              </Typography>
+            </Box>
             <Chip
+              icon={<CheckCircleOutlined sx={{ fontSize: '0.85rem !important' }} />}
               label="CURRENT ACTIVE SESSION"
               color="success"
               size="small"
               sx={{ fontWeight: 800, fontSize: '0.7rem', borderRadius: '6px' }}
             />
           </Box>
-          <Typography
-            variant="h5"
-            sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 700,
-              color: theme.palette.ink[900],
-              mb: 1,
-            }}
-          >
-            {activeSession.semesterType === 'ODD' ? 'Odd Semester' : 'Even Semester'} {activeSession.academicYear}
-          </Typography>
-          <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
-            Term Duration: <strong>{formatDate(activeSession.termStartDate)}</strong> to{' '}
-            <strong>{formatDate(activeSession.termEndDate)}</strong>
-          </Typography>
+
+          {/* Term Timeline Progress */}
+          {activeProgress && (
+            <Box sx={{ mt: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: theme.palette.ink[900], fontFamily: theme.typography.mono.fontFamily }}>
+                  Term Progress: Week {activeProgress.weeksPassed} of {activeProgress.totalWeeks}
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: theme.palette.primary.main, fontFamily: theme.typography.mono.fontFamily }}>
+                  {activeProgress.percentage}% Completed
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={activeProgress.percentage}
+                sx={{
+                  height: 8,
+                  borderRadius: 4,
+                  bgcolor: `${theme.palette.primary.main}20`,
+                  '& .MuiLinearProgress-bar': {
+                    bgcolor: theme.palette.primary.main,
+                    borderRadius: 4,
+                  },
+                }}
+              />
+            </Box>
+          )}
         </Card>
       ) : (
         <Alert severity="warning" sx={{ borderRadius: '12px' }}>
@@ -233,7 +363,7 @@ export const AcademicCalendar = () => {
         </Alert>
       )}
 
-      {/* Session History Table */}
+      {/* ── 3. Session History Table ─────────────────────────────────────── */}
       {loadingList ? (
         <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
           <Table>
@@ -259,37 +389,43 @@ export const AcademicCalendar = () => {
         />
       ) : (
         <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
-          <Table aria-label="academic sessions directory table">
-            <TableHead sx={{ bgcolor: 'rgba(28, 46, 69, 0.02)' }}>
+          <Table aria-label="academic sessions directory table" size="small">
+            <TableHead sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(28, 46, 69, 0.02)' }}>
               <TableRow>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>ACADEMIC YEAR</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>SEMESTER TYPE</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>START DATE</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>END DATE</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>STATUS</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>ACTIONS</TableCell>
+                <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>ACADEMIC YEAR</TableCell>
+                <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>SEMESTER TYPE</TableCell>
+                <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>START DATE</TableCell>
+                <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>END DATE</TableCell>
+                <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>STATUS</TableCell>
+                <TableCell align="right" sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>ACTIONS</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {sessionsData.data.map((sess) => (
-                <TableRow key={sess._id} sx={{ '&:hover': { bgcolor: theme.custom.interaction.hoverTint } }}>
-                  <TableCell sx={{ fontWeight: 600 }}>{sess.academicYear}</TableCell>
-                  <TableCell>{sess.semesterType === 'ODD' ? 'Odd' : 'Even'}</TableCell>
-                  <TableCell>{formatDate(sess.termStartDate)}</TableCell>
-                  <TableCell>{formatDate(sess.termEndDate)}</TableCell>
-                  <TableCell>
+                <TableRow
+                  key={sess._id}
+                  sx={{
+                    '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' },
+                  }}
+                >
+                  <TableCell sx={{ py: 1.5, fontWeight: 600, fontFamily: theme.typography.mono.fontFamily }}>{sess.academicYear}</TableCell>
+                  <TableCell sx={{ py: 1.5 }}>{sess.semesterType === 'ODD' ? 'Odd' : 'Even'}</TableCell>
+                  <TableCell sx={{ py: 1.5 }}>{formatDate(sess.termStartDate)}</TableCell>
+                  <TableCell sx={{ py: 1.5 }}>{formatDate(sess.termEndDate)}</TableCell>
+                  <TableCell sx={{ py: 1.5 }}>
                     <Chip
                       label={sess.status}
                       size="small"
                       sx={{
                         ...getStatusChipStyle(sess.status),
+                        fontFamily: theme.typography.mono.fontFamily,
                         fontWeight: 700,
                         fontSize: '0.68rem',
                         borderRadius: '6px',
                       }}
                     />
                   </TableCell>
-                  <TableCell align="right">
+                  <TableCell align="right" sx={{ py: 1.5 }}>
                     {sess.status === 'ARCHIVED' && (
                       <Button
                         size="small"
@@ -355,14 +491,16 @@ export const AcademicCalendar = () => {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
               {/* Academic Year */}
               <Box>
-                <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                <Typography component="label" htmlFor="year-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
                   Academic Year
                 </Typography>
                 <TextField
+                  id="year-input"
                   fullWidth
                   size="small"
-                  placeholder="e.g., 2026-27"
-                  {...register('academicYear')}
+                  placeholder="e.g., 2026-27 (or type 2026)"
+                  value={yearValue}
+                  onChange={handleYearChange}
                   error={!!errors.academicYear}
                   helperText={errors.academicYear?.message}
                 />
@@ -370,14 +508,14 @@ export const AcademicCalendar = () => {
 
               {/* Semester Type */}
               <Box>
-                <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                <Typography component="label" htmlFor="sem-type-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
                   Semester Type
                 </Typography>
                 <Controller
                   name="semesterType"
                   control={control}
                   render={({ field }) => (
-                    <TextField {...field} select fullWidth size="small">
+                    <TextField {...field} id="sem-type-input" select fullWidth size="small">
                       <MenuItem value="ODD">Odd Semester</MenuItem>
                       <MenuItem value="EVEN">Even Semester</MenuItem>
                     </TextField>
@@ -387,10 +525,11 @@ export const AcademicCalendar = () => {
 
               {/* Term Start Date */}
               <Box>
-                <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                <Typography component="label" htmlFor="start-date-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
                   Term Start Date
                 </Typography>
                 <TextField
+                  id="start-date-input"
                   type="date"
                   fullWidth
                   size="small"
@@ -403,10 +542,11 @@ export const AcademicCalendar = () => {
 
               {/* Term End Date */}
               <Box>
-                <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                <Typography component="label" htmlFor="end-date-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
                   Term End Date
                 </Typography>
                 <TextField
+                  id="end-date-input"
                   type="date"
                   fullWidth
                   size="small"
@@ -419,14 +559,14 @@ export const AcademicCalendar = () => {
 
               {/* Status */}
               <Box>
-                <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                <Typography component="label" htmlFor="status-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
                   Status Configuration
                 </Typography>
                 <Controller
                   name="status"
                   control={control}
                   render={({ field }) => (
-                    <TextField {...field} select fullWidth size="small">
+                    <TextField {...field} id="status-input" select fullWidth size="small">
                       <MenuItem value="ACTIVE">Activate on Creation</MenuItem>
                       <MenuItem value="ARCHIVED">Draft (Archived)</MenuItem>
                     </TextField>
@@ -454,12 +594,11 @@ export const AcademicCalendar = () => {
                 textTransform: 'none',
                 fontWeight: 700,
                 borderRadius: '8px',
-                bgcolor: theme.palette.primary.main,
-                color: theme.palette.ink[900],
-                '&:hover': { bgcolor: theme.palette.primary.light },
+                background: theme.palette.primary.gradient || theme.palette.primary.main,
+                color: '#ffffff',
               }}
             >
-              Create
+              Create Session
             </Button>
           </Box>
         </Box>
@@ -467,3 +606,5 @@ export const AcademicCalendar = () => {
     </Box>
   );
 };
+
+export default AcademicCalendar;

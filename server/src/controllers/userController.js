@@ -31,7 +31,7 @@ const getUsers = async (req, res, _next) => {
     branchId: branch,
     semester: semester ? parseInt(semester, 10) : undefined,
     group: group,
-  });
+  }, req.user.role);
 
   return successResponse(res, 200, 'Users fetched successfully', result.users, result.meta);
 };
@@ -73,7 +73,7 @@ const updateUser = async (req, res, _next) => {
   const validatedBody = updateUserSchema.parse(req.body);
   const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
 
-  const updatedUser = await userService.updateUserDetails(id, validatedBody, req.user.id, meta);
+  const updatedUser = await userService.updateUserDetails(id, validatedBody, req.user.id, meta, req.user.role);
 
   return successResponse(res, 200, 'User updated successfully', updatedUser);
 };
@@ -85,7 +85,7 @@ const deleteUser = async (req, res, _next) => {
   const { id } = req.params;
   const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
 
-  await userService.deleteUserAccount(id, req.user.id, meta);
+  await userService.deleteUserAccount(id, req.user.id, meta, req.user.role);
 
   return successResponse(res, 200, 'User deactivated successfully');
 };
@@ -111,14 +111,13 @@ const getInsights = async (req, res, _next) => {
  */
 const getUser = async (req, res, _next) => {
   const { id } = req.params;
-  const user = await userService.getUserDetails(id);
+  const user = await userService.getUserDetails(id, req.user.role);
 
   if (req.user.role === ROLES.HOD) {
     if (String(user.departmentId) !== String(req.user.departmentId)) {
       throw new AppError('Access denied to users outside your department.', 403, ERROR_CODES.FORBIDDEN);
     }
   }
-
   return successResponse(res, 200, 'User details fetched successfully', user);
 };
 
@@ -137,6 +136,16 @@ const importStudents = async (req, res, _next) => {
   return successResponse(res, 200, 'Student CSV import processed successfully', result);
 };
 
+const getMyProfile = async (req, res, _next) => {
+  const data = await userService.getMyProfile(req.user.id);
+  return successResponse(res, 200, 'Profile fetched successfully', data);
+};
+
+const updateMyProfile = async (req, res, _next) => {
+  const updatedUser = await userService.updateMyProfile(req.user.id, req.body);
+  return successResponse(res, 200, 'Profile updated successfully', updatedUser);
+};
+
 module.exports = {
   getUsers,
   getUser,
@@ -145,4 +154,6 @@ module.exports = {
   getAuditLogs,
   getInsights,
   importStudents,
+  getMyProfile,
+  updateMyProfile,
 };

@@ -19,8 +19,9 @@ import {
   CircularProgress,
   MenuItem,
   useTheme,
+  InputAdornment,
 } from '@mui/material';
-import { EditOutlined, DeleteOutline, MenuBook, Close } from '@mui/icons-material';
+import { EditOutlined, DeleteOutline, MenuBook, Close, SearchOutlined } from '@mui/icons-material';
 import {
   useDepartmentsQuery,
   useCreateDeptMutation,
@@ -31,6 +32,7 @@ import {
 import { useUsersQuery } from '../../../queries/userQueries';
 import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
 import EmptyState from '../../../components/common/EmptyState';
+import { useToast } from '../../../contexts/ToastContext';
 
 // Schema for Department Validation
 const deptFormSchema = z.object({
@@ -46,6 +48,10 @@ const deptFormSchema = z.object({
 
 export const DeptTab = ({ setOnAddClick }) => {
   const theme = useTheme();
+  const { showToast } = useToast();
+
+  // Search state
+  const [search, setSearch] = useState('');
 
   // Dialog & Drawer toggles
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -59,6 +65,7 @@ export const DeptTab = ({ setOnAddClick }) => {
   // Queries
   const { data: depts, isLoading } = useDepartmentsQuery();
   const { data: hodsData } = useUsersQuery({ role: 'HOD', limit: 100 });
+  const { data: allSubjects } = useSubjectsQuery();
 
   const { data: deptSubjects, isLoading: isLoadingDeptSubjects } = useSubjectsQuery({
     departmentId: selectedDeptForSubjects?._id,
@@ -128,19 +135,26 @@ export const DeptTab = ({ setOnAddClick }) => {
     try {
       if (editId) {
         await updateDept.mutateAsync({ id: editId, data });
+        showToast('Department details updated successfully.');
       } else {
         await createDept.mutateAsync(data);
+        showToast('Department created successfully.');
       }
       setDrawerOpen(false);
     } catch (err) {
-      // Handled by react-query / global error handlers
+      showToast(err.response?.data?.message || 'Failed to save department.', { severity: 'error' });
     }
   };
 
   const handleDeleteConfirm = async () => {
     if (deleteId) {
-      await deleteDept.mutateAsync(deleteId);
-      setDeleteId(null);
+      try {
+        await deleteDept.mutateAsync(deleteId);
+        showToast('Department deleted successfully.');
+        setDeleteId(null);
+      } catch (err) {
+        showToast(err.response?.data?.message || 'Failed to delete department.', { severity: 'error' });
+      }
     }
   };
 
@@ -160,8 +174,58 @@ export const DeptTab = ({ setOnAddClick }) => {
       .join(', ');
   };
 
+  // Dependency Guard calculation for active deletion item
+  const getDeleteWarningMessage = () => {
+    if (!deleteId) return null;
+    const linkedHod = hodsData?.data?.find(h => String(h.departmentId) === String(deleteId));
+    const linkedSubs = allSubjects?.filter(s => String(s.departmentId?._id || s.departmentId) === String(deleteId));
+
+    if (linkedHod || (linkedSubs && linkedSubs.length > 0)) {
+      const parts = [];
+      if (linkedHod) parts.push(`HOD (${linkedHod.name})`);
+      if (linkedSubs?.length > 0) parts.push(`${linkedSubs.length} linked subject(s)`);
+      return `⚠️ Warning: This department currently has ${parts.join(' and ')} associated with it. Deleting it may impact system data.`;
+    }
+    return null;
+  };
+
+  // Filter departments by search text
+  const filteredDepts = depts?.filter(
+    (dept) =>
+      dept.name.toLowerCase().includes(search.toLowerCase()) ||
+      dept.code.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+      {/* 1. Search Bar */}
+      {depts && depts.length > 0 && (
+        <Card
+          sx={{
+            p: 2,
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: 'none',
+            borderRadius: '12px',
+            bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+          }}
+        >
+          <TextField
+            size="small"
+            placeholder="Search departments by name or code..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            fullWidth
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchOutlined sx={{ fontSize: 20, color: theme.palette.text.secondary }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Card>
+      )}
+
       {/* 2. List Grid Container */}
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
@@ -175,10 +239,16 @@ export const DeptTab = ({ setOnAddClick }) => {
           actionText="Add Department"
           onAction={handleOpenCreate}
         />
+      ) : filteredDepts?.length === 0 ? (
+        <Card sx={{ p: 4, textAlign: 'center', borderRadius: '12px', border: `1px solid ${theme.palette.divider}` }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            No departments match your search &quot;{search}&quot;.
+          </Typography>
+        </Card>
       ) : (
         <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
           <Table aria-label="departments directory table">
-            <TableHead sx={{ bgcolor: 'rgba(28, 46, 69, 0.02)' }}>
+            <TableHead sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(28, 46, 69, 0.02)' }}>
               <TableRow>
                 <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   CODE
@@ -198,12 +268,12 @@ export const DeptTab = ({ setOnAddClick }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {depts.map((dept, index) => (
+              {filteredDepts.map((dept, index) => (
                 <TableRow
                   key={dept._id}
                   className="staggered-row"
                   style={{ animationDelay: `${index * 25}ms` }}
-                  sx={{ '&:hover': { bgcolor: theme.custom.interaction.hoverTint } }}
+                  sx={{ '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' } }}
                 >
                   <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem', fontWeight: 600 }}>
                     {dept.code}
@@ -286,7 +356,7 @@ export const DeptTab = ({ setOnAddClick }) => {
                   id="dept-code-input"
                   fullWidth
                   placeholder="e.g. CSE"
-                  disabled={!!editId} // Codes are identifiers, disable editing once created
+                  disabled={!!editId}
                   {...register('code')}
                   error={!!errors.code}
                   helperText={errors.code?.message}
@@ -302,12 +372,12 @@ export const DeptTab = ({ setOnAddClick }) => {
                 <TextField
                   id="dept-description-input"
                   fullWidth
-                  placeholder="Brief department outline..."
+                  multiline
+                  rows={3}
+                  placeholder="Brief overview of department scope..."
                   {...register('description')}
                   error={!!errors.description}
                   helperText={errors.description?.message}
-                  multiline
-                  rows={3}
                   size="small"
                 />
               </Box>
@@ -329,13 +399,13 @@ export const DeptTab = ({ setOnAddClick }) => {
               fullWidth
               disabled={isSaving}
               sx={{
-                bgcolor: theme.palette.primary.main,
-                color: theme.palette.ink[900],
+                background: theme.palette.primary.gradient || theme.palette.primary.main,
+                color: '#ffffff',
                 fontWeight: 700,
-                '&:hover': { bgcolor: theme.palette.primary.light },
+                boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
               }}
             >
-              {isSaving ? 'Saving...' : editId ? 'Update' : 'Create'}
+              {isSaving ? 'Saving...' : editId ? 'Update Department' : 'Create Department'}
             </Button>
           </Box>
         </Box>
@@ -373,9 +443,9 @@ export const DeptTab = ({ setOnAddClick }) => {
               sx={{ minWidth: 160 }}
             >
               <MenuItem value="">All Semesters</MenuItem>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                <MenuItem key={num} value={num.toString()}>
-                  Semester {num}
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                <MenuItem key={s} value={s}>
+                  Semester {s}
                 </MenuItem>
               ))}
             </TextField>
@@ -383,56 +453,38 @@ export const DeptTab = ({ setOnAddClick }) => {
 
           {isLoadingDeptSubjects ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-              <CircularProgress size={32} sx={{ color: theme.palette.primary.main }} />
+              <CircularProgress size={28} sx={{ color: theme.palette.primary.main }} />
             </Box>
           ) : !deptSubjects || deptSubjects.length === 0 ? (
-            <EmptyState
-              type="subjects"
-              title="No subjects mapped"
-              description="No subjects are currently assigned to this department."
-              actionText=""
-              onAction={() => {}}
-            />
+            <Box sx={{ py: 6, textAlign: 'center' }}>
+              <Typography sx={{ color: theme.palette.text.secondary, fontSize: '0.88rem' }}>
+                No subjects found for this department.
+              </Typography>
+            </Box>
           ) : (
-            <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px', flexGrow: 1, overflowY: 'auto' }}>
-              <Table aria-label="department subjects list table">
-                <TableHead sx={{ bgcolor: 'rgba(28, 46, 69, 0.02)' }}>
+            <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '8px' }}>
+              <Table size="small">
+                <TableHead sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(28, 46, 69, 0.02)' }}>
                   <TableRow>
-                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                      SUBJECT NAME
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                      CODE
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                      SEMESTER
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                      BRANCH
-                    </TableCell>
-                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                      COURSE
-                    </TableCell>
+                    <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>CODE</TableCell>
+                    <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>NAME</TableCell>
+                    <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>CREDITS</TableCell>
+                    <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>TYPE</TableCell>
+                    <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>SEMESTER</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {deptSubjects.map((sub) => (
-                    <TableRow key={sub._id} sx={{ '&:hover': { bgcolor: theme.custom.interaction.hoverTint } }}>
-                      <TableCell sx={{ fontFamily: theme.typography.body1.fontFamily, fontSize: '0.88rem', fontWeight: 600 }}>
-                        {sub.name}
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem', fontWeight: 600 }}>
+                    <TableRow key={sub._id}>
+                      <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.75rem', fontWeight: 600 }}>
                         {sub.code}
                       </TableCell>
-                      <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.82rem', color: theme.palette.text.secondary }}>
-                        Sem {sub.semester}
+                      <TableCell sx={{ fontSize: '0.82rem', fontWeight: 600 }}>{sub.name}</TableCell>
+                      <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.75rem' }}>
+                        {sub.credits}
                       </TableCell>
-                      <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.85rem' }}>
-                        {sub.branchId?.name || '—'} ({sub.branchId?.code || '—'})
-                      </TableCell>
-                      <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.85rem', fontWeight: 500 }}>
-                        {sub.branchId?.courseId?.name || '—'} ({sub.branchId?.courseId?.code || '—'})
-                      </TableCell>
+                      <TableCell sx={{ fontSize: '0.75rem', fontWeight: 600 }}>{sub.type}</TableCell>
+                      <TableCell sx={{ fontSize: '0.75rem' }}>Sem {sub.semester}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -442,16 +494,17 @@ export const DeptTab = ({ setOnAddClick }) => {
         </Box>
       </Drawer>
 
-      {/* 4. Delete Modal Confirmation */}
+      {/* Confirmation Modal with Dependency Warning */}
       <ConfirmDeleteModal
-        open={!!deleteId}
+        open={Boolean(deleteId)}
+        title="Delete Department"
+        description={
+          getDeleteWarningMessage() ||
+          "Are you sure you want to delete this department? This action cannot be undone if subjects or faculty are associated with it."
+        }
         onClose={() => setDeleteId(null)}
         onConfirm={handleDeleteConfirm}
-        title="Delete Department"
-        description="Are you sure you want to delete this department? This action is permanent and might fail if courses or subjects are linked to it."
-        actionText="Delete"
-        typedConfirmation
-        confirmationWord="DELETE"
+        isDeleting={deleteDept.isPending}
       />
     </Box>
   );

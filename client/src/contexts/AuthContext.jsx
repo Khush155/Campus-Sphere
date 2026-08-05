@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { logoutApi, refreshApi } from '../services/authService';
+import api from '../services/api';
 
 const AuthContext = createContext({
   user: null,
@@ -13,20 +14,42 @@ const AuthContext = createContext({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('campussphere_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return !!localStorage.getItem('accessToken');
+  });
+
   const [loading, setLoading] = useState(true);
 
   // Helper to process login response data
   const handleAuthSuccess = (accessToken, userData) => {
-    localStorage.setItem('accessToken', accessToken);
-    setUser(userData);
+    if (accessToken) {
+      localStorage.setItem('accessToken', accessToken);
+    }
+    setUser((prev) => {
+      const merged = { ...prev, ...userData };
+      try {
+        localStorage.setItem('campussphere_user', JSON.stringify(merged));
+      } catch (e) {
+        // Ignored
+      }
+      return merged;
+    });
     setIsAuthenticated(true);
   };
 
   // Helper to clear local session state
   const clearSession = () => {
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('campussphere_user');
     setUser(null);
     setIsAuthenticated(false);
   };
@@ -34,16 +57,23 @@ export const AuthProvider = ({ children }) => {
   // Perform initial session recovery on mount
   useEffect(() => {
     const initializeAuth = async () => {
-
       try {
-        // If there's an active token (or if a refresh cookie might exist), try to refresh token
         const data = await refreshApi();
-        
-        // Decoding payload (backend refresh returns new access token)
-        // For simplicity, we decode the JWT to extract user info or fetch profile.
-        // Let's decode user payload from access token.
-        const decodedUser = decodeTokenPayload(data.accessToken);
-        handleAuthSuccess(data.accessToken, decodedUser);
+        let userData = data.user || decodeTokenPayload(data.accessToken);
+
+        // If user object is missing name, fetch full profile from /users/me
+        if (userData && !userData.name) {
+          try {
+            const profileRes = await api.get('/users/me');
+            if (profileRes.data?.data) {
+              userData = { ...userData, ...profileRes.data.data };
+            }
+          } catch (e) {
+            // Ignored
+          }
+        }
+
+        handleAuthSuccess(data.accessToken, userData);
       } catch (error) {
         // Session cannot be restored automatically, clear any stale localStorage
         clearSession();

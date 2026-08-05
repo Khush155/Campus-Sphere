@@ -15,9 +15,11 @@ import { CloseOutlined } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useUsersQuery } from '../../../queries/userQueries';
+import { useAssignFacultyMutation } from '../../../queries/assignmentQueries';
+import GroupSelect from '../../../components/common/GroupSelect';
 import { useSubjectsQuery } from '../../../queries/collegeQueries';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useUsersQuery } from '../../../queries/userQueries';
 
 const assignSchema = z.object({
   subjectId: z.string().min(1, 'Subject is required'),
@@ -103,11 +105,14 @@ const AssignFacultyDrawer = ({ open, onClose, onSubmit, isSubmitting }) => {
                     helperText={errors.subjectId?.message}
                     sx={{ bgcolor: 'background.paper' }}
                   >
-                    {subjects?.map(s => (
-                      <MenuItem key={s._id} value={s._id}>
-                        {s.code} - {s.name}
-                      </MenuItem>
-                    ))}
+                    {subjects?.map(s => {
+                      const id = s._id || s.id;
+                      return (
+                        <MenuItem key={id} value={id}>
+                          {s.code} - {s.name}
+                        </MenuItem>
+                      );
+                    })}
                   </TextField>
                 )}
               />
@@ -130,11 +135,14 @@ const AssignFacultyDrawer = ({ open, onClose, onSubmit, isSubmitting }) => {
                     helperText={errors.facultyId?.message}
                     sx={{ bgcolor: 'background.paper' }}
                   >
-                    {facultyMembers.map(f => (
-                      <MenuItem key={f._id} value={f._id}>
-                        {f.name} ({f.email})
-                      </MenuItem>
-                    ))}
+                    {facultyMembers.map((f, i) => {
+                      const id = f._id || f.id || i;
+                      return (
+                        <MenuItem key={id} value={id}>
+                          {f.name} ({f.email})
+                        </MenuItem>
+                      );
+                    })}
                   </TextField>
                 )}
               />
@@ -145,20 +153,20 @@ const AssignFacultyDrawer = ({ open, onClose, onSubmit, isSubmitting }) => {
                 Target Group (Optional)
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                Leave empty to assign to the Full Batch. Enter a group name (e.g., "G1") to assign this teacher only to that group.
+                Select a group (e.g. Group A, G1) to assign this teacher to a specific lab/tutorial section.
               </Typography>
               <Controller
                 name="group"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    size="small"
-                    placeholder="e.g. G1"
+                  <GroupSelect
+                    value={field.value || ''}
+                    onChange={field.onChange}
+                    allowFullBatch={true}
+                    fullBatchLabel="All Groups / Entire Batch"
                     error={!!errors.group}
                     helperText={errors.group?.message}
-                    sx={{ bgcolor: 'background.paper' }}
+                    sx={{ bgcolor: 'background.paper', width: '100%' }}
                   />
                 )}
               />

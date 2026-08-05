@@ -68,7 +68,32 @@ body,
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: rgba(140, 140, 140, 0.4);
+}
+
+/* Printable Timetable Styles */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #timetable-print-area, #timetable-print-area * {
+    visibility: visible !important;
+  }
+  #timetable-print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 16px !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print, .add-cell-hint, button, .MuiIconButton-root {
+    display: none !important;
+  }
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {

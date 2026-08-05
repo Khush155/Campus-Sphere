@@ -2,6 +2,7 @@
 import React, { useMemo } from 'react';
 import { Box, TextField, MenuItem, useTheme } from '@mui/material';
 import { useCoursesQuery, useBranchesQuery } from '../../../queries/collegeQueries';
+import GroupSelect from '../../../components/common/GroupSelect';
 
 const RosterFilters = ({ filters, onFilterChange, role }) => {
   const theme = useTheme();
@@ -37,8 +38,14 @@ const RosterFilters = ({ filters, onFilterChange, role }) => {
     if (field === 'course') {
       newFilters.branch = '';
       newFilters.semester = '';
+      newFilters.group = '';
     } else if (field === 'branch') {
       newFilters.semester = '';
+      newFilters.group = '';
+    } else if (field === 'semester') {
+      if (value && !newFilters.group) {
+        newFilters.group = 'A'; // Auto-select first group A by default
+      }
     }
     
     onFilterChange(newFilters);
@@ -99,14 +106,12 @@ const RosterFilters = ({ filters, onFilterChange, role }) => {
             ))}
           </TextField>
 
-          <TextField
-            label="Group"
-            placeholder="e.g. G1, A"
+          <GroupSelect
             value={filters.group || ''}
-            onChange={handleChange('group')}
-            size="small"
-            sx={{ minWidth: 100, width: 120 }}
+            onChange={(val, groupObj) => onFilterChange({ ...filters, group: val, shift: groupObj?.shift || (filters.shift || 'MORNING') })}
             disabled={!filters.semester}
+            size="small"
+            sx={{ minWidth: 180 }}
           />
         </>
       )}

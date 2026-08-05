@@ -404,11 +404,8 @@ const getFacultyDashboard = asyncHandler(async (req, res, _next) => {
  * @route   GET /api/v1/faculty/analytics/dashboard
  * @access  Private/Faculty
  */
-const getFacultyAnalytics = asyncHandler(async (req, res, next) => {
+const getFacultyAnalytics = asyncHandler(async (req, res, _next) => {
   const faculty = await Faculty.findOne({ userId: req.user.id });
-  if (!faculty) {
-    return next(new AppError('Faculty profile not found', 404, ERROR_CODES.NOT_FOUND));
-  }
 
   const FacultyAssignment = require('../models/FacultyAssignment');
   const activeAssignments = await FacultyAssignment.find({
@@ -418,8 +415,7 @@ const getFacultyAnalytics = asyncHandler(async (req, res, next) => {
   const subjectIds = activeAssignments.map(a => a.subjectId).filter(Boolean);
 
   const Attendance = require('../models/Attendance');
-  const attendanceRecords = await Attendance.find({ facultyId: faculty._id })
-    .populate('subjectId');
+  const attendanceRecords = faculty ? await Attendance.find({ facultyId: faculty._id }).populate('subjectId') : [];
 
   const monthlyTrendMap = {
     'Jan': { present: 0, total: 0, baseVal: 85 },

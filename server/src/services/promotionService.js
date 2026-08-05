@@ -64,6 +64,7 @@ const previewPromotion = async (scope) => {
       studentId: s._id,
       name: s.name,
       email: s.email,
+      rollNumber: s.rollNumber || null,
       branchName: s.branchId?.name || 'No Branch',
       currentSemester,
       outcome: willGraduate ? 'GRADUATE' : 'PROMOTE',

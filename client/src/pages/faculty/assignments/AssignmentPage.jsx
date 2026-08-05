@@ -1,26 +1,30 @@
-/* eslint-disable */
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Typography,
   Button,
-  IconButton,
-  Snackbar,
-  Alert,
   Paper,
   CircularProgress,
+  Grid,
+  Card,
+  Chip,
+  useTheme,
+  Avatar,
 } from '@mui/material';
 import {
-  ArrowBack as BackIcon,
   Add as AddIcon,
+  AssignmentOutlined,
+  CheckCircleOutlined,
+  DraftsOutlined,
+  TimerOffOutlined,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
 
 // Reusable components
 import AssignmentFilters from './components/AssignmentFilters';
 import AssignmentList from './components/AssignmentList';
 import CreateAssignmentDialog from './components/CreateAssignmentDialog';
 import EditAssignmentDialog from './components/EditAssignmentDialog';
+import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
 
 // Backend hooks
 import {
@@ -31,9 +35,11 @@ import {
   useUpdateFacultyAssignmentStatusMutation,
   useDeleteFacultyAssignmentMutation,
 } from '../../../queries/facultyQueries';
+import { useToast } from '../../../contexts/ToastContext';
 
 export const AssignmentPage = () => {
-  const navigate = useNavigate();
+  const theme = useTheme();
+  const { showToast } = useToast();
 
   // State Management
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
@@ -45,7 +51,7 @@ export const AssignmentPage = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
-  const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
 
   // 1. Fetch dashboard stats for assigned subjects list
   const { data: dashboardData, isLoading: isDashboardLoading } = useFacultyDashboardQuery();
@@ -59,7 +65,7 @@ export const AssignmentPage = () => {
   }, [assignedSubjects, selectedSubjectId]);
 
   const currentSubject = useMemo(() => {
-    return assignedSubjects.find(s => String(s.id) === String(selectedSubjectId)) || null;
+    return assignedSubjects.find((s) => String(s.id) === String(selectedSubjectId)) || null;
   }, [assignedSubjects, selectedSubjectId]);
 
   // Dynamic sections per subject
@@ -118,11 +124,16 @@ export const AssignmentPage = () => {
     });
   }, [assignments, statusFilter, searchQuery]);
 
-  const isClassSelected = !!selectedSubjectId;
+  // KPI Statistics
+  const stats = useMemo(() => {
+    const total = assignments.length;
+    const published = assignments.filter((a) => a.status === 'PUBLISHED').length;
+    const drafts = assignments.filter((a) => a.status === 'DRAFT').length;
+    const closed = assignments.filter((a) => a.status === 'CLOSED' || a.status === 'ARCHIVED').length;
+    return { total, published, drafts, closed };
+  }, [assignments]);
 
-  const showToast = (message, severity = 'success') => {
-    setToast({ open: true, message, severity });
-  };
+  const isClassSelected = !!selectedSubjectId;
 
   const handleSubjectChange = (subjectId) => {
     setSelectedSubjectId(subjectId);
@@ -150,7 +161,7 @@ export const AssignmentPage = () => {
     };
 
     createAssignmentMutation.mutate(payload, {
-      onSuccess: (data) => {
+      onSuccess: () => {
         setIsCreateOpen(false);
         showToast(
           payload.status === 'DRAFT'
@@ -159,7 +170,7 @@ export const AssignmentPage = () => {
         );
       },
       onError: (err) => {
-        showToast(`Creation failed: ${err.response?.data?.message || err.message}`, 'error');
+        showToast(`Creation failed: ${err.response?.data?.message || err.message}`, { severity: 'error' });
       },
     });
   };
@@ -194,7 +205,7 @@ export const AssignmentPage = () => {
           showToast('Assignment updated successfully!');
         },
         onError: (err) => {
-          showToast(`Update failed: ${err.response?.data?.message || err.message}`, 'error');
+          showToast(`Update failed: ${err.response?.data?.message || err.message}`, { severity: 'error' });
         },
       }
     );
@@ -206,33 +217,34 @@ export const AssignmentPage = () => {
       { id, status: newStatus },
       {
         onSuccess: () => {
-          showToast(`Assignment status changed to ${newStatus}!`);
+          showToast(`Assignment status updated to ${newStatus}!`);
         },
         onError: (err) => {
-          showToast(`Status update failed: ${err.response?.data?.message || err.message}`, 'error');
+          showToast(`Status update failed: ${err.response?.data?.message || err.message}`, { severity: 'error' });
         },
       }
     );
   };
 
   // Delete Assignment
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this assignment?')) {
-      deleteAssignmentMutation.mutate(id, {
-        onSuccess: () => {
-          showToast('Assignment deleted successfully!', 'warning');
-        },
-        onError: (err) => {
-          showToast(`Deletion failed: ${err.response?.data?.message || err.message}`, 'error');
-        },
-      });
-    }
+  const handleDeleteConfirm = () => {
+    if (!deleteTargetId) return;
+    deleteAssignmentMutation.mutate(deleteTargetId, {
+      onSuccess: () => {
+        showToast('Assignment deleted successfully!');
+        setDeleteTargetId(null);
+      },
+      onError: (err) => {
+        showToast(`Deletion failed: ${err.response?.data?.message || err.message}`, { severity: 'error' });
+        setDeleteTargetId(null);
+      },
+    });
   };
 
   if (isDashboardLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-        <CircularProgress />
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress size={36} />
       </Box>
     );
   }
@@ -245,87 +257,178 @@ export const AssignmentPage = () => {
   }));
 
   return (
-    <Box sx={{ flexGrow: 1, p: { xs: 1, sm: 3 } }}>
-      {/* ── Page Header ── */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <IconButton
-            onClick={() => navigate('/faculty')}
-            size="small"
-            sx={{ bgcolor: 'action.hover', '&:hover': { bgcolor: 'action.selected' } }}
-          >
-            <BackIcon fontSize="small" />
-          </IconButton>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+      {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
+      <Card
+        sx={{
+          p: 3.5,
+          borderRadius: '16px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
+          boxShadow: 'none',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
-              Manage Assignments
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+              <Chip
+                icon={<AssignmentOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+                label="FACULTY STUDENT ASSIGNMENT & COURSEWORK DESK"
+                size="small"
+                sx={{
+                  bgcolor: `${theme.palette.primary.main}15`,
+                  color: theme.palette.primary.main,
+                  fontWeight: 800,
+                  fontFamily: theme.typography.mono.fontFamily,
+                  letterSpacing: '0.05em',
+                  fontSize: '0.7rem',
+                }}
+              />
+            </Box>
+            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+              Student Assignment & Coursework Hub
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Create drafts, publish assignments, set due dates, and track student submissions
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+              Create homework assignments, publish project briefs, configure submission deadlines &amp; maximum marks, and monitor student submission status.
             </Typography>
           </Box>
+
+          {isClassSelected && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setIsCreateOpen(true)}
+              sx={{
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontWeight: 700,
+                background: theme.palette.primary.gradient || theme.palette.primary.main,
+                color: '#ffffff',
+              }}
+            >
+              Create New Assignment
+            </Button>
+          )}
         </Box>
-        {isClassSelected && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setIsCreateOpen(true)}
-            sx={{
-              textTransform: 'none',
-              fontWeight: 700,
-              px: 3.5,
-              py: 1.2,
-              borderRadius: 2,
-              bgcolor: 'primary.main',
-              '&:hover': { bgcolor: 'primary.dark' },
-            }}
-          >
-            Create Assignment
-          </Button>
-        )}
-      </Box>
+      </Card>
 
-      {/* ── Filters Grid ── */}
-      <AssignmentFilters
-        subjects={filterSubjects}
-        selectedSubjectId={selectedSubjectId}
-        onSubjectChange={handleSubjectChange}
-        sections={sectionsForSubject}
-        selectedSectionId={selectedSectionId}
-        onSectionChange={handleSectionChange}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        searchQuery={searchQuery}
-        onSearchQueryChange={setSearchQuery}
-      />
+      {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
+      <Grid container spacing={2.5}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+                  TOTAL ASSIGNMENTS
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {stats.total}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
+                <AssignmentOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
 
-      {/* ── Main Content List Grid ── */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+                  ACTIVE PUBLISHED
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {stats.published}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.signal.success}15`, color: theme.palette.signal.success }}>
+                <CheckCircleOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info.main }}>
+                  DRAFTS IN PROGRESS
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {stats.drafts}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.info.main}15`, color: theme.palette.info.main }}>
+                <DraftsOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
+                  CLOSED / EXPIRED
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                  {stats.closed}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.warning.main}15`, color: theme.palette.warning.main }}>
+                <TimerOffOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* ── 3. Filters Control Bar ────────────────────────────────────────── */}
+      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <AssignmentFilters
+          subjects={filterSubjects}
+          selectedSubjectId={selectedSubjectId}
+          onSubjectChange={handleSubjectChange}
+          sections={sectionsForSubject}
+          selectedSectionId={selectedSectionId}
+          onSectionChange={handleSectionChange}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+        />
+      </Card>
+
+      {/* ── 4. Main Content List Grid ──────────────────────────────────────── */}
       {isClassSelected ? (
         isAssignmentsLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-            <CircularProgress />
+            <CircularProgress size={32} />
           </Box>
         ) : (
           <AssignmentList
             assignments={filteredAssignments}
             statusFilter={statusFilter}
             onEdit={handleEditOpen}
-            onDelete={handleDelete}
+            onDelete={(id) => setDeleteTargetId(id)}
             onPublish={(id) => handleStatusChange(id, 'PUBLISHED')}
             onCloseAssignment={(id) => handleStatusChange(id, 'CLOSED')}
             onArchive={(id) => handleStatusChange(id, 'ARCHIVED')}
-            onView={(_id) => showToast(`Submissions for this assignment are actively being tracked.`)}
+            onView={() => showToast(`Submissions for this assignment are actively being tracked.`)}
             onCreateNew={() => setIsCreateOpen(true)}
           />
         )
       ) : (
-        /* Empty State selection prompt */
         <Paper
           variant="outlined"
           sx={{
             p: 6,
             textAlign: 'center',
-            borderRadius: 3,
+            borderRadius: '16px',
             bgcolor: 'background.paper',
           }}
         >
@@ -335,7 +438,7 @@ export const AssignmentPage = () => {
         </Paper>
       )}
 
-      {/* ── Create Dialog Modal ── */}
+      {/* ── 5. Create Dialog Modal ── */}
       {isClassSelected && (
         <CreateAssignmentDialog
           open={isCreateOpen}
@@ -346,7 +449,7 @@ export const AssignmentPage = () => {
         />
       )}
 
-      {/* ── Edit Dialog Modal ── */}
+      {/* ── 6. Edit Dialog Modal ── */}
       {isEditOpen && editingAssignment && (
         <EditAssignmentDialog
           open={isEditOpen}
@@ -361,22 +464,15 @@ export const AssignmentPage = () => {
         />
       )}
 
-      {/* ── Feedback Toast ── */}
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={4000}
-        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={() => setToast((prev) => ({ ...prev, open: false }))}
-          severity={toast.severity}
-          variant="filled"
-          sx={{ fontWeight: 600, borderRadius: 2 }}
-        >
-          {toast.message}
-        </Alert>
-      </Snackbar>
+      {/* ── 7. Confirm Delete Modal ── */}
+      <ConfirmDeleteModal
+        open={Boolean(deleteTargetId)}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Coursework Assignment?"
+        description="Are you sure you want to delete this assignment? Students will no longer be able to submit solutions for this coursework."
+        isLoading={deleteAssignmentMutation.isPending}
+      />
     </Box>
   );
 };

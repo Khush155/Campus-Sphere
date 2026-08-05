@@ -1,9 +1,4 @@
-// client/src/components/common/CommandPalette.jsx
-//
-// Global Search / Command Palette component.
-// Enables searchable modal triggered by Search icon or Ctrl+K.
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Modal,
@@ -81,7 +76,6 @@ export const CommandPalette = ({ open, onClose }) => {
     }
   });
 
-  
   // Live records data queries
   const canFetchUsers = user?.role === 'SUPER_ADMIN' || user?.role === 'COLLEGE_ADMIN' || user?.role === 'HOD';
   const { data: usersData } = useUsersQuery({ limit: 50 }, { enabled: !!canFetchUsers });
@@ -100,87 +94,128 @@ export const CommandPalette = ({ open, onClose }) => {
     }
   }, [open]);
 
-  // Static options list for Admin / HOD
-  const staticOptions = [
-    { id: 'nav-dash', type: 'NAV', text: 'Go to Dashboard', icon: <NavigationOutlined />, path: '/admin/dashboard' },
-    { id: 'nav-depts', type: 'NAV', text: 'Go to College Setup - Departments', icon: <NavigationOutlined />, path: '/admin/college-setup/departments' },
-    { id: 'nav-courses', type: 'NAV', text: 'Go to College Setup - Courses', icon: <NavigationOutlined />, path: '/admin/college-setup/courses' },
-    { id: 'nav-branches', type: 'NAV', text: 'Go to College Setup - Branches', icon: <NavigationOutlined />, path: '/admin/college-setup/branches' },
-    { id: 'nav-subjects', type: 'NAV', text: 'Go to College Setup - Subjects', icon: <NavigationOutlined />, path: '/admin/college-setup/subjects' },
-    { id: 'nav-users', type: 'NAV', text: 'Go to Users Directory', icon: <NavigationOutlined />, path: '/admin/users' },
-    { id: 'act-user', type: 'ACTION', text: 'Register new user account', icon: <FlashOnOutlined />, path: '/admin/users?register=true' },
-    { id: 'act-dept', type: 'ACTION', text: 'Add a new department', icon: <FlashOnOutlined />, path: '/admin/college-setup/departments?add=true' },
-    { id: 'act-course', type: 'ACTION', text: 'Add a new degree course', icon: <FlashOnOutlined />, path: '/admin/college-setup/courses?add=true' },
-    { id: 'act-branch', type: 'ACTION', text: 'Add a new branch specialization', icon: <FlashOnOutlined />, path: '/admin/college-setup/branches?add=true' },
-    { id: 'act-subject', type: 'ACTION', text: 'Add a curriculum subject', icon: <FlashOnOutlined />, path: '/admin/college-setup/subjects?add=true' },
-  ];
+  // Static options tailored specifically per ROLE
+  const roleStaticOptions = useMemo(() => {
+    const role = user?.role;
 
-  // Static options list for Faculty
-  const facultyStaticOptions = [
-    { id: 'nav-dash', type: 'NAV', text: 'Go to Faculty Dashboard', icon: <NavigationOutlined />, path: '/faculty' },
-    { id: 'nav-students', type: 'NAV', text: 'Go to Students Roster', icon: <NavigationOutlined />, path: '/students' },
-    { id: 'nav-attendance', type: 'NAV', text: 'Go to Attendance Marking', icon: <NavigationOutlined />, path: '/attendance' },
-    { id: 'nav-assignments', type: 'NAV', text: 'Go to Assignments Module', icon: <NavigationOutlined />, path: '/assignments' },
-    { id: 'nav-exams', type: 'NAV', text: 'Go to Exams Module', icon: <NavigationOutlined />, path: '/exams' },
-    { id: 'nav-marks', type: 'NAV', text: 'Go to Gradebook & Marks', icon: <NavigationOutlined />, path: '/marks' },
-    { id: 'nav-timetable', type: 'NAV', text: 'Go to Timetable Schedule', icon: <NavigationOutlined />, path: '/timetable' },
-    { id: 'nav-materials', type: 'NAV', text: 'Go to Course Materials', icon: <NavigationOutlined />, path: '/materials' },
-    { id: 'nav-analytics', type: 'NAV', text: 'Go to Analytics Dashboard', icon: <NavigationOutlined />, path: '/analytics' },
-    { id: 'nav-notifications', type: 'NAV', text: 'Go to Notifications Center', icon: <NavigationOutlined />, path: '/notifications' },
-    { id: 'nav-settings', type: 'NAV', text: 'Go to Settings', icon: <NavigationOutlined />, path: '/settings' },
-  ];
+    if (role === 'SUPER_ADMIN' || role === 'COLLEGE_ADMIN') {
+      return [
+        { id: 'nav-dash', type: 'NAV', text: 'Go to Admin Dashboard', icon: <NavigationOutlined />, path: '/' },
+        { id: 'nav-depts', type: 'NAV', text: 'College Setup — Departments', icon: <NavigationOutlined />, path: '/admin/college-setup/departments' },
+        { id: 'nav-courses', type: 'NAV', text: 'College Setup — Degree Courses', icon: <NavigationOutlined />, path: '/admin/college-setup/courses' },
+        { id: 'nav-branches', type: 'NAV', text: 'College Setup — Branch Specializations', icon: <NavigationOutlined />, path: '/admin/college-setup/branches' },
+        { id: 'nav-subjects', type: 'NAV', text: 'College Setup — Subjects', icon: <NavigationOutlined />, path: '/admin/college-setup/subjects' },
+        { id: 'nav-users', type: 'NAV', text: 'Users Directory & Account Roles', icon: <NavigationOutlined />, path: '/admin/users' },
+        { id: 'nav-admissions', type: 'NAV', text: 'Student Admissions Studio', icon: <NavigationOutlined />, path: '/admin/admissions' },
+        { id: 'nav-faculty-assign', type: 'NAV', text: 'Faculty Allocations Desk', icon: <NavigationOutlined />, path: '/admin/faculty-assignments' },
+        { id: 'nav-idcards', type: 'NAV', text: 'ID Cards Printing Studio', icon: <NavigationOutlined />, path: '/admin/id-cards' },
+        { id: 'nav-feeclearance', type: 'NAV', text: 'Fee Dues & Clearance Desk', icon: <NavigationOutlined />, path: '/admin/fee-clearance' },
+        { id: 'nav-notices', type: 'NAV', text: 'Notice Board Broadcasts', icon: <NavigationOutlined />, path: '/admin/notices' },
+        { id: 'nav-calendar', type: 'NAV', text: 'Academic Calendar', icon: <NavigationOutlined />, path: '/admin/academic-calendar' },
+        { id: 'nav-promotion', type: 'NAV', text: 'Bulk Semester Promotion Engine', icon: <NavigationOutlined />, path: '/admin/bulk-promotion' },
+        { id: 'nav-certificates', type: 'NAV', text: 'Certificates Generator Hub', icon: <NavigationOutlined />, path: '/admin/certificates' },
+        { id: 'nav-reports', type: 'NAV', text: 'Reports Export Center', icon: <NavigationOutlined />, path: '/admin/reports' },
+        { id: 'nav-profile', type: 'NAV', text: 'College Profile Settings', icon: <NavigationOutlined />, path: '/admin/college-profile' },
+        { id: 'nav-audit', type: 'NAV', text: 'Audit Security Logs', icon: <NavigationOutlined />, path: '/admin/audit-logs' },
+        { id: 'act-user', type: 'ACTION', text: 'Register new user account', icon: <FlashOnOutlined />, path: '/admin/users?register=true' },
+        { id: 'act-dept', type: 'ACTION', text: 'Create new department', icon: <FlashOnOutlined />, path: '/admin/college-setup/departments?add=true' },
+      ];
+    }
 
-  const staticList = user?.role === 'FACULTY' ? facultyStaticOptions : staticOptions;
+    if (role === 'HOD') {
+      return [
+        { id: 'nav-hod-dash', type: 'NAV', text: 'Go to HOD Dashboard', icon: <NavigationOutlined />, path: '/' },
+        { id: 'nav-hod-fac', type: 'NAV', text: 'Department Faculty Management', icon: <NavigationOutlined />, path: '/hod/faculty' },
+        { id: 'nav-hod-req', type: 'NAV', text: 'Cross-Department Requests', icon: <NavigationOutlined />, path: '/hod/cross-dept-requests' },
+        { id: 'nav-hod-stud', type: 'NAV', text: 'Department Students Hub', icon: <NavigationOutlined />, path: '/hod/students' },
+        { id: 'nav-hod-sub', type: 'NAV', text: 'Subject Curriculum Hub', icon: <NavigationOutlined />, path: '/hod/subjects' },
+        { id: 'nav-hod-tt', type: 'NAV', text: 'Class Timetable Builder', icon: <NavigationOutlined />, path: '/hod/timetable' },
+        { id: 'nav-hod-att', type: 'NAV', text: 'Attendance & Detention Audit Hub', icon: <NavigationOutlined />, path: '/hod/attendance' },
+        { id: 'nav-hod-exam', type: 'NAV', text: 'Examinations & Marks Entry Lock', icon: <NavigationOutlined />, path: '/hod/examinations' },
+        { id: 'nav-hod-leave', type: 'NAV', text: 'Faculty Leave Approvals Desk', icon: <NavigationOutlined />, path: '/hod/leave-management' },
+        { id: 'nav-hod-notice', type: 'NAV', text: 'Department Notices & Broadcasts', icon: <NavigationOutlined />, path: '/hod/notices' },
+        { id: 'nav-hod-reports', type: 'NAV', text: 'Department Performance Reports', icon: <NavigationOutlined />, path: '/hod/reports' },
+        { id: 'nav-hod-complaints', type: 'NAV', text: 'Department Complaints Desk', icon: <NavigationOutlined />, path: '/hod/complaints' },
+        { id: 'nav-hod-meetings', type: 'NAV', text: 'Schedule Department Meetings', icon: <NavigationOutlined />, path: '/hod/meetings' },
+      ];
+    }
+
+    if (role === 'FACULTY') {
+      return [
+        { id: 'nav-fac-dash', type: 'NAV', text: 'Go to Faculty Dashboard', icon: <NavigationOutlined />, path: '/' },
+        { id: 'nav-fac-students', type: 'NAV', text: 'Class Students Roster Desk', icon: <NavigationOutlined />, path: '/students' },
+        { id: 'nav-fac-att', type: 'NAV', text: 'Mark Lecture Attendance', icon: <NavigationOutlined />, path: '/attendance' },
+        { id: 'nav-fac-asg', type: 'NAV', text: 'Coursework Assignments Hub', icon: <NavigationOutlined />, path: '/assignments' },
+        { id: 'nav-fac-marks', type: 'NAV', text: 'Gradebook & Marks Desk', icon: <NavigationOutlined />, path: '/marks' },
+        { id: 'nav-fac-tt', type: 'NAV', text: 'Timetable & Lecture Schedule', icon: <NavigationOutlined />, path: '/timetable' },
+        { id: 'nav-fac-mat', type: 'NAV', text: 'Course Study Materials Vault', icon: <NavigationOutlined />, path: '/materials' },
+        { id: 'nav-fac-leave', type: 'NAV', text: 'Faculty Leave Application Portal', icon: <NavigationOutlined />, path: '/leaves' },
+        { id: 'nav-fac-notices', type: 'NAV', text: 'Department Notice Board', icon: <NavigationOutlined />, path: '/notices' },
+        { id: 'nav-fac-meetings', type: 'NAV', text: 'Departmental Meetings & MOM', icon: <NavigationOutlined />, path: '/meetings' },
+        { id: 'nav-fac-complaints', type: 'NAV', text: 'Maintenance & Infrastructure Helpdesk', icon: <NavigationOutlined />, path: '/complaints' },
+        { id: 'nav-fac-analytics', type: 'NAV', text: 'Faculty Teaching Analytics', icon: <NavigationOutlined />, path: '/analytics' },
+      ];
+    }
+
+    // Default for Student role
+    return [
+      { id: 'nav-stu-dash', type: 'NAV', text: 'Go to Student Dashboard', icon: <NavigationOutlined />, path: '/' },
+      { id: 'nav-stu-att', type: 'NAV', text: 'My Class Attendance', icon: <NavigationOutlined />, path: '/student/attendance' },
+      { id: 'nav-stu-asg', type: 'NAV', text: 'My Course Assignments', icon: <NavigationOutlined />, path: '/student/assignments' },
+      { id: 'nav-stu-res', type: 'NAV', text: 'Exam Results & Marks Sheet', icon: <NavigationOutlined />, path: '/student/results' },
+      { id: 'nav-stu-tt', type: 'NAV', text: 'My Class Timetable', icon: <NavigationOutlined />, path: '/student/timetable' },
+      { id: 'nav-stu-mat', type: 'NAV', text: 'Study Materials & Lecture Notes', icon: <NavigationOutlined />, path: '/student/materials' },
+      { id: 'nav-stu-notices', type: 'NAV', text: 'College Notices & Bulletins', icon: <NavigationOutlined />, path: '/student/notices' },
+      { id: 'nav-stu-fees', type: 'NAV', text: 'Fee Receipts & Dues Clearance', icon: <NavigationOutlined />, path: '/student/fees' },
+    ];
+  }, [user]);
 
   // Dynamic user records search mapping
-  const userOptions = usersData?.data?.map((u) => ({
-    id: `user-${u.id}`,
-    type: 'RECORD_USER',
-    text: `${u.name} (${u.role.replace('_', ' ')})`,
-    icon: <PersonOutline />,
-    path: `/admin/users?search=${encodeURIComponent(u.name)}`,
-  })) || [];
+  const userOptions = useMemo(() => {
+    if (!usersData?.data) return [];
+    return usersData.data.map((u) => ({
+      id: `user-${u.id}`,
+      type: 'RECORD_USER',
+      text: `${u.name} (${u.role.replace('_', ' ')})`,
+      icon: <PersonOutline />,
+      path: `/admin/users?search=${encodeURIComponent(u.name)}`,
+    }));
+  }, [usersData]);
 
   // Dynamic subject records search mapping
-  const subjectOptions = subjectsData?.map((s) => ({
-    id: `subject-${s._id}`,
-    type: 'RECORD_SUBJECT',
-    text: `${s.name} (${s.code})`,
-    icon: <BookOutlined />,
-    path: `/admin/college-setup/subjects?search=${encodeURIComponent(s.name)}`,
-  })) || [];
+  const subjectOptions = useMemo(() => {
+    if (!subjectsData) return [];
+    return subjectsData.map((s) => ({
+      id: `subject-${s._id}`,
+      type: 'RECORD_SUBJECT',
+      text: `${s.name} (${s.code})`,
+      icon: <BookOutlined />,
+      path: user?.role === 'FACULTY' ? '/materials' : '/admin/college-setup/subjects',
+    }));
+  }, [subjectsData, user]);
 
-  // Faculty specific records
-  const facultyRecords = user?.role === 'FACULTY' ? [
-    { id: 'fac-profile', type: 'RECORD_FACULTY', text: 'Profile: Dr. Ananya Sharma (Assistant Professor)', icon: <PersonOutline />, path: '/profile' },
-    { id: 'asg-1', type: 'RECORD_ASSIGNMENT', text: 'Assignment: Tree Balancing Implementation (CSE201)', icon: <AssignmentIcon />, path: '/assignments' },
-    { id: 'asg-2', type: 'RECORD_ASSIGNMENT', text: 'Assignment: Relational Algebra Worksheet (CSE305)', icon: <AssignmentIcon />, path: '/assignments' },
-    { id: 'asg-3', type: 'RECORD_ASSIGNMENT', text: 'Assignment: Process Sync Programming Lab (CSE302)', icon: <AssignmentIcon />, path: '/assignments' },
-    { id: 'exam-1', type: 'RECORD_EXAM', text: 'Exam: DSA Midterm Assessment (CSE201)', icon: <ExamIcon />, path: '/exams' },
-    { id: 'exam-2', type: 'RECORD_EXAM', text: 'Exam: DBMS Quiz 1 (CSE305)', icon: <ExamIcon />, path: '/exams' },
-    { id: 'exam-3', type: 'RECORD_EXAM', text: 'Exam: OS End-Term Theory Exam (CSE302)', icon: <ExamIcon />, path: '/exams' },
-    { id: 'mat-1', type: 'RECORD_MATERIAL', text: 'Material: Tree balancing lecture slides (PPT)', icon: <BookIcon />, path: '/materials' },
-    { id: 'mat-2', type: 'RECORD_MATERIAL', text: 'Material: DBMS Normalization Rules guide (PDF)', icon: <BookIcon />, path: '/materials' },
-    { id: 'mat-3', type: 'RECORD_MATERIAL', text: 'Material: Database Indexing & B-Trees video (YouTube)', icon: <BookIcon />, path: '/materials' },
-    { id: 'notif-page', type: 'RECORD_NOTIFICATION', text: 'Notification Log: Review submissions and schedule alerts', icon: <NotificationsIcon />, path: '/notifications' },
-    { id: 'timetable-page', type: 'RECORD_TIMETABLE', text: 'Timetable: View weekly classes schedule grid', icon: <CalendarIcon />, path: '/timetable' }
-  ] : [];
-
-  const allItems = [...staticList, ...userOptions, ...subjectOptions, ...facultyRecords];
+  const allItems = useMemo(() => {
+    return [...roleStaticOptions, ...userOptions, ...subjectOptions];
+  }, [roleStaticOptions, userOptions, subjectOptions]);
 
   // Map icons onto recent items
-  const recentOptions = recentItems.map((item) => ({
-    ...item,
-    icon: getIconForType(item.originalType),
-    type: 'RECENT',
-  }));
+  const recentOptions = useMemo(() => {
+    return recentItems.map((item) => ({
+      ...item,
+      icon: getIconForType(item.originalType),
+      type: 'RECENT',
+    }));
+  }, [recentItems]);
 
   // Fuzzy filter query match - if empty, show recents first, then navigation defaults
-  const filtered = query === ''
-    ? [...recentOptions, ...staticList]
-    : allItems.filter((item) =>
-        item.text.toLowerCase().includes(query.toLowerCase())
-      );
+  const filtered = useMemo(() => {
+    if (query === '') {
+      return [...recentOptions, ...roleStaticOptions];
+    }
+    return allItems.filter((item) =>
+      item.text.toLowerCase().includes(query.toLowerCase())
+    );
+  }, [query, recentOptions, roleStaticOptions, allItems]);
 
   // Keyboard navigation
   const handleKeyDown = (e) => {
@@ -239,53 +274,39 @@ export const CommandPalette = ({ open, onClose }) => {
         </Typography>
         <List disablePadding>
           {items.map((item) => {
-            const indexInFiltered = filtered.indexOf(item);
-            const isSelected = indexInFiltered === selectedIndex;
+            const globalIndex = filtered.findIndex((i) => i.id === item.id);
+            const isSelected = globalIndex === selectedIndex;
 
             return (
               <ListItemButton
                 key={item.id}
-                onClick={() => handleAction(item)}
                 selected={isSelected}
+                onClick={() => handleAction(item)}
+                onMouseEnter={() => setSelectedIndex(globalIndex)}
                 sx={{
+                  px: 2,
+                  py: 1.25,
+                  borderRadius: 1.5,
                   mx: 1,
-                  my: 0.2,
-                  borderRadius: '8px',
-                  py: 1,
-                  bgcolor: isSelected ? theme.custom?.interaction?.hoverTint || 'rgba(79, 70, 229, 0.08)' : 'transparent',
-                  color: isSelected ? theme.palette.primary.main : theme.palette.text.primary,
+                  my: 0.25,
                   '&.Mui-selected': {
-                    bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(79, 70, 229, 0.08)',
-                    color: theme.palette.primary.main,
-                    '&:hover': {
-                      bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(79, 70, 229, 0.08)',
-                    },
-                  },
-                  '&:hover': {
-                    bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(79, 70, 229, 0.08)',
+                    bgcolor: 'action.selected',
                   },
                 }}
               >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 40,
-                    color: isSelected ? theme.palette.primary.main : theme.palette.text.secondary,
-                  }}
-                >
+                <ListItemIcon sx={{ minWidth: 36, color: isSelected ? 'primary.main' : 'text.secondary' }}>
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
                   primary={item.text}
                   primaryTypographyProps={{
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    fontFamily: theme.typography.body2.fontFamily,
+                    variant: 'body2',
+                    fontWeight: isSelected ? 700 : 500,
+                    color: isSelected ? 'primary.main' : 'text.primary',
                   }}
                 />
                 {isSelected && (
-                  <ArrowForwardOutlined
-                    sx={{ fontSize: 16, color: theme.palette.primary.main }}
-                  />
+                  <ArrowForwardOutlined fontSize="small" color="primary" />
                 )}
               </ListItemButton>
             );
@@ -299,125 +320,91 @@ export const CommandPalette = ({ open, onClose }) => {
     <Modal
       open={open}
       onClose={onClose}
-      BackdropProps={{
-        sx: {
-          backdropFilter: 'blur(8px)',
-          bgcolor: 'rgba(14, 26, 43, 0.4)',
-        },
+      sx={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        pt: { xs: 4, sm: 10 },
       }}
-      sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', pt: { xs: 4, md: 10 } }}
     >
       <Box
+        onKeyDown={handleKeyDown}
         sx={{
           width: '100%',
-          maxWidth: 600,
-          bgcolor: theme.custom?.surface?.overlay || theme.palette.background.paper,
-          borderRadius: '16px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          overflow: 'hidden',
-          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '75vh',
+          maxWidth: 640,
+          bgcolor: 'background.paper',
+          borderRadius: 3,
+          boxShadow: 24,
           outline: 'none',
+          overflow: 'hidden',
+          mx: 2,
         }}
       >
-        {/* Search Input Box */}
-        <Box sx={{ p: 2, display: 'flex', alignItems: 'center', borderBottom: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`, bgcolor: theme.custom?.surface?.sunken || theme.palette.action.hover }}>
-          <SearchOutlined sx={{ color: theme.palette.text.secondary, mr: 1.5 }} />
+        {/* Search Input Field */}
+        <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+          <SearchOutlined color="action" />
           <TextField
             inputRef={inputRef}
             fullWidth
             variant="standard"
-            placeholder="Type a page, quick action, student name, or subject..."
+            placeholder={`Search features & commands for ${user?.role || 'user'}... (Press ESC to close)`}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
-            onKeyDown={handleKeyDown}
-            InputProps={{
-              disableUnderline: true,
-              style: {
-                fontFamily: theme.typography.body1.fontFamily,
-                fontSize: '0.95rem',
-                color: theme.palette.text.primary,
+            InputProps={{ disableUnderline: true }}
+            sx={{
+              '& input': {
+                fontSize: '1rem',
+                fontWeight: 500,
               },
             }}
           />
-          <Typography
-            variant="caption"
-            sx={{
-              px: 1,
-              py: 0.3,
-              borderRadius: '4px',
-              bgcolor: 'rgba(0,0,0,0.06)',
-              color: theme.palette.text.secondary,
-              fontFamily: theme.typography.mono?.fontFamily || 'monospace',
-              fontSize: '0.68rem',
-            }}
-          >
-            ESC
-          </Typography>
         </Box>
 
-        {/* Results Container */}
-        <Box sx={{ overflowY: 'auto', p: 1, flexGrow: 1 }}>
+        {/* Results List View */}
+        <Box sx={{ maxHeight: 380, overflowY: 'auto', py: 1 }}>
           {filtered.length === 0 ? (
-            <Box sx={{ py: 6, textAlign: 'center' }}>
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontFamily: theme.typography.body2.fontFamily }}>
-                {"No commands or records match \"" + query + "\""}
-              </Typography>
-            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ p: 3, textAlign: 'center' }}>
+              No matching commands or pages found.
+            </Typography>
           ) : (
             <>
-              {renderGroup('RECENT', 'RECENT SEARCHES & VIEWS')}
-              {filtered.filter((i) => i.type === 'RECENT').length > 0 && <Divider sx={{ my: 1, borderColor: theme.custom?.border?.subtle || theme.palette.divider }} />}
-              {renderGroup('NAV', 'NAVIGATION')}
-              {filtered.filter((i) => i.type === 'NAV').length > 0 &&
-                filtered.filter((i) => i.type !== 'NAV' && i.type !== 'RECENT').length > 0 && <Divider sx={{ my: 1, borderColor: theme.custom?.border?.subtle || theme.palette.divider }} />}
+              {renderGroup('RECENT', 'RECENTLY VISITED')}
+              {renderGroup('NAV', 'AUTHORIZED NAVIGATION')}
               {renderGroup('ACTION', 'QUICK ACTIONS')}
-              {filtered.filter((i) => i.type === 'ACTION').length > 0 &&
-                filtered.filter((i) => i.type.startsWith('RECORD')).length > 0 && <Divider sx={{ my: 1, borderColor: theme.custom?.border?.subtle || theme.palette.divider }} />}
-              {renderGroup('RECORD_USER', 'USERS RECORDS')}
+              {renderGroup('RECORD_USER', 'USERS DIRECTORY')}
               {renderGroup('RECORD_SUBJECT', 'CURRICULUM SUBJECTS')}
-              {renderGroup('RECORD_STUDENT', 'STUDENTS DIRECTORY')}
-              {renderGroup('RECORD_FACULTY', 'FACULTY MEMBERS')}
-              {renderGroup('RECORD_ASSIGNMENT', 'ASSIGNMENTS')}
-              {renderGroup('RECORD_EXAM', 'EXAM SCHEDULES')}
-              {renderGroup('RECORD_MATERIAL', 'COURSE MATERIALS')}
-              {renderGroup('RECORD_NOTIFICATION', 'NOTIFICATIONS ALERTS')}
-              {renderGroup('RECORD_TIMETABLE', 'TIMETABLES')}
             </>
           )}
         </Box>
 
-        {/* Footer shortcuts helper */}
+        <Divider />
+
+        {/* Footer shortcuts info */}
         <Box
           sx={{
-            p: 1.5,
-            borderTop: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+            px: 2.5,
+            py: 1.25,
+            bgcolor: 'action.hover',
             display: 'flex',
-            gap: 2,
-            justifyContent: 'flex-end',
             alignItems: 'center',
-            bgcolor: theme.custom?.surface?.sunken || theme.palette.action.hover,
+            justifyContent: 'space-between',
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontFamily: theme.typography.body2.fontFamily }}>
-              Select:
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+            Role: <strong>{user?.role || 'GUEST'}</strong>
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Typography variant="caption" color="text.secondary">
+              <kbd style={{ background: '#eee', color: '#333', padding: '2px 6px', borderRadius: '4px' }}>↑↓</kbd> Navigate
             </Typography>
-            <Typography variant="caption" sx={{ px: 0.6, py: 0.1, bgcolor: 'rgba(0,0,0,0.06)', borderRadius: '3px', fontFamily: theme.typography.mono?.fontFamily || 'monospace', fontSize: '0.68rem' }}>
-              ↑↓
+            <Typography variant="caption" color="text.secondary">
+              <kbd style={{ background: '#eee', color: '#333', padding: '2px 6px', borderRadius: '4px' }}>↵</kbd> Select
             </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontFamily: theme.typography.body2.fontFamily }}>
-              Execute:
-            </Typography>
-            <Typography variant="caption" sx={{ px: 0.6, py: 0.1, bgcolor: 'rgba(0,0,0,0.06)', borderRadius: '3px', fontFamily: theme.typography.mono?.fontFamily || 'monospace', fontSize: '0.68rem' }}>
-              Enter
+            <Typography variant="caption" color="text.secondary">
+              <kbd style={{ background: '#eee', color: '#333', padding: '2px 6px', borderRadius: '4px' }}>ESC</kbd> Close
             </Typography>
           </Box>
         </Box>

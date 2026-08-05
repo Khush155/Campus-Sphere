@@ -1,16 +1,46 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Box, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, MenuItem, Chip, Alert, Snackbar, Link, useTheme, Autocomplete,
-  CircularProgress, Grid, Card, CardContent, Divider, IconButton, Tooltip,
-  List, ListItem, ListItemText, ListItemIcon, Avatar
+  Box,
+  Typography,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  Chip,
+  Link,
+  useTheme,
+  Autocomplete,
+  CircularProgress,
+  Grid,
+  Card,
+  Divider,
+  IconButton,
+  Tooltip,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
 } from '@mui/material';
 import {
-  AddOutlined, VideoCall, Place, CheckCircle, Cancel, Schedule,
-  VisibilityOutlined, Groups, EventNote,
-  PostAddOutlined, AssignmentOutlined
+  AddOutlined,
+  VideoCallOutlined,
+  PlaceOutlined,
+  CheckCircleOutlined,
+  CancelOutlined,
+  SearchOutlined,
+  GroupsOutlined,
+  EventOutlined,
+  RefreshOutlined,
+  PostAddOutlined,
+  AssignmentOutlined,
+  VisibilityOutlined,
+  LinkOutlined,
 } from '@mui/icons-material';
 import DataTable from '../../../components/common/DataTable';
+import EmptyState from '../../../components/common/EmptyState';
 import {
   useMeetingsQuery,
   useCreateMeetingsMutation,
@@ -19,17 +49,26 @@ import {
 } from '../../../queries/hodQueries';
 import { useUsersQuery } from '../../../queries/userQueries';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useToast } from '../../../contexts/ToastContext';
 
-const MEETING_TYPES = ['IN_PERSON', 'VIRTUAL', 'HYBRID'];
+const MEETING_TYPES = [
+  { value: 'IN_PERSON', label: 'In-Person Assembly' },
+  { value: 'VIRTUAL', label: 'Virtual (Google Meet / Zoom)' },
+  { value: 'HYBRID', label: 'Hybrid Assembly' },
+];
+
 const STATUS_COLORS = {
-  SCHEDULED: 'warning', IN_PROGRESS: 'info', COMPLETED: 'success',
-  CANCELLED: 'error', POSTPONED: 'default',
+  SCHEDULED: 'warning',
+  IN_PROGRESS: 'info',
+  COMPLETED: 'success',
+  CANCELLED: 'error',
+  POSTPONED: 'default',
 };
-const TYPE_ICONS = { VIRTUAL: <VideoCall fontSize="small" />, IN_PERSON: <Place fontSize="small" />, HYBRID: <Groups fontSize="small" /> };
 
-const HodMeetingsHub = () => {
+export const HodMeetingsHub = () => {
   const theme = useTheme();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   // Modal States
   const [openModal, setOpenModal] = useState(false);
@@ -40,20 +79,23 @@ const HodMeetingsHub = () => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Create Form
+  // Create Form State
   const [formData, setFormData] = useState({
-    title: '', agenda: '', meetingDate: '', location: '',
-    meetingLink: '', meetingType: 'IN_PERSON', participants: []
+    title: '',
+    agenda: '',
+    meetingDate: '',
+    location: '',
+    meetingLink: '',
+    meetingType: 'IN_PERSON',
+    participants: [],
   });
 
-  // Action Item Form
+  // Action Item Form State
   const [actionItemData, setActionItemData] = useState({
-    description: '', assignedTo: null, dueDate: ''
+    description: '',
+    assignedTo: null,
+    dueDate: '',
   });
-
-  // Toast
-  const [toast, setToast] = useState({ open: false, msg: '', severity: 'success' });
-  const showToast = (msg, severity = 'success') => setToast({ open: true, msg, severity });
 
   // Debounce search
   React.useEffect(() => {
@@ -62,28 +104,27 @@ const HodMeetingsHub = () => {
   }, [search]);
 
   // Queries
-  const { data: meetings = [], isLoading } = useMeetingsQuery();
+  const { data: meetings = [], isLoading, isError, refetch } = useMeetingsQuery();
   const createMutation = useCreateMeetingsMutation();
   const updateStatusMutation = useUpdateMeetingStatusMutation();
   const addActionItemMutation = useAddMeetingActionItemMutation();
 
-  // Robust department ID extraction
+  // Extract HOD Department ID
   const cleanDeptId = typeof user?.departmentId === 'object'
     ? user?.departmentId?._id
     : (user?.departmentId || user?.department?._id || user?.department);
 
-  // Fetch users (if cleanDeptId exists filter by dept, otherwise fetch all users)
+  // Fetch users for participant multi-select
   const { data: usersData, isLoading: isLoadingUsers } = useUsersQuery(
     cleanDeptId ? { limit: 500, departmentId: cleanDeptId } : { limit: 500 }
   );
-  
-  // Deduplicate users by _id, exclude the HOD themselves from the list
+
   const availableUsers = useMemo(() => {
     const raw = Array.isArray(usersData) ? usersData : (usersData?.data || []);
     const seen = new Set();
     const currentUserId = user?.id || user?._id;
 
-    return raw.filter(u => {
+    return raw.filter((u) => {
       if (!u) return false;
       const uid = String(u._id || u.id || '');
       if (!uid || seen.has(uid)) return false;
@@ -96,13 +137,14 @@ const HodMeetingsHub = () => {
   // Client-side filtering
   const filteredMeetings = useMemo(() => {
     let list = Array.isArray(meetings) ? meetings : [];
-    if (statusFilter) list = list.filter(m => m.status === statusFilter);
+    if (statusFilter) list = list.filter((m) => m.status === statusFilter);
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
-      list = list.filter(m =>
-        (m.title?.toLowerCase() || '').includes(q) ||
-        (m.agenda?.toLowerCase() || '').includes(q) ||
-        (m.organizerId?.name?.toLowerCase() || '').includes(q)
+      list = list.filter(
+        (m) =>
+          (m.title?.toLowerCase() || '').includes(q) ||
+          (m.agenda?.toLowerCase() || '').includes(q) ||
+          (m.organizerId?.name?.toLowerCase() || '').includes(q)
       );
     }
     return list;
@@ -113,32 +155,72 @@ const HodMeetingsHub = () => {
     const all = Array.isArray(meetings) ? meetings : [];
     return {
       total: all.length,
-      scheduled: all.filter(m => m.status === 'SCHEDULED').length,
-      completed: all.filter(m => m.status === 'COMPLETED').length,
-      cancelled: all.filter(m => m.status === 'CANCELLED').length,
+      scheduled: all.filter((m) => m.status === 'SCHEDULED').length,
+      completed: all.filter((m) => m.status === 'COMPLETED').length,
+      cancelled: all.filter((m) => m.status === 'CANCELLED').length,
     };
   }, [meetings]);
 
-  // Handlers
-  const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
+  const handleChange = (e) => setFormData((p) => ({ ...p, [e.target.name]: e.target.value }));
+
+  const handleQuickSelect = (role) => {
+    const usersToAdd = availableUsers.filter((u) => u.role === role);
+    const seen = new Set(formData.participants.map((p) => String(p._id || p.id || p)));
+    const deduped = [...formData.participants];
+
+    usersToAdd.forEach((u) => {
+      const id = String(u._id || u.id || u);
+      if (!seen.has(id)) {
+        seen.add(id);
+        deduped.push(u);
+      }
+    });
+    setFormData((p) => ({ ...p, participants: deduped }));
+  };
+
+  const handleClearParticipants = () => {
+    setFormData((p) => ({ ...p, participants: [] }));
+  };
 
   const handleClose = () => {
     setOpenModal(false);
-    setFormData({ title: '', agenda: '', meetingDate: '', location: '', meetingLink: '', meetingType: 'IN_PERSON', participants: [] });
+    setFormData({
+      title: '',
+      agenda: '',
+      meetingDate: '',
+      location: '',
+      meetingLink: '',
+      meetingType: 'IN_PERSON',
+      participants: [],
+    });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    createMutation.mutate({
-      ...formData,
-      participants: formData.participants.map(p => p._id || p.id || p)
-    }, {
-      onSuccess: () => {
-        handleClose();
-        showToast('Meeting scheduled successfully.');
+    if (!formData.title || !formData.agenda || !formData.meetingDate) {
+      showToast('Please fill in all required meeting fields.', { severity: 'error' });
+      return;
+    }
+    if (formData.meetingType === 'VIRTUAL' && !formData.meetingLink) {
+      showToast('Meeting link is required for virtual meetings.', { severity: 'error' });
+      return;
+    }
+
+    createMutation.mutate(
+      {
+        ...formData,
+        location: formData.location || (formData.meetingType === 'VIRTUAL' ? 'Online Video Call' : 'Department Conference Room'),
+        participants: formData.participants.map((p) => p._id || p.id || p),
       },
-      onError: (err) => showToast(err.response?.data?.message || 'Failed to create meeting.', 'error'),
-    });
+      {
+        onSuccess: () => {
+          handleClose();
+          showToast('Department meeting scheduled successfully!');
+          refetch();
+        },
+        onError: (err) => showToast(err.response?.data?.message || 'Failed to schedule meeting.', { severity: 'error' }),
+      }
+    );
   };
 
   const handleStatusChange = async (id, status) => {
@@ -146,10 +228,11 @@ const HodMeetingsHub = () => {
       await updateStatusMutation.mutateAsync({ id, status });
       showToast(`Meeting marked as ${status.replace('_', ' ')}.`);
       if (selectedMeeting?._id === id) {
-        setSelectedMeeting(prev => prev ? { ...prev, status } : null);
+        setSelectedMeeting((prev) => (prev ? { ...prev, status } : null));
       }
+      refetch();
     } catch {
-      showToast('Failed to update status.', 'error');
+      showToast('Failed to update meeting status.', { severity: 'error' });
     }
   };
 
@@ -160,50 +243,79 @@ const HodMeetingsHub = () => {
 
   const handleAddActionItem = () => {
     if (!selectedMeeting || !actionItemData.description.trim()) return;
-    addActionItemMutation.mutate({
-      id: selectedMeeting._id,
-      description: actionItemData.description,
-      assignedTo: actionItemData.assignedTo?._id || actionItemData.assignedTo?.id || null,
-      dueDate: actionItemData.dueDate || null,
-    }, {
-      onSuccess: () => {
-        showToast('Action item added successfully.');
-        setActionItemData({ description: '', assignedTo: null, dueDate: '' });
-        setActionItemModalOpen(false);
+    addActionItemMutation.mutate(
+      {
+        id: selectedMeeting._id || selectedMeeting.id,
+        description: actionItemData.description,
+        assignedTo: actionItemData.assignedTo?._id || actionItemData.assignedTo?.id || null,
+        dueDate: actionItemData.dueDate || null,
       },
-      onError: (err) => showToast(err.response?.data?.message || 'Failed to add action item.', 'error'),
-    });
+      {
+        onSuccess: () => {
+          showToast('Action item added to meeting notes.');
+          setActionItemData({ description: '', assignedTo: null, dueDate: '' });
+          setActionItemModalOpen(false);
+          refetch();
+        },
+        onError: (err) => showToast(err.response?.data?.message || 'Failed to add action item.', { severity: 'error' }),
+      }
+    );
   };
 
-  // Columns
   const columns = [
     {
-      id: 'title', label: 'Meeting',
+      id: 'title',
+      label: 'Meeting Title & Agenda',
       render: (r) => (
         <Box onClick={() => handleOpenDetail(r)} sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
-          <Typography variant="body2" fontWeight={700} color="primary.main">{r.title}</Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+            {r.title}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              display: '-webkit-box',
+              WebkitLineClamp: 1,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
             {r.agenda}
           </Typography>
         </Box>
-      )
+      ),
     },
     {
-      id: 'meetingType', label: 'Type',
-      render: (r) => (
-        <Chip size="small" icon={TYPE_ICONS[r.meetingType] || <Place fontSize="small" />}
-          label={r.meetingType?.replace('_', ' ')} variant="outlined"
-          color={r.meetingType === 'VIRTUAL' ? 'info' : r.meetingType === 'HYBRID' ? 'secondary' : 'default'} />
-      )
+      id: 'meetingType',
+      label: 'Assembly Type',
+      render: (r) => {
+        const icons = {
+          VIRTUAL: <VideoCallOutlined sx={{ fontSize: '0.85rem !important' }} />,
+          IN_PERSON: <PlaceOutlined sx={{ fontSize: '0.85rem !important' }} />,
+          HYBRID: <GroupsOutlined sx={{ fontSize: '0.85rem !important' }} />,
+        };
+        return (
+          <Chip
+            size="small"
+            icon={icons[r.meetingType] || <PlaceOutlined sx={{ fontSize: '0.85rem !important' }} />}
+            label={r.meetingType?.replace('_', ' ')}
+            variant="outlined"
+            color={r.meetingType === 'VIRTUAL' ? 'info' : r.meetingType === 'HYBRID' ? 'secondary' : 'default'}
+            sx={{ fontWeight: 800, fontSize: '0.68rem' }}
+          />
+        );
+      },
     },
     {
-      id: 'meetingDate', label: 'Date & Time',
+      id: 'meetingDate',
+      label: 'Date & Time',
       render: (r) => {
         const d = new Date(r.meetingDate);
         const isPast = d < new Date() && r.status === 'SCHEDULED';
         return (
           <Box>
-            <Typography variant="body2" fontWeight={600} color={isPast ? 'error.main' : 'text.primary'}>
+            <Typography variant="body2" sx={{ fontWeight: 700, color: isPast ? theme.palette.signal.error : theme.palette.ink[900] }}>
               {d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -211,458 +323,489 @@ const HodMeetingsHub = () => {
             </Typography>
           </Box>
         );
-      }
+      },
     },
     {
-      id: 'location', label: 'Venue',
-      render: (r) => r.meetingLink ? (
-        <Box>
-          <Link href={r.meetingLink} target="_blank" rel="noopener" underline="hover" color="primary" variant="body2" fontWeight={600}>
-            Join Meeting 🔗
-          </Link>
-          {r.location && <Typography variant="caption" display="block" color="text.secondary">{r.location}</Typography>}
-        </Box>
-      ) : <Typography variant="body2">{r.location || '—'}</Typography>
+      id: 'location',
+      label: 'Venue / Meeting Room',
+      render: (r) =>
+        r.meetingLink ? (
+          <Box>
+            <Link href={r.meetingLink} target="_blank" rel="noopener" underline="hover" color="primary" variant="body2" sx={{ fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+              <LinkOutlined sx={{ fontSize: 14 }} /> Join Call 🔗
+            </Link>
+            {r.location && <Typography variant="caption" display="block" color="text.secondary">{r.location}</Typography>}
+          </Box>
+        ) : (
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>{r.location || 'Conference Hall'}</Typography>
+        ),
     },
     {
-      id: 'participants', label: 'Participants',
+      id: 'participants',
+      label: 'Invited Members',
       render: (r) => {
         const count = r.participants?.length || 0;
         return (
-          <Tooltip title={count > 0 ? r.participants.map(p => p.name || p).join(', ') : 'No participants'}>
-            <Chip label={`${count} invited`} size="small" variant="outlined" icon={<Groups fontSize="small" />} />
+          <Tooltip title={count > 0 ? r.participants.map((p) => p.name || p).join(', ') : 'No participants'}>
+            <Chip label={`${count} invited`} size="small" variant="outlined" icon={<GroupsOutlined sx={{ fontSize: '0.8rem !important' }} />} sx={{ fontWeight: 700 }} />
           </Tooltip>
         );
-      }
+      },
     },
     {
-      id: 'status', label: 'Status',
-      render: (r) => <Chip label={r.status?.replace('_', ' ')} size="small" color={STATUS_COLORS[r.status] || 'default'} sx={{ fontWeight: 700 }} />
+      id: 'status',
+      label: 'Status',
+      render: (r) => (
+        <Chip label={r.status?.replace('_', ' ')} size="small" color={STATUS_COLORS[r.status] || 'default'} sx={{ fontWeight: 800, fontSize: '0.65rem' }} />
+      ),
     },
     {
-      id: 'actions', label: 'Actions',
+      id: 'actions',
+      label: 'Actions',
       render: (r) => (
         <Box sx={{ display: 'flex', gap: 0.5 }}>
-          <Tooltip title="View Details">
+          <Tooltip title="View Meeting Details & MOM">
             <IconButton size="small" color="primary" onClick={() => handleOpenDetail(r)}>
-              <VisibilityOutlined fontSize="small" />
+              <VisibilityOutlined sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
           {r.status === 'SCHEDULED' && (
             <>
               <Tooltip title="Mark Completed">
-                <IconButton size="small" color="success" onClick={() => handleStatusChange(r._id, 'COMPLETED')} disabled={updateStatusMutation.isPending}>
-                  <CheckCircle fontSize="small" />
+                <IconButton size="small" color="success" onClick={() => handleStatusChange(r._id || r.id, 'COMPLETED')} disabled={updateStatusMutation.isPending}>
+                  <CheckCircleOutlined sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Cancel Meeting">
-                <IconButton size="small" color="error" onClick={() => handleStatusChange(r._id, 'CANCELLED')} disabled={updateStatusMutation.isPending}>
-                  <Cancel fontSize="small" />
+                <IconButton size="small" color="error" onClick={() => handleStatusChange(r._id || r.id, 'CANCELLED')} disabled={updateStatusMutation.isPending}>
+                  <CancelOutlined sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
             </>
           )}
         </Box>
-      )
+      ),
     },
   ];
 
   return (
-    <Box sx={{ p: { xs: 1, sm: 3 }, display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-        <Box>
-          <Typography variant="h4" fontWeight="bold">Meetings Management</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Schedule, track, and manage departmental meetings with participants, action items, and minutes.
-          </Typography>
-        </Box>
-        <Button variant="contained" startIcon={<AddOutlined />} onClick={() => setOpenModal(true)} sx={{ borderRadius: 2 }}>
-          Schedule Meeting
-        </Button>
-      </Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+      {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
+      <Card
+        sx={{
+          p: 3.5,
+          borderRadius: '16px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
+          boxShadow: 'none',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+              <Chip
+                icon={<EventOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+                label="DEPARTMENT BOARD & ACADEMIC MEETINGS DESK"
+                size="small"
+                sx={{
+                  bgcolor: `${theme.palette.primary.main}15`,
+                  color: theme.palette.primary.main,
+                  fontWeight: 800,
+                  fontFamily: theme.typography.mono.fontFamily,
+                  letterSpacing: '0.05em',
+                  fontSize: '0.7rem',
+                }}
+              />
+            </Box>
+            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+              Department Board & Faculty Meetings
+            </Typography>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+              Schedule committee assemblies, send virtual meeting room links, assign action items, and record official Minutes of Meeting (MOM).
+            </Typography>
+          </Box>
 
-      {/* KPI Cards */}
-      <Grid container spacing={2}>
-        {[
-          { label: 'TOTAL', value: stats.total, color: 'text.primary', icon: <EventNote /> },
-          { label: 'UPCOMING', value: stats.scheduled, color: 'warning.main', icon: <Schedule /> },
-          { label: 'COMPLETED', value: stats.completed, color: 'success.main', icon: <CheckCircle /> },
-          { label: 'CANCELLED', value: stats.cancelled, color: 'error.main', icon: <Cancel /> },
-        ].map((kpi, idx) => (
-          <Grid item xs={6} sm={3} key={idx}>
-            <Card sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 }, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Avatar sx={{ bgcolor: 'action.hover', color: kpi.color, width: 40, height: 40 }}>{kpi.icon}</Avatar>
-                <Box>
-                  <Typography variant="caption" color="text.secondary" fontWeight={600}>{kpi.label}</Typography>
-                  <Typography variant="h5" fontWeight={800} color={kpi.color}>{kpi.value}</Typography>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshOutlined />}
+              onClick={() => refetch()}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddOutlined />}
+              onClick={() => setOpenModal(true)}
+              sx={{
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontWeight: 700,
+                background: theme.palette.primary.gradient || theme.palette.primary.main,
+                color: '#ffffff',
+              }}
+            >
+              Schedule New Meeting
+            </Button>
+          </Box>
+        </Box>
+      </Card>
+
+      {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
+      <Grid container spacing={2.5}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+              TOTAL ASSEMBLIES
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+              {isLoading ? <CircularProgress size={24} /> : stats.total}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Convened department meetings
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
+              SCHEDULED MEETINGS
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+              {isLoading ? <CircularProgress size={24} /> : stats.scheduled}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Upcoming assemblies
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+              COMPLETED ASSEMBLIES
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+              {isLoading ? <CircularProgress size={24} /> : stats.completed}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Minutes recorded & filed
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
+              CANCELLED / OVERDUE
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+              {isLoading ? <CircularProgress size={24} /> : stats.cancelled}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Calling adjustments
+            </Typography>
+          </Card>
+        </Grid>
       </Grid>
 
-      {/* Filter Bar */}
-      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-        <TextField
-          size="small" placeholder="Search meetings..."
-          value={search} onChange={(e) => setSearch(e.target.value)}
-          sx={{ flex: 1, minWidth: 220, bgcolor: 'background.paper' }}
-        />
-        <TextField select size="small" label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ minWidth: 160, bgcolor: 'background.paper' }}>
-          <MenuItem value="">All Statuses</MenuItem>
-          <MenuItem value="SCHEDULED">Scheduled</MenuItem>
-          <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
-          <MenuItem value="COMPLETED">Completed</MenuItem>
-          <MenuItem value="CANCELLED">Cancelled</MenuItem>
-          <MenuItem value="POSTPONED">Postponed</MenuItem>
-        </TextField>
-      </Box>
+      {/* ── 3. Filters & Schedule Table ────────────────────────────────────── */}
+      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Grid container spacing={2} sx={{ mb: 3 }} alignItems="center">
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search meeting title, agenda, or organizer..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              InputProps={{
+                startAdornment: <SearchOutlined sx={{ color: 'text.secondary', mr: 1, fontSize: 18 }} />,
+              }}
+            />
+          </Grid>
 
-      {/* Data Table */}
-      <DataTable columns={columns} data={filteredMeetings} isLoading={isLoading} emptyMessage="No meetings found." />
+          <Grid item xs={12} sm={6}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Meeting Status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              SelectProps={{ displayEmpty: true }}
+              InputLabelProps={{ shrink: true }}
+            >
+              <MenuItem value="">All Statuses</MenuItem>
+              <MenuItem value="SCHEDULED">Scheduled Only</MenuItem>
+              <MenuItem value="COMPLETED">Completed</MenuItem>
+              <MenuItem value="CANCELLED">Cancelled</MenuItem>
+              <MenuItem value="POSTPONED">Postponed</MenuItem>
+            </TextField>
+          </Grid>
+        </Grid>
 
-      {/* === Create Meeting Modal === */}
-      <Dialog open={openModal} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Schedule New Meeting</DialogTitle>
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : filteredMeetings.length === 0 ? (
+          <EmptyState
+            type="reports"
+            title="No Department Meetings Found"
+            description="No assemblies match the active search or status filter criteria."
+            actionText="Schedule New Meeting"
+            onAction={() => setOpenModal(true)}
+          />
+        ) : (
+          <DataTable columns={columns} data={filteredMeetings} isLoading={isLoading} isError={isError} emptyMessage="No meetings found." />
+        )}
+      </Card>
+
+      {/* ── 4. Schedule Meeting Dialog ────────────────────────────────────── */}
+      <Dialog open={openModal} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Schedule Department Meeting</DialogTitle>
         <form onSubmit={handleSubmit}>
-          <DialogContent dividers>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-              <TextField label="Meeting Title" name="title" value={formData.title} onChange={handleChange} required fullWidth />
-              <TextField label="Agenda" name="agenda" value={formData.agenda} onChange={handleChange} required fullWidth multiline rows={3} placeholder="Describe the purpose and topics of discussion..." />
-              <TextField label="Meeting Date & Time" name="meetingDate" type="datetime-local" value={formData.meetingDate} onChange={handleChange} required fullWidth InputLabelProps={{ shrink: true }} />
-              <TextField select label="Meeting Type" name="meetingType" value={formData.meetingType} onChange={handleChange} fullWidth>
-                {MEETING_TYPES.map(t => <MenuItem key={t} value={t}>{t.replace(/_/g, ' ')}</MenuItem>)}
-              </TextField>
-              <TextField label="Location / Room" name="location" value={formData.location} onChange={handleChange} required fullWidth placeholder="e.g. HOD Chamber, Conference Room A" />
-              {(formData.meetingType === 'VIRTUAL' || formData.meetingType === 'HYBRID') && (
+          <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField label="Meeting Title" name="title" value={formData.title} onChange={handleChange} required fullWidth placeholder="e.g. Board of Studies (BOS) Curriculum Review" />
+
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <TextField select label="Assembly Type" name="meetingType" value={formData.meetingType} onChange={handleChange} required fullWidth>
+                  {MEETING_TYPES.map((t) => (
+                    <MenuItem key={t.value} value={t.value}>
+                      {t.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={6}>
                 <TextField
-                  label="Meeting Link"
-                  name="meetingLink"
-                  value={formData.meetingLink}
+                  type="datetime-local"
+                  label="Date & Time"
+                  name="meetingDate"
+                  value={formData.meetingDate}
                   onChange={handleChange}
+                  required
                   fullWidth
-                  required={formData.meetingType === 'VIRTUAL'}
-                  placeholder="https://meet.google.com/xxx or Zoom link"
-                  helperText={formData.meetingType === 'VIRTUAL' ? 'Required for virtual meetings' : 'Optional for hybrid meetings'}
+                  InputLabelProps={{ shrink: true }}
                 />
-              )}
+              </Grid>
+            </Grid>
 
-              <Divider />
+            {formData.meetingType === 'VIRTUAL' || formData.meetingType === 'HYBRID' ? (
+              <TextField
+                label="Virtual Meeting Link (Google Meet / Zoom)"
+                name="meetingLink"
+                value={formData.meetingLink}
+                onChange={handleChange}
+                required={formData.meetingType === 'VIRTUAL'}
+                fullWidth
+                placeholder="https://meet.google.com/xyz-abc-123"
+              />
+            ) : null}
 
-              <Typography variant="subtitle2" fontWeight={700} color="text.secondary">
-                Select Participants
-              </Typography>
+            <TextField
+              label="Venue / Room Location"
+              name="location"
+              value={formData.location}
+              onChange={handleChange}
+              fullWidth
+              placeholder="e.g. Department Conference Room (Room 302)"
+            />
+
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                  Invite Participants ({formData.participants.length})
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  <Button size="small" onClick={() => handleQuickSelect('FACULTY')} sx={{ fontSize: '0.68rem', py: 0 }}>
+                    + All Faculty
+                  </Button>
+                  <Button size="small" onClick={() => handleQuickSelect('STUDENT')} sx={{ fontSize: '0.68rem', py: 0 }}>
+                    + All Students
+                  </Button>
+                  <Button size="small" color="error" onClick={handleClearParticipants} sx={{ fontSize: '0.68rem', py: 0 }}>
+                    Clear
+                  </Button>
+                </Box>
+              </Box>
 
               <Autocomplete
                 multiple
                 options={availableUsers}
-                getOptionLabel={(option) => {
-                  if (typeof option === 'string') return option;
-                  if (!option) return '';
-                  const roleStr = option.role ? ` (${option.role.replace(/_/g, ' ')})` : '';
-                  return `${option.name || option.email || 'User'}${roleStr}`;
-                }}
-                isOptionEqualToValue={(option, value) => {
-                  if (!option || !value) return false;
-                  const optId = option._id || option.id || option;
-                  const valId = value._id || value.id || value;
-                  return String(optId) === String(valId);
-                }}
-                filterSelectedOptions
-                value={formData.participants}
-                onChange={(_, newValue) => {
-                  const seen = new Set();
-                  const deduped = newValue.filter(u => {
-                    const id = String(u._id || u.id || u);
-                    if (seen.has(id)) return false;
-                    seen.add(id);
-                    return true;
-                  });
-                  setFormData(p => ({ ...p, participants: deduped }));
-                }}
                 loading={isLoadingUsers}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Participants"
-                    placeholder="Search faculty or students..."
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <React.Fragment>
-                          {isLoadingUsers ? <CircularProgress color="inherit" size={20} /> : null}
-                          {params.InputProps.endAdornment}
-                        </React.Fragment>
-                      ),
-                    }}
-                  />
-                )}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
-                    <Chip
-                      key={option._id || option.id || index}
-                      variant="outlined"
-                      label={`${option.name || 'User'} (${(option.role || '').replace(/_/g, ' ')})`}
-                      size="small"
-                      avatar={<Avatar>{(option.name || '?')[0]}</Avatar>}
-                      {...getTagProps({ index })}
-                    />
-                  ))
-                }
-                renderOption={(props, option) => {
-                  const key = option._id || option.id || props.key;
-                  return (
-                    <li {...props} key={key}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Avatar sx={{ width: 28, height: 28, fontSize: 14 }}>{(option.name || '?')[0]}</Avatar>
-                        <Box>
-                          <Typography variant="body2" fontWeight={600}>{option.name}</Typography>
-                          <Typography variant="caption" color="text.secondary">{(option.role || '').replace(/_/g, ' ')} • {option.email}</Typography>
-                        </Box>
-                      </Box>
-                    </li>
-                  );
-                }}
+                getOptionLabel={(option) => `${option.name || 'User'} (${option.role || 'Member'})`}
+                value={formData.participants}
+                onChange={(_, newValue) => setFormData((prev) => ({ ...prev, participants: newValue }))}
+                renderInput={(params) => <TextField {...params} placeholder="Search members to invite..." size="small" />}
               />
-
-              {formData.participants.length > 0 && (
-                <Alert severity="info" sx={{ borderRadius: 2 }}>
-                  <strong>{formData.participants.length}</strong> participant(s) selected.
-                </Alert>
-              )}
             </Box>
+
+            <TextField
+              label="Meeting Agenda & Description"
+              name="agenda"
+              value={formData.agenda}
+              onChange={handleChange}
+              required
+              multiline
+              rows={4}
+              fullWidth
+              placeholder="Detail main topics, BOS points, or committee discussion agenda..."
+            />
           </DialogContent>
-          <DialogActions sx={{ p: 2.5 }}>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={createMutation.isPending} sx={{ borderRadius: 2 }}>
-              {createMutation.isPending ? 'Scheduling...' : 'Schedule Meeting'}
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={handleClose} variant="outlined" sx={{ borderRadius: '8px' }}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained" disabled={createMutation.isPending} sx={{ borderRadius: '8px', fontWeight: 700 }}>
+              {createMutation.isPending ? 'Scheduling...' : 'Schedule Assembly'}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
 
-      {/* === Meeting Detail Modal === */}
-      <Dialog open={detailModalOpen} onClose={() => setDetailModalOpen(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+      {/* ── 5. Meeting Detail & Action Items Modal ──────────────────────────── */}
+      <Dialog open={detailModalOpen} onClose={() => setDetailModalOpen(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
         {selectedMeeting && (
           <>
-            <DialogTitle sx={{ pb: 1 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                <Typography variant="h6" fontWeight={800}>{selectedMeeting.title}</Typography>
-                <Chip label={selectedMeeting.status?.replace('_', ' ')} size="small" color={STATUS_COLORS[selectedMeeting.status] || 'default'} sx={{ fontWeight: 700 }} />
-              </Box>
+            <DialogTitle sx={{ fontWeight: 800, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6" fontWeight={800}>{selectedMeeting.title}</Typography>
+              <Chip label={selectedMeeting.status} color={STATUS_COLORS[selectedMeeting.status] || 'default'} size="small" sx={{ fontWeight: 800 }} />
             </DialogTitle>
-            <DialogContent dividers sx={{ p: 3 }}>
-              {/* Meeting Info */}
-              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2, mb: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {[
-                  ['Type', selectedMeeting.meetingType?.replace(/_/g, ' ')],
-                  ['Date & Time', new Date(selectedMeeting.meetingDate).toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' })],
-                  ['Location', selectedMeeting.location || '—'],
-                  ['Organizer', selectedMeeting.organizerId?.name || '—'],
-                ].map(([label, val]) => (
-                  <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="caption" color="text.secondary">{label}:</Typography>
-                    <Typography variant="caption" fontWeight={700}>{val}</Typography>
-                  </Box>
-                ))}
+            <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Date & Time</Typography>
+                  <Typography variant="body2" fontWeight={700}>
+                    {new Date(selectedMeeting.meetingDate).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Assembly Type</Typography>
+                  <Typography variant="body2" fontWeight={700}>{selectedMeeting.meetingType}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Location</Typography>
+                  <Typography variant="body2" fontWeight={700}>{selectedMeeting.location || '—'}</Typography>
+                </Box>
                 {selectedMeeting.meetingLink && (
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="caption" color="text.secondary">Meeting Link:</Typography>
-                    <Link href={selectedMeeting.meetingLink} target="_blank" rel="noopener" variant="caption" fontWeight={700}>
-                      Join Meeting 🔗
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Virtual Link</Typography>
+                    <Link href={selectedMeeting.meetingLink} target="_blank" rel="noopener" display="block" variant="body2" fontWeight={700}>
+                      Join Call 🔗
                     </Link>
                   </Box>
                 )}
               </Box>
 
-              {/* Agenda */}
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>Agenda</Typography>
-              <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7, mb: 3 }}>
-                {selectedMeeting.agenda}
-              </Typography>
+              <Divider />
 
-              <Divider sx={{ my: 2 }} />
-
-              {/* Participants List */}
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>
-                Participants ({selectedMeeting.participants?.length || 0})
-              </Typography>
-              {selectedMeeting.participants?.length > 0 ? (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
-                  {selectedMeeting.participants.map((p, idx) => (
-                    <Chip
-                      key={p._id || idx}
-                      avatar={<Avatar>{(p.name || '?')[0]}</Avatar>}
-                      label={`${p.name || 'Unknown'} (${(p.role || '').replace(/_/g, ' ')})`}
-                      size="small"
-                      variant="outlined"
-                    />
-                  ))}
-                </Box>
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>No specific participants — open/department-wide meeting.</Typography>
-              )}
-
-              {/* RSVP Summary */}
-              {selectedMeeting.attendees?.length > 0 && (
-                <>
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>RSVP Status</Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
-                    {selectedMeeting.attendees.map((a, idx) => (
-                      <Chip
-                        key={idx}
-                        label={`${a.userId?.name || 'Unknown'}: ${a.rsvpStatus}`}
-                        size="small"
-                        color={a.rsvpStatus === 'ACCEPTED' ? 'success' : a.rsvpStatus === 'DECLINED' ? 'error' : 'default'}
-                        variant="outlined"
-                      />
-                    ))}
-                  </Box>
-                </>
-              )}
-
-              {/* Minutes of Meeting */}
-              {selectedMeeting.minutesOfMeeting && (
-                <>
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>Minutes of Meeting</Typography>
-                  <Box sx={{ p: 2, bgcolor: 'info.50', border: '1px solid', borderColor: 'info.light', borderRadius: 2, mb: 3 }}>
-                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{selectedMeeting.minutesOfMeeting}</Typography>
-                  </Box>
-                </>
-              )}
-
-              {/* Action Items */}
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                <Typography variant="subtitle2" fontWeight={700}>
-                  Action Items ({selectedMeeting.actionItems?.length || 0})
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 0.5 }}>
+                  Agenda
                 </Typography>
-                {selectedMeeting.status !== 'CANCELLED' && (
-                  <Button size="small" variant="outlined" startIcon={<PostAddOutlined />} onClick={() => setActionItemModalOpen(true)}>
+                <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
+                  {selectedMeeting.agenda}
+                </Typography>
+              </Box>
+
+              {/* Action Items List */}
+              <Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AssignmentOutlined sx={{ fontSize: 18 }} /> Action Items & Tasks ({(selectedMeeting.actionItems || []).length})
+                  </Typography>
+                  <Button
+                    size="small"
+                    startIcon={<PostAddOutlined />}
+                    onClick={() => setActionItemModalOpen(true)}
+                    sx={{ borderRadius: '6px', fontWeight: 700 }}
+                  >
                     Add Action Item
                   </Button>
+                </Box>
+
+                {(selectedMeeting.actionItems || []).length === 0 ? (
+                  <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                    No action items recorded for this meeting yet.
+                  </Typography>
+                ) : (
+                  <List size="small" disablePadding sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: '8px' }}>
+                    {selectedMeeting.actionItems.map((item, idx) => (
+                      <ListItem key={idx} divider={idx < selectedMeeting.actionItems.length - 1}>
+                        <ListItemIcon sx={{ minWidth: 32 }}>
+                          <CheckCircleOutlined fontSize="small" color={item.status === 'COMPLETED' ? 'success' : 'action'} />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={item.description}
+                          secondary={`Assigned to: ${item.assignedTo?.name || 'Unassigned'} • Due: ${item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'N/A'}`}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
                 )}
               </Box>
-              {selectedMeeting.actionItems?.length > 0 ? (
-                <List dense disablePadding>
-                  {selectedMeeting.actionItems.map((item, idx) => (
-                    <ListItem key={item._id || idx} sx={{ bgcolor: 'grey.50', borderRadius: 1, mb: 0.5 }}>
-                      <ListItemIcon sx={{ minWidth: 36 }}>
-                        <AssignmentOutlined fontSize="small" color={item.status === 'COMPLETED' ? 'success' : item.status === 'OVERDUE' ? 'error' : 'action'} />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={item.description}
-                        secondary={
-                          <Box component="span" sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
-                            {item.assignedTo && <Chip size="small" label={`Assigned: ${item.assignedTo?.name || 'Unknown'}`} variant="outlined" />}
-                            {item.dueDate && <Chip size="small" label={`Due: ${new Date(item.dueDate).toLocaleDateString('en-IN')}`} variant="outlined" />}
-                            <Chip size="small" label={item.status} color={item.status === 'COMPLETED' ? 'success' : item.status === 'OVERDUE' ? 'error' : 'default'} />
-                          </Box>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
-                <Typography variant="body2" color="text.secondary">No action items yet.</Typography>
-              )}
-
-              {/* Postpone Info */}
-              {selectedMeeting.status === 'POSTPONED' && selectedMeeting.postponedTo && (
-                <>
-                  <Divider sx={{ my: 2 }} />
-                  <Alert severity="warning" sx={{ borderRadius: 2 }}>
-                    <strong>Postponed to:</strong> {new Date(selectedMeeting.postponedTo).toLocaleString('en-IN')}
-                    {selectedMeeting.postponedReason && <> — {selectedMeeting.postponedReason}</>}
-                  </Alert>
-                </>
-              )}
             </DialogContent>
-            <DialogActions sx={{ p: 2.5 }}>
-              {selectedMeeting.status === 'SCHEDULED' && (
-                <>
-                  <Button variant="contained" color="success" onClick={() => handleStatusChange(selectedMeeting._id, 'COMPLETED')} disabled={updateStatusMutation.isPending} sx={{ borderRadius: 2 }}>
-                    Complete
-                  </Button>
-                  <Button variant="outlined" color="error" onClick={() => handleStatusChange(selectedMeeting._id, 'CANCELLED')} disabled={updateStatusMutation.isPending} sx={{ borderRadius: 2 }}>
-                    Cancel Meeting
-                  </Button>
-                </>
-              )}
-              <Button variant="outlined" onClick={() => setDetailModalOpen(false)} sx={{ borderRadius: 2 }}>Close</Button>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+              <Button onClick={() => setDetailModalOpen(false)} variant="contained" sx={{ borderRadius: '8px', fontWeight: 700 }}>
+                Close
+              </Button>
             </DialogActions>
           </>
         )}
       </Dialog>
 
-      {/* === Add Action Item Modal === */}
-      <Dialog open={actionItemModalOpen} onClose={() => setActionItemModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Add Action Item</DialogTitle>
-        <DialogContent dividers>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            <Typography variant="body2" color="text.secondary">
-              For meeting: <strong>{selectedMeeting?.title}</strong>
-            </Typography>
-            <TextField
-              label="Action Item Description" fullWidth required multiline rows={2}
-              value={actionItemData.description}
-              onChange={(e) => setActionItemData(p => ({ ...p, description: e.target.value }))}
-              placeholder="Describe the task or follow-up item..."
-            />
-            <Autocomplete
-              options={availableUsers}
-              getOptionLabel={(option) => {
-                if (typeof option === 'string') return option;
-                if (!option) return '';
-                const roleStr = option.role ? ` (${option.role.replace(/_/g, ' ')})` : '';
-                return `${option.name || option.email || 'User'}${roleStr}`;
-              }}
-              isOptionEqualToValue={(option, value) => {
-                if (!option || !value) return false;
-                const optId = option._id || option.id || option;
-                const valId = value._id || value.id || value;
-                return String(optId) === String(valId);
-              }}
-              value={actionItemData.assignedTo}
-              onChange={(_, newValue) => setActionItemData(p => ({ ...p, assignedTo: newValue }))}
-              renderInput={(params) => <TextField {...params} label="Assign To (Optional)" placeholder="Select a person..." />}
-              renderOption={(props, option) => {
-                const key = option._id || option.id || props.key;
-                return (
-                  <li {...props} key={key}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Avatar sx={{ width: 24, height: 24, fontSize: 12 }}>{(option.name || '?')[0]}</Avatar>
-                      <Typography variant="body2">{option.name}</Typography>
-                    </Box>
-                  </li>
-                );
-              }}
-            />
-            <TextField
-              label="Due Date" type="date" fullWidth
-              value={actionItemData.dueDate}
-              onChange={(e) => setActionItemData(p => ({ ...p, dueDate: e.target.value }))}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Box>
+      {/* ── 6. Add Action Item Modal ────────────────────────────────────────── */}
+      <Dialog open={actionItemModalOpen} onClose={() => setActionItemModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Add Action Item Task</DialogTitle>
+        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <TextField
+            required
+            fullWidth
+            multiline
+            rows={2}
+            label="Task Description"
+            value={actionItemData.description}
+            onChange={(e) => setActionItemData({ ...actionItemData, description: e.target.value })}
+            placeholder="e.g. Submit updated syllabus draft for BOS review."
+          />
+
+          <Autocomplete
+            options={availableUsers}
+            loading={isLoadingUsers}
+            getOptionLabel={(option) => `${option.name || 'User'} (${option.role})`}
+            value={actionItemData.assignedTo}
+            onChange={(_, val) => setActionItemData({ ...actionItemData, assignedTo: val })}
+            renderInput={(params) => <TextField {...params} label="Assign To Member" size="small" />}
+          />
+
+          <TextField
+            type="date"
+            label="Due Date"
+            value={actionItemData.dueDate}
+            onChange={(e) => setActionItemData({ ...actionItemData, dueDate: e.target.value })}
+            fullWidth
+            InputLabelProps={{ shrink: true }}
+          />
         </DialogContent>
-        <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={() => setActionItemModalOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleAddActionItem} disabled={addActionItemMutation.isPending || !actionItemData.description.trim()} sx={{ borderRadius: 2 }}>
-            {addActionItemMutation.isPending ? 'Adding...' : 'Add Item'}
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setActionItemModalOpen(false)} variant="outlined" sx={{ borderRadius: '8px' }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleAddActionItem}
+            disabled={addActionItemMutation.isPending}
+            sx={{ borderRadius: '8px', fontWeight: 700 }}
+          >
+            {addActionItemMutation.isPending ? 'Saving...' : 'Add Action Item'}
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Toast */}
-      <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast(t => ({ ...t, open: false }))} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-        <Alert severity={toast.severity} onClose={() => setToast(t => ({ ...t, open: false }))} sx={{ borderRadius: 2 }}>{toast.msg}</Alert>
-      </Snackbar>
     </Box>
   );
 };

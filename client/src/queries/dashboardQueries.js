@@ -45,3 +45,14 @@ export const useDashboardInsightsQuery = () =>
     refetchInterval: 60000, // Re-check insights every minute
     retry: 1,
   });
+
+export const useRecentNoticesQuery = (options = {}) =>
+  useQuery({
+    queryKey: ['dashboard', 'recent-notices'],
+    queryFn: async () => {
+      const res = await api.get('/admin/dashboard/recent-notices');
+      return res.data.data;
+    },
+    retry: 1,
+    ...options,
+  });

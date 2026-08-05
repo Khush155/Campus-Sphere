@@ -10,31 +10,34 @@ const logger = require('../utils/logger');
  * Builds bonafide certificate text block dynamically.
  */
 const buildBonafideText = (user, purpose) => {
+  const rollText = user.rollNumber ? ` (Roll No: ${user.rollNumber})` : ` (${user.email})`;
   const branchText = user.branchId?.name ? ` in the specialization branch of ${user.branchId.name}` : '';
   const courseText = user.courseId?.name ? ` enrolled in the ${user.courseId.name} program` : ' enrolled at this institution';
   const semesterText = user.semester ? `, currently studying in Semester ${user.semester}` : '';
 
-  return `This is to certify that Mr./Ms. ${user.name}, registration ID ${user._id}, is a bonafide student of this institution${courseText}${branchText}${semesterText}. To the best of our knowledge, their conduct has been exemplary during their tenure here. This certificate is officially issued at their request for the purpose of: ${purpose || 'General Academic Purposes'}.`;
+  return `This is to certify that Mr./Ms. ${user.name}${rollText} is a bonafide student of this institution${courseText}${branchText}${semesterText}. To the best of our knowledge, their conduct has been exemplary during their tenure here. This certificate is officially issued at their request for the purpose of: ${purpose || 'General Academic Purposes'}.`;
 };
 
 /**
  * Builds transfer certificate text block dynamically.
  */
 const buildTransferText = (user) => {
+  const rollText = user.rollNumber ? ` (Roll No: ${user.rollNumber})` : ` (${user.email})`;
   const branchText = user.branchId?.name ? ` in ${user.branchId.name}` : '';
   const courseText = user.courseId?.name ? ` the ${user.courseId.name} program` : ' their program';
 
-  return `This is to certify that Mr./Ms. ${user.name}, registration ID ${user._id}, was a student of this institution studying${courseText}${branchText}. They have cleared all institutional dues, library returns, and laboratory balances. There is no objection from this institution to their seeking admission at any other accredited university or institution. We wish them success in their future academic pursuits.`;
+  return `This is to certify that Mr./Ms. ${user.name}${rollText} was a student of this institution studying${courseText}${branchText}. They have cleared all institutional dues, library returns, and laboratory balances. There is no objection from this institution to their seeking admission at any other accredited university or institution. We wish them success in their future academic pursuits.`;
 };
 
 /**
  * Builds character certificate text block dynamically.
  */
 const buildCharacterText = (user) => {
+  const rollText = user.rollNumber ? ` (Roll No: ${user.rollNumber})` : ` (${user.email})`;
   const branchText = user.branchId?.name ? ` in ${user.branchId.name}` : '';
   const courseText = user.courseId?.name ? ` the ${user.courseId.name} program` : ' their program';
 
-  return `This is to certify that Mr./Ms. ${user.name}, registration ID ${user._id}, is/was a student of this institution, completing${courseText}${branchText}. During their tenure at CampusSphere, they have shown great diligence, high moral character, and cooperative behavior. Their character and conduct have been found to be Good.`;
+  return `This is to certify that Mr./Ms. ${user.name}${rollText} is/was a student of this institution, completing${courseText}${branchText}. During their tenure at CampusSphere, they have shown great diligence, high moral character, and cooperative behavior. Their character and conduct have been found to be Good.`;
 };
 
 /**

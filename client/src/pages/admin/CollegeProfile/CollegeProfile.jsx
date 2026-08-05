@@ -13,9 +13,17 @@ import {
   Alert,
   useTheme,
   CircularProgress,
-  Snackbar,
+  Chip,
+  Divider,
 } from '@mui/material';
-import { CloudUploadOutlined, SaveOutlined } from '@mui/icons-material';
+import {
+  CloudUploadOutlined,
+  SaveOutlined,
+  AccountBalanceOutlined,
+  VerifiedUserOutlined,
+  SchoolOutlined,
+} from '@mui/icons-material';
+import { useToast } from '../../../contexts/ToastContext';
 
 import {
   useCollegeProfileQuery,
@@ -58,8 +66,7 @@ const profileFormSchema = z.object({
 
 export const CollegeProfile = () => {
   const theme = useTheme();
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  const { showToast } = useToast();
 
   // Logo file state
   const [selectedFile, setSelectedFile] = useState(null);
@@ -75,6 +82,7 @@ export const CollegeProfile = () => {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isDirty },
   } = useForm({
     resolver: zodResolver(profileFormSchema),
@@ -86,6 +94,10 @@ export const CollegeProfile = () => {
       contactPhone: '',
     },
   });
+
+  const watchName = watch('name');
+  const watchAffiliation = watch('affiliation');
+  const watchAddress = watch('address');
 
   // Load values when query resolves
   useEffect(() => {
@@ -115,14 +127,14 @@ export const CollegeProfile = () => {
 
     // Validate size (10MB)
     if (file.size > 10 * 1024 * 1024) {
-      setErrorMessage('File size exceeds 10MB limit.');
+      showToast('File size exceeds 10MB limit.', { severity: 'error' });
       return;
     }
 
     // Validate type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      setErrorMessage('Only JPEG, PNG, and WEBP images are supported.');
+      showToast('Only JPEG, PNG, and WEBP images are supported.', { severity: 'error' });
       return;
     }
 
@@ -131,7 +143,6 @@ export const CollegeProfile = () => {
       URL.revokeObjectURL(previewUrl);
     }
     setPreviewUrl(URL.createObjectURL(file));
-    setErrorMessage('');
   };
 
   const handleUploadLogo = async () => {
@@ -141,11 +152,11 @@ export const CollegeProfile = () => {
       const formData = new FormData();
       formData.append('logo', selectedFile);
       await uploadLogoMutation.mutateAsync(formData);
-      setSuccessMessage('College logo uploaded successfully.');
+      showToast('College logo uploaded successfully.');
       setSelectedFile(null);
       setPreviewUrl(null);
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to upload logo.');
+      showToast(err.response?.data?.message || 'Failed to upload logo.', { severity: 'error' });
     } finally {
       setUploadingLogo(false);
     }
@@ -154,16 +165,15 @@ export const CollegeProfile = () => {
   const handleFormSubmit = async (data) => {
     try {
       await updateProfileMutation.mutateAsync(data);
-      setSuccessMessage('College profile details updated successfully.');
+      showToast('College profile details updated successfully.');
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed to update college details.');
+      showToast(err.response?.data?.message || 'Failed to update college details.', { severity: 'error' });
     }
   };
 
   const getFullLogoUrl = (relativeUrl) => {
     if (!relativeUrl) return null;
     const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-    // Remove /api/v1 from baseUrl to get root server URL
     const rootUrl = baseUrl.replace('/api/v1', '');
     return `${rootUrl}${relativeUrl}`;
   };
@@ -195,132 +205,192 @@ export const CollegeProfile = () => {
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, p: 4 }}>
-      {/* Header */}
-      <Box>
-        <Typography
-          variant="h4"
-          sx={{
-            fontFamily: theme.typography.h1.fontFamily,
-            fontWeight: 700,
-            color: theme.palette.ink[900],
-            mb: 0.5,
-          }}
-        >
-          College Profile Settings
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Manage institution details, branding logos, contact information, and affiliations.
-        </Typography>
-      </Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, pb: 6 }}>
+      {/* ── 1. Hero Identity Banner Card ───────────────────────────────────── */}
+      <Card
+        sx={{
+          p: 3.5,
+          borderRadius: '16px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}0F 0%, ${theme.palette.brass?.[500] || '#b8863e'}08 100%)`,
+          boxShadow: theme.custom?.elevation?.raised || 'none',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1, flexWrap: 'wrap' }}>
+            <Chip
+              icon={<AccountBalanceOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+              label="INSTITUTIONAL BRANDING & PROFILE"
+              size="small"
+              sx={{
+                bgcolor: `${theme.palette.primary.main}15`,
+                color: theme.palette.primary.main,
+                fontFamily: theme.typography.mono.fontFamily,
+                fontWeight: 700,
+                fontSize: '0.68rem',
+                letterSpacing: '0.06em',
+                borderRadius: '6px',
+              }}
+            />
+            <Chip
+              icon={<VerifiedUserOutlined sx={{ fontSize: '0.8rem !important' }} />}
+              label="Official Profile Active"
+              size="small"
+              color="success"
+              sx={{ fontSize: '0.72rem', fontWeight: 700 }}
+            />
+          </Box>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              fontFamily: theme.typography.h1.fontFamily,
+              fontWeight: 600,
+              color: theme.palette.ink[900],
+              lineHeight: 1.15,
+              mb: 0.5,
+            }}
+          >
+            College Profile Settings
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              fontFamily: theme.typography.body2.fontFamily,
+              color: theme.palette.text.secondary,
+              maxWidth: 640,
+            }}
+          >
+            Manage institution details, branding logos, physical address, and affiliation metadata displayed across documents.
+          </Typography>
+        </Box>
+      </Card>
 
-      <Grid container spacing={4}>
-        {/* Form Details */}
-        <Grid item xs={12} md={7}>
+      {/* ── 2. Main Equal Height Grid ──────────────────────────────────────── */}
+      <Grid container spacing={3.5} alignItems="stretch">
+        {/* Form Details Column */}
+        <Grid item xs={12} md={7} sx={{ display: 'flex' }}>
           <Card
             component="form"
             onSubmit={handleSubmit(handleFormSubmit)}
             sx={{
+              width: '100%',
+              height: '100%',
               p: 4,
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: 'none',
-              borderRadius: '12px',
+              borderRadius: '16px',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
               display: 'flex',
               flexDirection: 'column',
+              justify: 'space-between',
               gap: 3,
             }}
           >
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-              Institution Details
-            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                Institution Details
+              </Typography>
 
-            <Grid container spacing={2.5}>
-              <Grid item xs={12}>
-                <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1 }}>
-                  College Name *
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  {...register('name')}
-                  error={!!errors.name}
-                  helperText={errors.name?.message}
-                />
+              <Grid container spacing={2.5}>
+                <Grid item xs={12}>
+                  <Typography component="label" htmlFor="college-name-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1, color: theme.palette.ink[900] }}>
+                    College Name *
+                  </Typography>
+                  <TextField
+                    id="college-name-input"
+                    fullWidth
+                    size="small"
+                    {...register('name')}
+                    error={!!errors.name}
+                    helperText={errors.name?.message}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography component="label" htmlFor="affiliation-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1, color: theme.palette.ink[900] }}>
+                    Affiliation Info
+                  </Typography>
+                  <TextField
+                    id="affiliation-input"
+                    fullWidth
+                    size="small"
+                    placeholder="e.g. Affiliated to State Technological University"
+                    {...register('affiliation')}
+                    error={!!errors.affiliation}
+                    helperText={errors.affiliation?.message}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography component="label" htmlFor="address-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1, color: theme.palette.ink[900] }}>
+                    Campus Address
+                  </Typography>
+                  <TextField
+                    id="address-input"
+                    fullWidth
+                    size="small"
+                    multiline
+                    rows={3}
+                    placeholder="Enter full physical address"
+                    {...register('address')}
+                    error={!!errors.address}
+                    helperText={errors.address?.message}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Typography component="label" htmlFor="contact-email-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1, color: theme.palette.ink[900] }}>
+                    Contact Email
+                  </Typography>
+                  <TextField
+                    id="contact-email-input"
+                    fullWidth
+                    size="small"
+                    placeholder="e.g. contact@college.edu"
+                    {...register('contactEmail')}
+                    error={!!errors.contactEmail}
+                    helperText={errors.contactEmail?.message}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Typography component="label" htmlFor="contact-phone-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1, color: theme.palette.ink[900] }}>
+                    Contact Phone
+                  </Typography>
+                  <TextField
+                    id="contact-phone-input"
+                    fullWidth
+                    size="small"
+                    placeholder="e.g. +91 98765 43210"
+                    {...register('contactPhone')}
+                    error={!!errors.contactPhone}
+                    helperText={errors.contactPhone?.message}
+                  />
+                </Grid>
               </Grid>
+            </Box>
 
-              <Grid item xs={12}>
-                <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1 }}>
-                  Affiliation Info
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="e.g. Affiliated to XYZ State University"
-                  {...register('affiliation')}
-                  error={!!errors.affiliation}
-                  helperText={errors.affiliation?.message}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1 }}>
-                  Campus Address
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  multiline
-                  rows={3}
-                  placeholder="Enter full physical address"
-                  {...register('address')}
-                  error={!!errors.address}
-                  helperText={errors.address?.message}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1 }}>
-                  Contact Email
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="e.g. contact@college.edu"
-                  {...register('contactEmail')}
-                  error={!!errors.contactEmail}
-                  helperText={errors.contactEmail?.message}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <Typography component="label" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1 }}>
-                  Contact Phone
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="e.g. +91 98765 43210"
-                  {...register('contactPhone')}
-                  error={!!errors.contactPhone}
-                  helperText={errors.contactPhone?.message}
-                />
-              </Grid>
-            </Grid>
-
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
               <Button
                 type="submit"
                 variant="contained"
                 disabled={!isDirty || updateProfileMutation.isPending}
                 startIcon={updateProfileMutation.isPending ? <CircularProgress size={20} color="inherit" /> : <SaveOutlined />}
                 sx={{
-                  bgcolor: theme.palette.primary.main,
-                  color: theme.palette.ink[900],
+                  background: theme.palette.primary.gradient || theme.palette.primary.main,
+                  color: '#ffffff',
                   fontWeight: 700,
                   textTransform: 'none',
                   borderRadius: '8px',
                   px: 4,
-                  '&:hover': { bgcolor: theme.palette.primary.light },
+                  height: '42px',
+                  boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
                   '&.Mui-disabled': { bgcolor: 'rgba(28, 46, 69, 0.12)' },
                 }}
               >
@@ -330,34 +400,36 @@ export const CollegeProfile = () => {
           </Card>
         </Grid>
 
-        {/* Logo Configuration */}
-        <Grid item xs={12} md={5}>
+        {/* Logo Configuration & Live Crest Preview Column */}
+        <Grid item xs={12} md={5} sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+          {/* Logo Upload Card */}
           <Card
             sx={{
               p: 4,
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: 'none',
-              borderRadius: '12px',
+              borderRadius: '16px',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
               display: 'flex',
               flexDirection: 'column',
               gap: 3,
             }}
           >
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Branding & Logo
+              Branding & Institutional Seal
             </Typography>
 
             {/* Current Logo / Preview */}
             <Box
               sx={{
                 width: '100%',
-                height: 180,
+                height: 160,
                 border: `1px dashed ${theme.palette.divider}`,
-                borderRadius: '8px',
+                borderRadius: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                bgcolor: 'rgba(28, 46, 69, 0.02)',
+                bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)',
                 position: 'relative',
                 overflow: 'hidden',
               }}
@@ -367,19 +439,22 @@ export const CollegeProfile = () => {
                   component="img"
                   src={previewUrl}
                   alt="New logo preview"
-                  sx={{ width: 'auto', maxHeight: '100%', objectFit: 'contain', p: 1 }}
+                  sx={{ width: 'auto', maxHeight: '100%', objectFit: 'contain', p: 1.5 }}
                 />
-              ) : profile.logoUrl ? (
+              ) : profile?.logoUrl ? (
                 <Box
                   component="img"
                   src={getFullLogoUrl(profile.logoUrl)}
-                  alt={`${profile.name} logo`}
-                  sx={{ width: 'auto', maxHeight: '100%', objectFit: 'contain', p: 1 }}
+                  alt={`${profile?.name} logo`}
+                  sx={{ width: 'auto', maxHeight: '100%', objectFit: 'contain', p: 1.5 }}
                 />
               ) : (
-                <Typography variant="body2" color="text.secondary">
-                  No logo uploaded yet
-                </Typography>
+                <Box sx={{ textAlign: 'center', color: 'text.secondary' }}>
+                  <SchoolOutlined sx={{ fontSize: 36, color: 'text.disabled', mb: 0.5 }} />
+                  <Typography variant="body2" sx={{ fontSize: '0.82rem' }}>
+                    No logo uploaded yet
+                  </Typography>
+                </Box>
               )}
             </Box>
 
@@ -407,48 +482,151 @@ export const CollegeProfile = () => {
                   disabled={uploadingLogo}
                   startIcon={uploadingLogo ? <CircularProgress size={20} color="inherit" /> : null}
                   sx={{
-                    bgcolor: theme.palette.primary.main,
-                    color: theme.palette.ink[900],
+                    background: theme.palette.primary.gradient || theme.palette.primary.main,
+                    color: '#ffffff',
                     fontWeight: 700,
                     textTransform: 'none',
                     borderRadius: '8px',
-                    '&:hover': { bgcolor: theme.palette.primary.light },
+                    height: '40px',
                   }}
                 >
                   Upload & Apply Logo
                 </Button>
               )}
 
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center' }}>
                 Accepted types: JPEG, PNG, WEBP. Max size: 10MB.
+              </Typography>
+            </Box>
+          </Card>
+
+          {/* Live Document Header Crest Preview Card */}
+          <Card
+            sx={{
+              p: 3,
+              border: `1px dashed ${theme.palette.primary.main}60`,
+              borderRadius: '16px',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: 'none',
+            }}
+          >
+            <Typography variant="caption" sx={{ fontWeight: 700, color: theme.palette.primary.main, fontFamily: theme.typography.mono.fontFamily, letterSpacing: '0.05em', mb: 1.5, display: 'block' }}>
+              LIVE DOCUMENT HEADER CREST PREVIEW
+            </Typography>
+
+            <Box
+              sx={{
+                p: 2.5,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: '12px',
+                bgcolor: theme.palette.background.paper,
+                textAlign: 'center',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 1 }}>
+                {previewUrl ? (
+                  <Box component="img" src={previewUrl} alt="Logo" sx={{ height: 36, objectFit: 'contain' }} />
+                ) : profile?.logoUrl ? (
+                  <Box component="img" src={getFullLogoUrl(profile.logoUrl)} alt="Logo" sx={{ height: 36, objectFit: 'contain' }} />
+                ) : (
+                  <SchoolOutlined sx={{ fontSize: 32, color: theme.palette.primary.main }} />
+                )}
+              </Box>
+
+              <Typography variant="h6" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 700, fontSize: '1rem', color: theme.palette.ink[900] }}>
+                {watchName || profile?.name || 'CAMPUS SPHERE ACADEMY'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.72rem', fontFamily: theme.typography.mono.fontFamily }}>
+                {watchAffiliation || profile?.affiliation || 'Affiliated to State University'}
+              </Typography>
+              {watchAddress && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.7rem', mt: 0.5 }}>
+                  {watchAddress}
+                </Typography>
+              )}
+
+              <Divider sx={{ my: 1.5 }} />
+
+              <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic', fontSize: '0.7rem' }}>
+                This header renders on official Student Certificates & PDF Reports.
               </Typography>
             </Box>
           </Card>
         </Grid>
       </Grid>
 
-      {/* Success/Error Toasts */}
-      <Snackbar
-        open={!!successMessage}
-        autoHideDuration={4000}
-        onClose={() => setSuccessMessage('')}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      {/* ── 3. Security & Permission Access Control Matrix Card ──────────── */}
+      <Card
+        sx={{
+          p: 4,
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: '16px',
+          boxShadow: 'none',
+          bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+          mt: 1,
+        }}
       >
-        <Alert severity="success" onClose={() => setSuccessMessage('')}>
-          {successMessage}
-        </Alert>
-      </Snackbar>
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
+            Security & Role Access Control Matrix
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Enforced institutional authorization rules and API access boundaries across system roles.
+          </Typography>
+        </Box>
 
-      <Snackbar
-        open={!!errorMessage}
-        autoHideDuration={5000}
-        onClose={() => setErrorMessage('')}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert severity="error" onClose={() => setErrorMessage('')}>
-          {errorMessage}
-        </Alert>
-      </Snackbar>
+        <Box sx={{ overflowX: 'auto' }}>
+          <Box
+            component="table"
+            sx={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: '0.82rem',
+              '& th, & td': {
+                p: 1.5,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                textAlign: 'center',
+              },
+              '& th:first-of-type, & td:first-of-type': {
+                textAlign: 'left',
+              },
+            }}
+          >
+            <Box component="thead" sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)' }}>
+              <Box component="tr">
+                <Box component="th" sx={{ fontWeight: 700 }}>SYSTEM CAPABILITY / RESOURCE</Box>
+                <Box component="th" sx={{ fontWeight: 700, color: theme.palette.brass?.[500] || '#b8863e' }}>SUPER ADMIN</Box>
+                <Box component="th" sx={{ fontWeight: 700, color: theme.palette.primary.main }}>COLLEGE ADMIN</Box>
+                <Box component="th" sx={{ fontWeight: 700, color: '#8b5cf6' }}>HOD</Box>
+                <Box component="th" sx={{ fontWeight: 700, color: '#10b981' }}>FACULTY</Box>
+                <Box component="th" sx={{ fontWeight: 700, color: '#6b7280' }}>STUDENT</Box>
+              </Box>
+            </Box>
+            <Box component="tbody">
+              {[
+                { name: 'College Architecture Setup', superAdmin: true, collegeAdmin: true, hod: false, faculty: false, student: false },
+                { name: 'User Account Management & Roles', superAdmin: true, collegeAdmin: true, hod: false, faculty: false, student: false },
+                { name: 'Publish Broadcast Notices', superAdmin: true, collegeAdmin: true, hod: true, faculty: false, student: false },
+                { name: 'Bulk Student Promotion Engine', superAdmin: true, collegeAdmin: false, hod: false, faculty: false, student: false },
+                { name: 'Generate Official PDF Certificates', superAdmin: true, collegeAdmin: true, hod: false, faculty: false, student: false },
+                { name: 'Attendance & Gradebook Management', superAdmin: false, collegeAdmin: false, hod: true, faculty: true, student: false },
+                { name: 'System Audit Logs Inspection', superAdmin: true, collegeAdmin: false, hod: false, faculty: false, student: false },
+              ].map((row, idx) => (
+                <Box component="tr" key={idx} sx={{ '&:hover': { bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.01)' } }}>
+                  <Box component="td" sx={{ fontWeight: 600 }}>{row.name}</Box>
+                  <Box component="td">{row.superAdmin ? <Chip label="FULL ALLOW" size="small" color="success" sx={{ fontSize: '0.65rem', fontWeight: 800 }} /> : <Chip label="DENIED" size="small" variant="outlined" sx={{ fontSize: '0.65rem' }} />}</Box>
+                  <Box component="td">{row.collegeAdmin ? <Chip label="ALLOWED" size="small" color="primary" sx={{ fontSize: '0.65rem', fontWeight: 800 }} /> : <Chip label="DENIED" size="small" variant="outlined" sx={{ fontSize: '0.65rem' }} />}</Box>
+                  <Box component="td">{row.hod ? <Chip label="DEPT SCOPED" size="small" sx={{ fontSize: '0.65rem', fontWeight: 700, bgcolor: '#8b5cf618', color: '#8b5cf6' }} /> : <Chip label="DENIED" size="small" variant="outlined" sx={{ fontSize: '0.65rem' }} />}</Box>
+                  <Box component="td">{row.faculty ? <Chip label="CLASS SCOPED" size="small" sx={{ fontSize: '0.65rem', fontWeight: 700, bgcolor: '#10b98118', color: '#10b981' }} /> : <Chip label="DENIED" size="small" variant="outlined" sx={{ fontSize: '0.65rem' }} />}</Box>
+                  <Box component="td">{row.student ? <Chip label="READ ONLY" size="small" sx={{ fontSize: '0.65rem', fontWeight: 700 }} /> : <Chip label="DENIED" size="small" variant="outlined" sx={{ fontSize: '0.65rem' }} />}</Box>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        </Box>
+      </Card>
     </Box>
   );
 };
+
+export default CollegeProfile;

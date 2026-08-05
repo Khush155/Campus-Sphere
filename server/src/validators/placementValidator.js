@@ -10,6 +10,10 @@ const createPlacementDriveSchema = z.object({
     backlogs: z.coerce.number().min(0).optional()
   }).optional(),
   driveDate: z.string().refine((date) => !isNaN(Date.parse(date)), { message: 'Invalid date' }),
+  applicationDeadline: z.string().refine((date) => !isNaN(Date.parse(date)), { message: 'Invalid deadline date' }).optional(),
+  jobDescription: z.string().optional(),
+  selectionProcess: z.string().optional(),
+  driveType: z.enum(['PLACEMENT', 'INTERNSHIP']).optional(),
   departmentIds: z.array(z.string().regex(objectIdRegex, 'Invalid department ID')).min(1)
 });
 

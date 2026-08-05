@@ -6,9 +6,11 @@ const Course = require('../models/Course');
 const Branch = require('../models/Branch');
 const Subject = require('../models/Subject');
 const { logAuditEvent } = require('../utils/auditLogger');
+const { createNotification } = require('./notificationService');
 const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
 const logger = require('../utils/logger');
+const { assertNoPrivilegeEscalation } = require('../utils/privilegeGuard');
 
 /**
  * Checks for HOD assignment conflicts within a department.
@@ -51,11 +53,17 @@ const checkHodConflict = async (departmentId, shift, excludeUserId = null) => {
 /**
  * Fetch a paginated, filtered, and searchable list of users.
  */
-const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, search, courseId, branchId, semester, group }) => {
+const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, search, courseId, branchId, semester, group }, actorRole) => {
   const filter = {};
 
   if (role) {
-    filter.role = role;
+    if (actorRole === 'COLLEGE_ADMIN' && ['SUPER_ADMIN', 'COLLEGE_ADMIN'].includes(role)) {
+      filter.role = 'NONE';
+    } else {
+      filter.role = role;
+    }
+  } else if (actorRole === 'COLLEGE_ADMIN') {
+    filter.role = { $nin: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] };
   }
 
   if (departmentId) {
@@ -88,7 +96,8 @@ const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, 
     
     filter.$or = [
       { name: searchRegex },
-      { email: searchRegex }
+      { email: searchRegex },
+      { rollNumber: searchRegex }
     ];
 
     if (mongoose.Types.ObjectId.isValid(cleanSearch)) {
@@ -126,6 +135,9 @@ const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, 
       semester: u.semester || null,
       group: u.group || null,
       status: u.status,
+      feeStatus: u.feeStatus || 'CLEARED',
+      feeDues: u.feeDues || { tuition: 0, hostel: 0, library: 0, lab: 0 },
+      noDuesIssuedAt: u.noDuesIssuedAt || null,
       shift: u.shift || null,
       lastLoginAt: u.lastLoginAt || null,
       createdAt: u.createdAt,
@@ -142,11 +154,17 @@ const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, 
 /**
  * Update user profile parameters securely.
  */
-const updateUserDetails = async (userId, updateData, adminUserId, meta) => {
+const updateUserDetails = async (userId, updateData, adminUserId, meta, actorRole) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new AppError('User not found.', 404, ERROR_CODES.NOT_FOUND);
   }
+
+  assertNoPrivilegeEscalation({
+    actorRole,
+    targetCurrentRole: user.role,
+    targetNewRole: updateData.role,
+  });
 
   const before = user.toObject();
 
@@ -217,8 +235,37 @@ const updateUserDetails = async (userId, updateData, adminUserId, meta) => {
   if (updateData.semester !== undefined) {
     user.semester = newRole === 'STUDENT' ? (updateData.semester || 1) : null;
   }
+  if (updateData.rollNumber !== undefined) {
+    user.rollNumber = newRole === 'STUDENT' && updateData.rollNumber ? updateData.rollNumber.trim() : null;
+  }
   if (updateData.group !== undefined) {
     user.group = newRole === 'STUDENT' ? (updateData.group || null) : null;
+  }
+  if (updateData.feeStatus !== undefined) {
+    user.feeStatus = updateData.feeStatus;
+    if (updateData.feeStatus === 'CLEARED') {
+      user.noDuesIssuedAt = new Date();
+      try {
+        await createNotification({
+          recipientId: user._id,
+          title: '💳 Fee Payment Confirmed',
+          message: 'Your institutional fees have been marked CLEARED. No-dues status is now active.',
+          category: 'FEE_PAYMENT',
+          link: '/student/dashboard',
+          senderId: adminUserId,
+        });
+      } catch (err) {
+        // Non-blocking
+      }
+    }
+  }
+  if (updateData.feeDues !== undefined) {
+    user.feeDues = {
+      tuition: Number(updateData.feeDues.tuition || 0),
+      hostel: Number(updateData.feeDues.hostel || 0),
+      library: Number(updateData.feeDues.library || 0),
+      lab: Number(updateData.feeDues.lab || 0),
+    };
   }
   if (updateData.shift !== undefined) {
     user.shift = newRole === 'HOD' ? updateData.shift : null;
@@ -298,11 +345,16 @@ const updateUserDetails = async (userId, updateData, adminUserId, meta) => {
 /**
  * Deactivates (soft deletes) a user account.
  */
-const deleteUserAccount = async (userId, adminUserId, meta) => {
+const deleteUserAccount = async (userId, adminUserId, meta, actorRole) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new AppError('User not found.', 404, ERROR_CODES.NOT_FOUND);
   }
+
+  assertNoPrivilegeEscalation({
+    actorRole,
+    targetCurrentRole: user.role,
+  });
 
   const before = { status: user.status };
   user.status = 'INACTIVE';
@@ -417,7 +469,7 @@ const getInstitutionalInsights = async () => {
 /**
  * Retrieve details for a single user by ID.
  */
-const getUserDetails = async (userId) => {
+const getUserDetails = async (userId, actorRole) => {
   const u = await User.findById(userId)
     .select('-password -refreshTokens -resetPasswordToken -resetPasswordExpire')
     .populate('departmentId', 'name code')
@@ -426,6 +478,14 @@ const getUserDetails = async (userId) => {
   
   if (!u) {
     throw new AppError('User not found.', 404, ERROR_CODES.NOT_FOUND);
+  }
+
+  if (actorRole === 'COLLEGE_ADMIN' && ['SUPER_ADMIN', 'COLLEGE_ADMIN'].includes(u.role)) {
+    throw new AppError(
+      'College Admins cannot view Super Admin or College Admin details.',
+      403,
+      ERROR_CODES.FORBIDDEN
+    );
   }
 
   return {
@@ -574,6 +634,75 @@ const importStudents = async (fileBuffer, actorId, req) => {
   };
 };
 
+const getMyProfile = async (userId) => {
+  const user = await User.findById(userId).select('-password').populate('departmentId', 'name code');
+  if (!user) {
+    throw new AppError('User account not found.', 404, ERROR_CODES.NOT_FOUND);
+  }
+  let profileMeta = null;
+  if (user.role === 'FACULTY' || user.role === 'HOD') {
+    const Faculty = require('../models/Faculty');
+    profileMeta = await Faculty.findOne({ userId: user._id }).populate('subjects departmentId');
+  } else if (user.role === 'STUDENT') {
+    const Student = require('../models/Student');
+    profileMeta = await Student.findOne({ userId: user._id }).populate('courseId branchId departmentId');
+  }
+  return { user, profileMeta };
+};
+
+const updateMyProfile = async (userId, data) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError('User account not found.', 404, ERROR_CODES.NOT_FOUND);
+  }
+
+  const {
+    name,
+    phoneNumber,
+    profilePicUrl,
+    bio,
+    officeRoom,
+    officeHours,
+    qualification,
+    specialization,
+    emergencyContactName,
+    emergencyContactPhone,
+    notificationPreference,
+    currentPassword,
+    newPassword,
+  } = data;
+
+  if (!currentPassword) {
+    throw new AppError('Current password is required to save profile changes.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+  const isMatch = await user.comparePassword(currentPassword);
+  if (!isMatch) {
+    throw new AppError('Current password is incorrect.', 400, ERROR_CODES.INVALID_CREDENTIALS);
+  }
+
+  if (name !== undefined) { user.name = name.trim(); }
+  if (phoneNumber !== undefined) { user.phoneNumber = phoneNumber.trim(); }
+  if (profilePicUrl !== undefined) { user.profilePicUrl = profilePicUrl; }
+  if (bio !== undefined) { user.bio = bio.trim(); }
+  if (officeRoom !== undefined) { user.officeRoom = officeRoom.trim(); }
+  if (officeHours !== undefined) { user.officeHours = officeHours.trim(); }
+  if (qualification !== undefined) { user.qualification = qualification.trim(); }
+  if (specialization !== undefined) { user.specialization = specialization.trim(); }
+  if (emergencyContactName !== undefined) { user.emergencyContactName = emergencyContactName.trim(); }
+  if (emergencyContactPhone !== undefined) { user.emergencyContactPhone = emergencyContactPhone.trim(); }
+  if (notificationPreference !== undefined) { user.notificationPreference = notificationPreference; }
+
+  if (newPassword && newPassword.trim().length > 0) {
+    if (newPassword.trim().length < 6) {
+      throw new AppError('New password must be at least 6 characters.', 400, ERROR_CODES.VALIDATION_ERROR);
+    }
+    user.password = newPassword;
+  }
+  await user.save();
+  const updatedUser = await User.findById(userId).select('-password').populate('departmentId', 'name code');
+  return updatedUser;
+};
+
 module.exports = {
   getUsersList,
   getUserDetails,
@@ -583,4 +712,6 @@ module.exports = {
   getInstitutionalInsights,
   checkHodConflict,
   importStudents,
+  getMyProfile,
+  updateMyProfile,
 };

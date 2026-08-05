@@ -20,6 +20,15 @@ const createMaterial = asyncHandler(async (req, res, next) => {
     return next(new AppError('Only registered Faculty members can upload materials', 403, ERROR_CODES.FORBIDDEN));
   }
 
+  let finalUrl = url;
+  let finalSize = fileSize;
+
+  if (req.file) {
+    finalUrl = `/uploads/${req.file.filename}`;
+    const mb = (req.file.size / (1024 * 1024)).toFixed(1);
+    finalSize = mb > 0.1 ? `${mb} MB` : `${Math.round(req.file.size / 1024)} KB`;
+  }
+
   // Create the record
   const newMaterial = await Material.create({
     title,
@@ -27,9 +36,9 @@ const createMaterial = asyncHandler(async (req, res, next) => {
     subjectId,
     semester: parseInt(semester, 10) || 1,
     group: group || 'ALL',
-    url,
+    url: finalUrl || 'https://campus.edu/files/resource',
     description,
-    fileSize,
+    fileSize: finalSize || '2.5 MB',
     unit: unit || 'General Reference',
     uploadedBy: req.user.id,
   });

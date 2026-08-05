@@ -4,7 +4,6 @@ const FacultyAssignment = require('../models/FacultyAssignment');
 const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
 const logger = require('../utils/logger');
-const mongoose = require('mongoose');
 
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'];
 const TIMESLOTS = [
@@ -35,11 +34,7 @@ const generateSmartTimetable = async ({ departmentId, courseId, branchId, semest
     throw new AppError('Course, branch, and semester are required.', 400, ERROR_CODES.VALIDATION_ERROR);
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    // 1. Clear existing slots for this exact cohort
+  // 1. Clear existing slots for this exact cohort
     const filter = {
       departmentId,
       courseId,
@@ -48,15 +43,13 @@ const generateSmartTimetable = async ({ departmentId, courseId, branchId, semest
     };
     if (group) {
       filter.group = group;
-    } else {
-      filter.group = { $in: [null, '', undefined] };
     }
     
-    await TimetableSlot.deleteMany(filter, { session });
+    await TimetableSlot.deleteMany(filter);
     logger.info(`[Smart Timetable] Cleared existing slots for Course: ${courseId}, Branch: ${branchId}, Sem: ${semester}`);
 
     // 2. Fetch all subjects for this semester
-    const subjects = await Subject.find({ departmentId, branchId, semester: parseInt(semester, 10) }).session(session);
+    const subjects = await Subject.find({ departmentId, branchId, semester: parseInt(semester, 10) });
 
     // 3. For each subject, find the assigned faculty that matches the targeted group (or full batch)
     const validRequirements = [];
@@ -67,17 +60,18 @@ const generateSmartTimetable = async ({ departmentId, courseId, branchId, semest
       };
       if (group) {
         assignmentQuery.$or = [{ group: group }, { group: null }];
-      } else {
-        assignmentQuery.group = null;
       }
       
-      const assignment = await FacultyAssignment.findOne(assignmentQuery).session(session);
-      if (assignment) {
-        validRequirements.push({
-          subject,
-          facultyId: assignment.facultyId,
-          credits: subject.credits,
-        });
+      const assignments = await FacultyAssignment.find(assignmentQuery);
+      if (assignments && assignments.length > 0) {
+        for (const assignment of assignments) {
+          validRequirements.push({
+            subject,
+            facultyId: assignment.facultyId,
+            credits: subject.credits,
+            assignedGroup: assignment.group || null,
+          });
+        }
       } else {
         logger.warn(`[Smart Timetable] Skipping Subject ${subject.code} - No active faculty assignment found for group ${group || 'FULL_BATCH'}.`);
       }
@@ -106,7 +100,7 @@ const generateSmartTimetable = async ({ departmentId, courseId, branchId, semest
           courseId,
           branchId,
           semester: parseInt(semester, 10),
-          group: group || null,
+          group: req.assignedGroup,
           subjectId: req.subject._id,
           facultyId: req.facultyId,
           dayOfWeek: block.dayOfWeek,
@@ -122,7 +116,7 @@ const generateSmartTimetable = async ({ departmentId, courseId, branchId, semest
             startTime: { $lt: block.endTime },
             endTime: { $gt: block.startTime },
           };
-          const overlappingSlots = await TimetableSlot.find(conflictFilter).session(session);
+          const overlappingSlots = await TimetableSlot.find(conflictFilter);
           
           let conflict = false;
           for (const slot of overlappingSlots) {
@@ -138,8 +132,8 @@ const generateSmartTimetable = async ({ departmentId, courseId, branchId, semest
               slot.semester === parseInt(semester, 10)
             ) {
               const isFullSem1 = !slot.group;
-              const isFullSem2 = !group;
-              if (isFullSem1 || isFullSem2 || slot.group === group) {
+              const isFullSem2 = !req.assignedGroup;
+              if (isFullSem1 || isFullSem2 || slot.group === req.assignedGroup) {
                 conflict = true;
                 break;
               }
@@ -154,7 +148,7 @@ const generateSmartTimetable = async ({ departmentId, courseId, branchId, semest
           const [slot] = await TimetableSlot.create([{
             ...newSlotData,
             createdBy
-          }], { session });
+          }]);
 
           createdSlots.push(slot);
           slotsNeeded--;
@@ -168,14 +162,7 @@ const generateSmartTimetable = async ({ departmentId, courseId, branchId, semest
       }
     }
 
-    await session.commitTransaction();
-    session.endSession();
     return createdSlots;
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    throw error;
-  }
 };
 
 module.exports = {

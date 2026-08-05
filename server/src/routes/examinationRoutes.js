@@ -47,4 +47,11 @@ router.post(
   asyncHandler(examinationController.publishResult)
 );
 
+// Toggle HOD permission for faculty to enter marks
+router.patch(
+  '/:examId/toggle-marks-entry',
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  asyncHandler(examinationController.toggleMarksEntryPermission)
+);
+
 module.exports = router;

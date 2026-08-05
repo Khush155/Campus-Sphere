@@ -10,7 +10,17 @@ export const useTimetableQuery = (filters) => {
         Object.entries(filters).filter(([_, v]) => v !== undefined && v !== '')
       );
       
-      const response = await api.get('/timetable', { params: cleanFilters });
+      const apiFilters = { ...cleanFilters };
+      if (apiFilters.course) {
+        apiFilters.courseId = apiFilters.course;
+        delete apiFilters.course;
+      }
+      if (apiFilters.branch) {
+        apiFilters.branchId = apiFilters.branch;
+        delete apiFilters.branch;
+      }
+      
+      const response = await api.get('/timetable', { params: apiFilters });
       return response.data.data;
     },
     // Only run the query if we have the minimum required filters or user is Faculty

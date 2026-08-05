@@ -40,8 +40,11 @@ const seedDatabase = async () => {
     await mongoose.connect(mongoUri);
     console.log('✅ Connected successfully!');
 
-    // 1. Purge old collections
-    console.log('🧹 Purging all old collections...');
+    // 1. Drop the entire database to clear all collections and old indexes
+    console.log('🧹 Dropping entire database...');
+    await mongoose.connection.db.dropDatabase();
+    console.log('✅ Database dropped.');
+
     await Promise.all([
       User.deleteMany({}),
       Department.deleteMany({}),
@@ -61,13 +64,20 @@ const seedDatabase = async () => {
     ]);
     console.log('✅ All collections purged.');
 
-    // 2. Super Admin
-    console.log('👤 Seeding Super Admin...');
+    // 2. Super Admin & College Admin
+    console.log('👤 Seeding Super Admin & College Admin...');
     const adminUser = await User.create({
       name: 'System Administrator',
       email: 'admin@campussphere.edu',
       password: 'admin123',
       role: ROLES.SUPER_ADMIN,
+    });
+
+    await User.create({
+      name: 'College Administrator',
+      email: 'collegeadmin@campussphere.edu',
+      password: 'admin123',
+      role: ROLES.COLLEGE_ADMIN,
     });
 
     // 3. Departments

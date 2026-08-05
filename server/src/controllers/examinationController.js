@@ -43,20 +43,29 @@ exports.createExamination = async (req, res) => {
   if (!title || !type || !subjectId || !date || !totalMarks || !passingMarks) {
     throw new AppError('title, type, subjectId, date, totalMarks, and passingMarks are required.', 400);
   }
-  if (passingMarks >= totalMarks) {
+  
+  const parsedTotalMarks = Number(totalMarks);
+  const parsedPassingMarks = Number(passingMarks);
+
+  if (parsedPassingMarks >= parsedTotalMarks) {
     throw new AppError('Passing marks must be less than total marks.', 400);
   }
+
+  // Handle syllabus array since frontend might send syllabus or syllabus[] depending on FormData handling
+  const syllabusArray = req.body['syllabus[]'] ? 
+    (Array.isArray(req.body['syllabus[]']) ? req.body['syllabus[]'] : [req.body['syllabus[]']]) : 
+    (Array.isArray(syllabus) ? syllabus : []);
 
   const exam = await Examination.create({
     title, type,
     departmentId: req.user.departmentId,
     subjectId,
     date: new Date(date),
-    totalMarks,
-    passingMarks,
+    totalMarks: parsedTotalMarks,
+    passingMarks: parsedPassingMarks,
     venue,
     duration,
-    syllabus: Array.isArray(syllabus) ? syllabus : [],
+    syllabus: syllabusArray,
     datesheetSlot,
     reportingTime,
     instructions,
@@ -112,6 +121,11 @@ exports.batchPublishResults = async (req, res) => {
 
   const exam = await Examination.findById(examId);
   if (!exam) {throw new AppError('Examination not found.', 404);}
+
+  // Check marks entry permission for FACULTY
+  if (req.user.role === 'FACULTY' && !exam.marksEntryEnabled) {
+    throw new AppError('Marks entry for this examination is locked by HOD. Contact your HOD to grant marks markup permission.', 403);
+  }
 
   const processedResults = results.map(({ studentId, marksObtained = 0, isAbsent = false }) => {
     const marks = isAbsent ? 0 : Math.min(marksObtained, exam.totalMarks);
@@ -248,6 +262,10 @@ exports.publishResult = async (req, res) => {
   const exam = await Examination.findById(examId);
   if (!exam) {throw new AppError('Examination not found.', 404);}
 
+  if (req.user.role === 'FACULTY' && !exam.marksEntryEnabled) {
+    throw new AppError('Marks entry for this examination is locked by HOD. Contact your HOD to grant marks markup permission.', 403);
+  }
+
   const marks = isAbsent ? 0 : Math.min(marksObtained || 0, exam.totalMarks);
   const pct = isAbsent ? 0 : Math.round((marks / exam.totalMarks) * 100 * 100) / 100;
   const { grade, gradePoint } = computeGrade(pct, isAbsent);
@@ -268,4 +286,27 @@ exports.publishResult = async (req, res) => {
   );
 
   res.status(200).json({ success: true, data: result });
+};
+
+/**
+ * PATCH /api/v1/examinations/:examId/toggle-marks-entry
+ * Toggle HOD permission for faculty to enter/update marks.
+ */
+exports.toggleMarksEntryPermission = async (req, res) => {
+  const { examId } = req.params;
+  const { marksEntryEnabled } = req.body;
+
+  const exam = await Examination.findById(examId);
+  if (!exam) {
+    throw new AppError('Examination not found.', 404);
+  }
+
+  exam.marksEntryEnabled = typeof marksEntryEnabled === 'boolean' ? marksEntryEnabled : !exam.marksEntryEnabled;
+  await exam.save();
+
+  res.status(200).json({
+    success: true,
+    message: `Marks entry permission updated to ${exam.marksEntryEnabled ? 'UNLOCKED' : 'LOCKED'}`,
+    data: exam,
+  });
 };

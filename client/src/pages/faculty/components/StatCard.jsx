@@ -1,63 +1,47 @@
-// client/src/pages/faculty/components/StatCard.jsx
-//
-// Reusable statistics card component for the Faculty Dashboard.
-// Displays a single metric (title + value) with a colored icon.
-//
-// Props:
-//   title  — label text (e.g. "Assigned Subjects")
-//   value  — display value (e.g. "3")
-//   icon   — React element, a MUI icon component
-//   color  — hex color string (e.g. "#4f46e5")
-//
-// Pattern taken from Home.jsx (Admin Dashboard) stat cards.
-// Extracted into a dedicated component for reusability and clean code.
-
 import React from 'react';
-import { Card, CardContent, Typography, Box } from '@mui/material';
+import { Card, Typography, Box, Avatar, useTheme } from '@mui/material';
 
-export const StatCard = ({ title, value, icon, color }) => {
+export const StatCard = ({ title, value, icon, color = '#4f46e5' }) => {
+  const theme = useTheme();
+
   return (
-    <Card sx={{ height: '100%' }}>
-      <CardContent
+    <Card
+      sx={{
+        p: 3,
+        borderRadius: '14px',
+        border: `1px solid ${theme.palette.divider}`,
+        borderLeft: `4px solid ${color}`,
+        boxShadow: 'none',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.05)',
+        },
+      }}
+    >
+      <Box>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+          {title}
+        </Typography>
+        <Typography variant="h3" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 0.5, fontFamily: theme.typography.mono.fontFamily }}>
+          {value ?? '0'}
+        </Typography>
+      </Box>
+
+      <Avatar
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          p: 3,
+          width: 46,
+          height: 46,
+          bgcolor: `${color}15`,
+          color: color,
         }}
       >
-        {/* Left side — Label and Value */}
-        <Box>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ fontWeight: 600, mb: 1 }}
-          >
-            {title}
-          </Typography>
-          <Typography
-            variant="h4"
-            sx={{ fontWeight: 800, color: 'text.primary' }}
-          >
-            {value}
-          </Typography>
-        </Box>
-
-        {/* Right side — Icon with tinted background */}
-        <Box
-          sx={{
-            bgcolor: `${color}15`,
-            color: color,
-            p: 1.5,
-            borderRadius: 3,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {icon}
-        </Box>
-      </CardContent>
+        {icon}
+      </Avatar>
     </Card>
   );
 };

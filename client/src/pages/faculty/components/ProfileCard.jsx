@@ -111,7 +111,7 @@ export const ProfileCard = ({ profile }) => {
   } = profile;
 
   return (
-    <Card sx={{ height: '100%' }}>
+    <Card sx={{ p: 0, borderRadius: '16px', border: (theme) => `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
       <CardContent sx={{ p: 3 }}>
         {/* ── Header: Avatar + Name + Designation ── */}
         <Stack alignItems="center" spacing={1.5} sx={{ mb: 2.5 }}>

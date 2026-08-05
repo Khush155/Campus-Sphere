@@ -202,6 +202,7 @@ export const useCreateComplaintsMutation = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['complaints'] }),
   });
 };
+export const useCreateComplaintMutation = useCreateComplaintsMutation;
 
 export const useUpdateComplaintStatusMutation = () => {
   const queryClient = useQueryClient();
@@ -282,10 +283,19 @@ export const useFeedbackQuery = () => useQuery({
   queryFn: async () => (await api.get('/feedback')).data.data || [],
 });
 
-export const useCreateFeedbackMutation = () => {
+export const useFeedbackAnalyticsQuery = () => useQuery({
+  queryKey: ['feedback-analytics'],
+  queryFn: async () => (await api.get('/feedback/analytics')).data.data || {},
+});
+
+export const useToggleMarksEntryMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data) => (await api.post('/feedback', data)).data.data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['feedback'] }),
+    mutationFn: async ({ examId, marksEntryEnabled }) =>
+      (await api.patch(`/examinations/${examId}/toggle-marks-entry`, { marksEntryEnabled })).data.data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['examinations'] });
+      queryClient.invalidateQueries({ queryKey: ['exams'] });
+    },
   });
 };

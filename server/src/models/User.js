@@ -75,7 +75,15 @@ const userSchema = new mongoose.Schema(
     },
     cgpa: { type: Number, min: 0, max: 10 }, // Used for placement eligibility
     activeBacklogs: { type: Number, min: 0, default: 0 }, // Used for placement eligibility
-    profilePicUrl: { type: String },
+    profilePicUrl: { type: String, default: '' },
+    bio: { type: String, default: '' },
+    officeRoom: { type: String, default: '' },
+    officeHours: { type: String, default: '' },
+    qualification: { type: String, default: '' },
+    specialization: { type: String, default: '' },
+    emergencyContactName: { type: String, default: '' },
+    emergencyContactPhone: { type: String, default: '' },
+    notificationPreference: { type: String, default: 'EMAIL_AND_PORTAL' },
     isActive: { type: Boolean, default: true }, // Soft-disable without deletion
     academicStatus: {
       type: String,
@@ -83,6 +91,18 @@ const userSchema = new mongoose.Schema(
       default: 'ONGOING',
       index: true,
     },
+    feeStatus: {
+      type: String,
+      enum: ['CLEARED', 'PENDING', 'OVERDUE'],
+      default: 'CLEARED',
+    },
+    feeDues: {
+      tuition: { type: Number, default: 0 },
+      hostel: { type: Number, default: 0 },
+      library: { type: Number, default: 0 },
+      lab: { type: Number, default: 0 },
+    },
+    noDuesIssuedAt: { type: Date },
     shift: {
       type: String,
       enum: ['GENERAL', 'MORNING', 'EVENING'],

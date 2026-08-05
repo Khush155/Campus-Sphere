@@ -1,17 +1,39 @@
-/* eslint-disable */
 import React, { useState, useMemo } from 'react';
-import { 
-  Box, Typography, Button, Dialog, DialogTitle, DialogContent, 
-  DialogActions, TextField, MenuItem, Chip, IconButton, Tooltip, Snackbar, Alert,
-  Grid, Card, CardContent, Divider, useTheme, Stepper, Step, StepLabel
+import {
+  Box,
+  Typography,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  Chip,
+  Grid,
+  Card,
+  useTheme,
+  CircularProgress,
+  Avatar,
+  Divider,
 } from '@mui/material';
 import {
-  CheckCircleOutlined, HourglassTopOutlined, EngineeringOutlined, VisibilityOutlined,
-  SearchOutlined, PersonOutlined, WarningAmberOutlined, EscalatorWarningOutlined
+  ReportProblemOutlined,
+  SearchOutlined,
+  RefreshOutlined,
+  VisibilityOutlined,
+  EditOutlined,
+  WarningAmberOutlined,
+  CheckCircleOutlined,
+  AccessTimeOutlined,
 } from '@mui/icons-material';
 import DataTable from '../../../components/common/DataTable';
 import EmptyState from '../../../components/common/EmptyState';
-import { useComplaintsQuery, useUpdateComplaintStatusMutation } from '../../../queries/hodQueries';
+import {
+  useComplaintsQuery,
+  useUpdateComplaintStatusMutation,
+} from '../../../queries/hodQueries';
+import { useToast } from '../../../contexts/ToastContext';
 
 const CATEGORIES = [
   { value: 'ACADEMIC', label: 'Academic' },
@@ -23,18 +45,16 @@ const CATEGORIES = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: 'UNDER_REVIEW', label: 'Under Review', color: 'info' },
-  { value: 'IN_PROGRESS', label: 'In Progress', color: 'warning' },
-  { value: 'RESOLVED', label: 'Resolved', color: 'success' },
-  { value: 'CLOSED', label: 'Closed', color: 'default' },
-  { value: 'ESCALATED', label: 'Escalated', color: 'error' },
+  { value: 'UNDER_REVIEW', label: 'Under Review' },
+  { value: 'IN_PROGRESS', label: 'In Progress' },
+  { value: 'RESOLVED', label: 'Resolved' },
+  { value: 'CLOSED', label: 'Closed' },
+  { value: 'ESCALATED', label: 'Escalated' },
 ];
 
-const PRIORITY_COLORS = { LOW: 'default', MEDIUM: 'info', HIGH: 'warning', CRITICAL: 'error' };
-const STATUS_COLORS = { OPEN: 'warning', UNDER_REVIEW: 'info', IN_PROGRESS: 'secondary', RESOLVED: 'success', CLOSED: 'default', ESCALATED: 'error' };
-
-const HodComplaintsHub = () => {
+export const HodComplaintsHub = () => {
   const theme = useTheme();
+  const { showToast } = useToast();
 
   // Modal States
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -51,10 +71,6 @@ const HodComplaintsHub = () => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Toast
-  const [toast, setToast] = useState({ open: false, msg: '', severity: 'success' });
-  const showToast = (msg, severity = 'success') => setToast({ open: true, msg, severity });
-
   // Debounce search
   React.useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(search), 400);
@@ -62,22 +78,23 @@ const HodComplaintsHub = () => {
   }, [search]);
 
   // Queries & Mutations
-  const { data: complaints = [], isLoading, isError } = useComplaintsQuery();
+  const { data: complaints = [], isLoading, isError, refetch } = useComplaintsQuery();
   const updateStatusMutation = useUpdateComplaintStatusMutation();
 
   // Client-side filtering
   const filteredComplaints = useMemo(() => {
     let list = Array.isArray(complaints) ? complaints : [];
-    if (statusFilter) list = list.filter(c => c.status === statusFilter);
-    if (categoryFilter) list = list.filter(c => c.category === categoryFilter);
-    if (priorityFilter) list = list.filter(c => c.priority === priorityFilter);
+    if (statusFilter) list = list.filter((c) => c.status === statusFilter);
+    if (categoryFilter) list = list.filter((c) => c.category === categoryFilter);
+    if (priorityFilter) list = list.filter((c) => c.priority === priorityFilter);
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
-      list = list.filter(c =>
-        (c.title?.toLowerCase() || '').includes(q) ||
-        (c.description?.toLowerCase() || '').includes(q) ||
-        (c.submittedBy?.name?.toLowerCase() || '').includes(q) ||
-        (c.submittedBy?.email?.toLowerCase() || '').includes(q)
+      list = list.filter(
+        (c) =>
+          (c.title?.toLowerCase() || '').includes(q) ||
+          (c.description?.toLowerCase() || '').includes(q) ||
+          (c.submittedBy?.name?.toLowerCase() || '').includes(q) ||
+          (c.submittedBy?.email?.toLowerCase() || '').includes(q)
       );
     }
     return list;
@@ -88,10 +105,10 @@ const HodComplaintsHub = () => {
     const all = Array.isArray(complaints) ? complaints : [];
     return {
       total: all.length,
-      open: all.filter(c => c.status === 'OPEN').length,
-      inProgress: all.filter(c => c.status === 'IN_PROGRESS' || c.status === 'UNDER_REVIEW').length,
-      resolved: all.filter(c => c.status === 'RESOLVED' || c.status === 'CLOSED').length,
-      slaBreach: all.filter(c => c.slaBreached).length,
+      open: all.filter((c) => c.status === 'OPEN').length,
+      inProgress: all.filter((c) => c.status === 'IN_PROGRESS' || c.status === 'UNDER_REVIEW').length,
+      resolved: all.filter((c) => c.status === 'RESOLVED' || c.status === 'CLOSED').length,
+      slaBreach: all.filter((c) => c.slaBreached).length,
     };
   }, [complaints]);
 
@@ -112,175 +129,311 @@ const HodComplaintsHub = () => {
   const handleActionConfirm = () => {
     if (!selectedComplaint || !actionStatus) return;
     const payload = {
-      id: selectedComplaint._id,
+      id: selectedComplaint._id || selectedComplaint.id,
       status: actionStatus,
-      note: actionNote || `Status changed to ${actionStatus}`,
+      note: actionNote || `Status updated to ${actionStatus}`,
     };
     if (actionStatus === 'RESOLVED' || actionStatus === 'CLOSED') {
       payload.resolutionRemarks = resolutionRemarks;
     }
+
     updateStatusMutation.mutate(payload, {
       onSuccess: () => {
-        showToast(`Complaint marked as ${actionStatus} successfully.`);
+        showToast(`Grievance ticket status updated to ${actionStatus}.`);
         setActionModalOpen(false);
-        setDetailModalOpen(false);
         setSelectedComplaint(null);
+        refetch();
       },
-      onError: (err) => showToast(err.response?.data?.message || 'Failed to update status', 'error'),
+      onError: (err) => showToast(err.response?.data?.message || 'Failed to update ticket status', { severity: 'error' }),
     });
   };
 
   const columns = [
     {
-      id: 'priority',
-      label: 'Priority',
-      render: (r) => (
-        <Chip label={r.priority || 'MEDIUM'} size="small" color={PRIORITY_COLORS[r.priority] || 'default'} sx={{ fontWeight: 700 }} />
-      )
-    },
-    {
       id: 'title',
-      label: 'Complaint',
+      label: 'Ticket Title & Category',
       render: (r) => (
-        <Box onClick={() => handleOpenDetail(r)} sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
-          <Typography variant="body2" fontWeight={700} color="primary.main">{r.title}</Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-            {r.description}
-          </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ width: 34, height: 34, bgcolor: `${theme.palette.signal.error}15`, color: theme.palette.signal.error }}>
+            <ReportProblemOutlined sx={{ fontSize: 18 }} />
+          </Avatar>
+          <Box
+            onClick={() => handleOpenDetail(r)}
+            sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+              {r.title}
+            </Typography>
+            <Chip label={r.category || 'OTHER'} size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.62rem', height: 18, mt: 0.3 }} />
+          </Box>
         </Box>
-      )
+      ),
     },
     {
       id: 'submittedBy',
       label: 'Submitted By',
       render: (r) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <PersonOutlined color="action" fontSize="small" />
-          <Box>
-            <Typography variant="body2" fontWeight={600}>{r.submittedBy?.name || '—'}</Typography>
-            <Typography variant="caption" color="text.secondary">{r.submittedBy?.role || ''}</Typography>
-          </Box>
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            {r.submittedBy?.name || 'Anonymous User'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {r.submittedBy?.email || 'N/A'}
+          </Typography>
         </Box>
-      )
+      ),
     },
     {
-      id: 'category',
-      label: 'Category',
-      render: (r) => <Chip label={r.category?.replace('_', ' ') || '—'} size="small" variant="outlined" sx={{ fontWeight: 600 }} />
+      id: 'priority',
+      label: 'Priority',
+      render: (r) => {
+        const colorMap = { LOW: 'default', MEDIUM: 'info', HIGH: 'warning', CRITICAL: 'error' };
+        return (
+          <Chip
+            label={r.priority || 'MEDIUM'}
+            size="small"
+            color={colorMap[r.priority] || 'default'}
+            sx={{ fontWeight: 800, fontSize: '0.65rem' }}
+          />
+        );
+      },
+    },
+    {
+      id: 'sla',
+      label: 'SLA Status',
+      render: (r) =>
+        r.slaBreached ? (
+          <Chip icon={<WarningAmberOutlined sx={{ fontSize: '0.8rem !important' }} />} label="SLA BREACHED" size="small" color="error" sx={{ fontWeight: 800, fontSize: '0.62rem' }} />
+        ) : (
+          <Chip icon={<AccessTimeOutlined sx={{ fontSize: '0.8rem !important' }} />} label="SLA OK" size="small" color="success" sx={{ fontWeight: 800, fontSize: '0.62rem' }} />
+        ),
     },
     {
       id: 'status',
       label: 'Status',
-      render: (r) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Chip label={r.status?.replace('_', ' ') || 'OPEN'} size="small" color={STATUS_COLORS[r.status] || 'default'} sx={{ fontWeight: 700 }} />
-          {r.slaBreached && (
-            <Tooltip title="SLA Breached (> 7 days)">
-              <WarningAmberOutlined color="error" fontSize="small" />
-            </Tooltip>
-          )}
-        </Box>
-      )
-    },
-    {
-      id: 'createdAt',
-      label: 'Filed On',
-      render: (r) => new Date(r.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+      render: (r) => {
+        const statusColors = { OPEN: 'warning', UNDER_REVIEW: 'info', IN_PROGRESS: 'secondary', RESOLVED: 'success', CLOSED: 'default', ESCALATED: 'error' };
+        return <Chip label={r.status || 'OPEN'} size="small" color={statusColors[r.status] || 'default'} sx={{ fontWeight: 800, fontSize: '0.65rem' }} />;
+      },
     },
     {
       id: 'actions',
       label: 'Actions',
       render: (r) => (
-        <Box sx={{ display: 'flex', gap: 0.5 }}>
-          <Tooltip title="View Details">
-            <IconButton size="small" color="primary" onClick={() => handleOpenDetail(r)}>
-              <VisibilityOutlined fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          {r.status !== 'RESOLVED' && r.status !== 'CLOSED' && (
-            <>
-              <Tooltip title="Mark In Progress">
-                <IconButton size="small" color="warning" onClick={() => handleOpenAction(r, 'IN_PROGRESS')} disabled={updateStatusMutation.isPending}>
-                  <EngineeringOutlined fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Resolve Complaint">
-                <IconButton size="small" color="success" onClick={() => handleOpenAction(r, 'RESOLVED')} disabled={updateStatusMutation.isPending}>
-                  <CheckCircleOutlined fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </>
-          )}
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<VisibilityOutlined />}
+            onClick={() => handleOpenDetail(r)}
+            sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 600, fontSize: '0.72rem' }}
+          >
+            Details
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<EditOutlined />}
+            onClick={() => handleOpenAction(r)}
+            sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 700, fontSize: '0.72rem' }}
+          >
+            Update
+          </Button>
         </Box>
-      )
+      ),
     },
   ];
 
   return (
-    <Box sx={{ p: { xs: 1, sm: 3 }, display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {/* Header */}
-      <Box>
-        <Typography variant="h4" fontWeight="bold" sx={{ color: theme.palette.ink?.[900] || 'text.primary' }}>
-          Complaint Management
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Review, investigate, and resolve complaints filed by students and faculty in your department.
-        </Typography>
-      </Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+      {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
+      <Card
+        sx={{
+          p: 3.5,
+          borderRadius: '16px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
+          boxShadow: 'none',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+              <Chip
+                icon={<ReportProblemOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+                label="DEPARTMENT GRIEVANCE & SERVICE LEVEL DESK"
+                size="small"
+                sx={{
+                  bgcolor: `${theme.palette.primary.main}15`,
+                  color: theme.palette.primary.main,
+                  fontWeight: 800,
+                  fontFamily: theme.typography.mono.fontFamily,
+                  letterSpacing: '0.05em',
+                  fontSize: '0.7rem',
+                }}
+              />
+            </Box>
+            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+              Department Grievances & Complaints
+            </Typography>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+              Monitor student & faculty grievance tickets, track SLA resolution timers, update investigation status, and issue resolution notes.
+            </Typography>
+          </Box>
 
-      {/* KPI Cards */}
-      <Grid container spacing={2}>
-        {[
-          { label: 'TOTAL FILED', value: stats.total, color: 'text.primary' },
-          { label: 'OPEN / PENDING', value: stats.open, color: 'warning.main' },
-          { label: 'IN PROGRESS', value: stats.inProgress, color: 'info.main' },
-          { label: 'RESOLVED / CLOSED', value: stats.resolved, color: 'success.main' },
-        ].map((kpi, idx) => (
-          <Grid item xs={6} sm={3} key={idx}>
-            <Card sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}` }}>
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={600}>{kpi.label}</Typography>
-                <Typography variant="h4" fontWeight={800} color={kpi.color} sx={{ mt: 0.5 }}>{kpi.value}</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshOutlined />}
+              onClick={() => refetch()}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+            >
+              Refresh
+            </Button>
+          </Box>
+        </Box>
+      </Card>
+
+      {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
+      <Grid container spacing={2.5}>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+              TOTAL TICKETS
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+              {isLoading ? <CircularProgress size={24} /> : stats.total}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Registered grievances
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
+              OPEN TICKETS
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+              {isLoading ? <CircularProgress size={24} /> : stats.open}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Pending investigation
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info?.main || '#0288d1' }}>
+              IN PROGRESS
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info?.main || '#0288d1', mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+              {isLoading ? <CircularProgress size={24} /> : stats.inProgress}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Under active review
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+              RESOLVED TICKETS
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+              {isLoading ? <CircularProgress size={24} /> : stats.resolved}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Successfully resolved
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
+              SLA BREACHED
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+              {isLoading ? <CircularProgress size={24} /> : stats.slaBreach}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Overdue resolution time
+            </Typography>
+          </Card>
+        </Grid>
       </Grid>
 
-      {stats.slaBreach > 0 && (
-        <Alert severity="error" sx={{ borderRadius: 2 }}>
-          <strong>{stats.slaBreach}</strong> complaint(s) have breached the 7-day SLA resolution deadline!
-        </Alert>
-      )}
-
-      {/* Filter Bar */}
-      <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(28, 46, 69, 0.02)', border: `1px solid ${theme.palette.divider}` }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={6} md={3}>
+      {/* ── 3. Filters & Grievances Directory Table ───────────────────────── */}
+      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Grid container spacing={2} sx={{ mb: 3 }} alignItems="center">
+          <Grid item xs={12} sm={4}>
             <TextField
-              fullWidth size="small"
-              placeholder="Search complaint or reporter..."
+              fullWidth
+              size="small"
+              placeholder="Search title, description, or submitter..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              InputProps={{ startAdornment: <SearchOutlined fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} /> }}
-              sx={{ bgcolor: 'background.paper' }}
+              InputProps={{
+                startAdornment: <SearchOutlined sx={{ color: 'text.secondary', mr: 1, fontSize: 18 }} />,
+              }}
             />
           </Grid>
-          <Grid item xs={6} sm={3} md={3}>
-            <TextField select fullWidth size="small" label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ bgcolor: 'background.paper' }}>
+
+          <Grid item xs={12} sm={2.6}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Ticket Status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              SelectProps={{ displayEmpty: true }}
+              InputLabelProps={{ shrink: true }}
+            >
               <MenuItem value="">All Statuses</MenuItem>
-              <MenuItem value="OPEN">Open</MenuItem>
-              {STATUS_OPTIONS.map(s => <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>)}
+              <MenuItem value="OPEN">Open Only</MenuItem>
+              <MenuItem value="UNDER_REVIEW">Under Review</MenuItem>
+              <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
+              <MenuItem value="RESOLVED">Resolved Only</MenuItem>
+              <MenuItem value="ESCALATED">Escalated Only</MenuItem>
             </TextField>
           </Grid>
-          <Grid item xs={6} sm={3} md={3}>
-            <TextField select fullWidth size="small" label="Category" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} sx={{ bgcolor: 'background.paper' }}>
+
+          <Grid item xs={12} sm={2.7}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Category"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              SelectProps={{ displayEmpty: true }}
+              InputLabelProps={{ shrink: true }}
+            >
               <MenuItem value="">All Categories</MenuItem>
-              {CATEGORIES.map(c => <MenuItem key={c.value} value={c.value}>{c.label}</MenuItem>)}
+              {CATEGORIES.map((c) => (
+                <MenuItem key={c.value} value={c.value}>
+                  {c.label}
+                </MenuItem>
+              ))}
             </TextField>
           </Grid>
-          <Grid item xs={6} sm={3} md={3}>
-            <TextField select fullWidth size="small" label="Priority" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} sx={{ bgcolor: 'background.paper' }}>
+
+          <Grid item xs={12} sm={2.7}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Priority"
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              SelectProps={{ displayEmpty: true }}
+              InputLabelProps={{ shrink: true }}
+            >
               <MenuItem value="">All Priorities</MenuItem>
               <MenuItem value="LOW">Low</MenuItem>
               <MenuItem value="MEDIUM">Medium</MenuItem>
@@ -289,137 +442,132 @@ const HodComplaintsHub = () => {
             </TextField>
           </Grid>
         </Grid>
-      </Box>
 
-      {/* Data Table */}
-      {filteredComplaints.length === 0 && !isLoading ? (
-        <EmptyState type="complaint" title="No Complaints Found" description="No complaints match your current filter criteria." />
-      ) : (
-        <DataTable columns={columns} data={filteredComplaints} isLoading={isLoading} isError={isError} emptyMessage="No complaints found." />
-      )}
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : filteredComplaints.length === 0 ? (
+          <EmptyState
+            type="reports"
+            title="No Grievance Tickets Found"
+            description="No complaints match the active search or status filter criteria."
+          />
+        ) : (
+          <DataTable columns={columns} data={filteredComplaints} isLoading={isLoading} isError={isError} emptyMessage="No complaints found." />
+        )}
+      </Card>
 
-      {/* Complaint Detail Modal */}
-      <Dialog open={detailModalOpen} onClose={() => setDetailModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+      {/* ── 4. View Detail Modal ─────────────────────────────────────────── */}
+      <Dialog open={detailModalOpen} onClose={() => setDetailModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
         {selectedComplaint && (
           <>
-            <DialogTitle sx={{ fontWeight: 800, pb: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-                <Typography variant="h6" fontWeight={800}>{selectedComplaint.title}</Typography>
-                <Chip label={selectedComplaint.status?.replace('_', ' ') || 'OPEN'} size="small" color={STATUS_COLORS[selectedComplaint.status] || 'default'} sx={{ fontWeight: 700 }} />
-              </Box>
-            </DialogTitle>
-            <DialogContent dividers sx={{ p: 3 }}>
-              {/* Metadata */}
-              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2, mb: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {[
-                  ['Filed By', `${selectedComplaint.submittedBy?.name || '—'} (${selectedComplaint.submittedBy?.role || ''})`],
-                  ['Category', selectedComplaint.category?.replace('_', ' ')],
-                  ['Priority', selectedComplaint.priority],
-                  ['Filed On', new Date(selectedComplaint.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })],
-                  ['SLA Deadline', selectedComplaint.slaDeadline ? new Date(selectedComplaint.slaDeadline).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—'],
-                ].map(([label, val]) => (
-                  <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="caption" color="text.secondary">{label}:</Typography>
-                    <Typography variant="caption" fontWeight={700}>{val}</Typography>
-                  </Box>
-                ))}
-                {selectedComplaint.slaBreached && (
-                  <Alert severity="error" sx={{ mt: 1, py: 0 }}>SLA Breached — Resolution exceeded 7 days</Alert>
-                )}
+            <DialogTitle sx={{ fontWeight: 800 }}>Grievance Ticket Details</DialogTitle>
+            <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+                  {selectedComplaint.title}
+                </Typography>
+                <Chip label={selectedComplaint.status || 'OPEN'} size="small" color="primary" sx={{ fontWeight: 800 }} />
               </Box>
 
-              {/* Description */}
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>Complaint Description</Typography>
-              <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7, mb: 3 }}>
+              <Divider />
+
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Typography variant="caption" color="text.secondary">
+                  Submitted By: <strong>{selectedComplaint.submittedBy?.name || 'Anonymous User'}</strong> ({selectedComplaint.submittedBy?.email})
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Category: <strong>{selectedComplaint.category || 'OTHER'}</strong>
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Priority: <strong>{selectedComplaint.priority || 'MEDIUM'}</strong>
+                </Typography>
+              </Box>
+
+              <Typography variant="body2" sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)', p: 2, borderRadius: '8px', border: `1px solid ${theme.palette.divider}`, lineHeight: 1.6 }}>
                 {selectedComplaint.description}
               </Typography>
 
-              {/* Resolution Remarks */}
               {selectedComplaint.resolutionRemarks && (
-                <Box sx={{ p: 2, bgcolor: 'success.50', border: '1px solid', borderColor: 'success.light', borderRadius: 2, mb: 3 }}>
-                  <Typography variant="subtitle2" fontWeight={700} color="success.dark" sx={{ mb: 0.5 }}>Resolution Remarks</Typography>
-                  <Typography variant="body2">{selectedComplaint.resolutionRemarks}</Typography>
+                <Box sx={{ p: 2, bgcolor: `${theme.palette.signal.success}10`, borderRadius: '8px', border: `1px solid ${theme.palette.signal.success}` }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: theme.palette.signal.success, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CheckCircleOutlined sx={{ fontSize: 18 }} /> Official Resolution Notes:
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, color: theme.palette.ink[900] }}>
+                    {selectedComplaint.resolutionRemarks}
+                  </Typography>
                 </Box>
               )}
-
-              {/* Status History Timeline */}
-              {selectedComplaint.statusHistory?.length > 0 && (
-                <>
-                  <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5 }}>Status History</Typography>
-                  <Stepper orientation="vertical" activeStep={selectedComplaint.statusHistory.length - 1}>
-                    {selectedComplaint.statusHistory.map((entry, idx) => (
-                      <Step key={idx} completed>
-                        <StepLabel>
-                          <Typography variant="body2" fontWeight={600}>{entry.status?.replace('_', ' ')}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {entry.timestamp ? new Date(entry.timestamp).toLocaleString('en-IN') : ''} — {entry.note || ''}
-                          </Typography>
-                        </StepLabel>
-                      </Step>
-                    ))}
-                  </Stepper>
-                </>
-              )}
             </DialogContent>
-            <DialogActions sx={{ p: 2.5 }}>
-              {selectedComplaint.status !== 'RESOLVED' && selectedComplaint.status !== 'CLOSED' && (
-                <Button variant="contained" color="warning" onClick={() => { setDetailModalOpen(false); handleOpenAction(selectedComplaint, 'IN_PROGRESS'); }} sx={{ borderRadius: 2, mr: 1 }}>
-                  Update Status
-                </Button>
-              )}
-              <Button variant="outlined" onClick={() => setDetailModalOpen(false)} sx={{ borderRadius: 2 }}>Close</Button>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+              <Button onClick={() => setDetailModalOpen(false)} variant="outlined" sx={{ borderRadius: '8px' }}>
+                Close
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  setDetailModalOpen(false);
+                  handleOpenAction(selectedComplaint);
+                }}
+                sx={{ borderRadius: '8px', fontWeight: 700 }}
+              >
+                Update Ticket Status
+              </Button>
             </DialogActions>
           </>
         )}
       </Dialog>
 
-      {/* Action / Status Update Modal */}
-      <Dialog open={actionModalOpen} onClose={() => setActionModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Update Complaint Status</DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            Updating status for: <strong>{selectedComplaint?.title}</strong>
-          </Typography>
-
-          <TextField
-            select fullWidth label="New Status" value={actionStatus}
-            onChange={(e) => setActionStatus(e.target.value)} sx={{ mb: 2 }}
-          >
-            {STATUS_OPTIONS.map(s => <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>)}
+      {/* ── 5. Update Status Modal ────────────────────────────────────────── */}
+      <Dialog open={actionModalOpen} onClose={() => setActionModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Update Grievance Status</DialogTitle>
+        <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <TextField select fullWidth label="New Status" value={actionStatus} onChange={(e) => setActionStatus(e.target.value)} required>
+            {STATUS_OPTIONS.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </MenuItem>
+            ))}
           </TextField>
 
           <TextField
-            label="Action Note" fullWidth multiline rows={2} value={actionNote}
-            onChange={(e) => setActionNote(e.target.value)} sx={{ mb: 2 }}
-            placeholder="Describe what action was taken..."
+            fullWidth
+            multiline
+            rows={2}
+            label="Internal Update Note"
+            value={actionNote}
+            onChange={(e) => setActionNote(e.target.value)}
+            placeholder="e.g. Investigation assigned to committee."
           />
 
           {(actionStatus === 'RESOLVED' || actionStatus === 'CLOSED') && (
             <TextField
-              label="Resolution Remarks" fullWidth multiline rows={3} value={resolutionRemarks}
+              required
+              fullWidth
+              multiline
+              rows={3}
+              label="Official Resolution Remarks"
+              value={resolutionRemarks}
               onChange={(e) => setResolutionRemarks(e.target.value)}
-              placeholder="Explain how the complaint was resolved..."
+              placeholder="e.g. Issue investigated and resolved with faculty."
             />
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={() => setActionModalOpen(false)}>Cancel</Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setActionModalOpen(false)} variant="outlined" sx={{ borderRadius: '8px' }}>
+            Cancel
+          </Button>
           <Button
             variant="contained"
-            color={actionStatus === 'RESOLVED' ? 'success' : actionStatus === 'ESCALATED' ? 'error' : 'primary'}
             onClick={handleActionConfirm}
-            disabled={updateStatusMutation.isPending || !actionStatus}
-            sx={{ borderRadius: 2 }}
+            disabled={updateStatusMutation.isPending}
+            sx={{ borderRadius: '8px', fontWeight: 700 }}
           >
-            {updateStatusMutation.isPending ? 'Updating...' : `Set ${actionStatus?.replace('_', ' ')}`}
+            {updateStatusMutation.isPending ? 'Updating...' : 'Save Ticket Status'}
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Toast */}
-      <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast(t => ({ ...t, open: false }))} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-        <Alert severity={toast.severity} onClose={() => setToast(t => ({ ...t, open: false }))} sx={{ borderRadius: 2 }}>{toast.msg}</Alert>
-      </Snackbar>
     </Box>
   );
 };

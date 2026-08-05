@@ -15,8 +15,11 @@ const assertNoPrivilegeEscalation = ({ actorRole, targetCurrentRole, targetNewRo
   }
 
   if (actorRole === ROLES.COLLEGE_ADMIN) {
-    if (ADMIN_TIER_ROLES.includes(targetCurrentRole) || ADMIN_TIER_ROLES.includes(targetNewRole)) {
-      throw new AppError('Access denied. College Admins cannot modify or assign admin-tier roles.', 403, ERROR_CODES.FORBIDDEN);
+    if (targetCurrentRole && ADMIN_TIER_ROLES.includes(targetCurrentRole)) {
+      throw new AppError('College Admins cannot modify Super Admin or College Admin accounts.', 403, ERROR_CODES.FORBIDDEN);
+    }
+    if (targetNewRole && ADMIN_TIER_ROLES.includes(targetNewRole)) {
+      throw new AppError('College Admins cannot assign Super Admin or College Admin roles.', 403, ERROR_CODES.FORBIDDEN);
     }
   }
 };
@@ -93,5 +96,6 @@ const assertFacultyAssigned = async (user, subjectId) => {
 module.exports = {
   assertNoPrivilegeEscalation,
   assertHODDeptBound,
-  assertFacultyAssigned
+  assertFacultyAssigned,
+  ADMIN_TIER_ROLES,
 };

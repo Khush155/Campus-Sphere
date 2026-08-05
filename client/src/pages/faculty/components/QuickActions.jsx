@@ -34,7 +34,7 @@ export const QuickActions = ({ actions }) => {
   const isDark = theme.palette.mode === 'dark';
 
   return (
-    <Paper sx={{ p: 3, height: '100%' }}>
+    <Paper sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
       {/* ── Section Header ── */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2.5 }}>
         <HeaderIcon color="primary" />
@@ -51,7 +51,7 @@ export const QuickActions = ({ actions }) => {
       {/* ── Actions Grid ── */}
       <Grid container spacing={2}>
         {actions.map((action) => (
-          <Grid item xs={6} sm={4} md={2} key={action.id}>
+          <Grid item xs={6} sm={6} md={4} key={action.id}>
             <Box
               onClick={action.onClick}
               sx={{

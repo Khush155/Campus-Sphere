@@ -188,6 +188,19 @@ export const useCreateSubjectMutation = () => {
   });
 };
 
+export const useCreateBulkSubjectsMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const response = await api.post('/college/subjects/bulk', data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['subjects']);
+    },
+  });
+};
+
 export const useUpdateSubjectMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({

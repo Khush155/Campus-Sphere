@@ -6,6 +6,7 @@ const logger = require('../utils/logger');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const { checkHodConflict } = require('./userService');
+const { assertNoPrivilegeEscalation } = require('../utils/privilegeGuard');
 
 const MAX_CONCURRENT_SESSIONS = 5;
 
@@ -13,13 +14,36 @@ const MAX_CONCURRENT_SESSIONS = 5;
  * Register a new user in the system.
  * Typically invoked by SUPER_ADMIN or COLLEGE_ADMIN.
  */
-const registerUser = async (userData) => {
-  const { name, email, password, role, departmentId, courseId, branchId, semester, shift } = userData;
+const registerUser = async (userData, actor) => {
+  const { name, email, password, role, courseId, branchId, semester, shift, rollNumber } = userData;
+  let { departmentId } = userData;
+
+  const actorRole = typeof actor === 'string' ? actor : actor?.role;
+
+  if (actorRole) {
+    assertNoPrivilegeEscalation({ actorRole, targetNewRole: role });
+  }
+
+  // HOD scope constraint
+  if (actor && actor.role === 'HOD') {
+    if (role !== 'FACULTY' && role !== 'STUDENT') {
+      throw new AppError('HOD can only register FACULTY or STUDENT roles.', 403, ERROR_CODES.FORBIDDEN);
+    }
+    departmentId = actor.departmentId; // Force the new user to be in the HOD's department
+  }
 
   // 1. Check if user already exists
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     throw new AppError('Email address is already in use.', 400, ERROR_CODES.DUPLICATE_ENTRY);
+  }
+
+  // Check if roll number is duplicate for students
+  if (role === 'STUDENT' && rollNumber && rollNumber.trim().length > 0) {
+    const existingRoll = await User.findOne({ rollNumber: rollNumber.trim() });
+    if (existingRoll) {
+      throw new AppError(`Roll Number "${rollNumber}" is already assigned to another student.`, 400, ERROR_CODES.DUPLICATE_ENTRY);
+    }
   }
 
   // Check HOD conflict if role is HOD
@@ -43,6 +67,7 @@ const registerUser = async (userData) => {
     courseId: courseId || null,
     branchId: branchId || null,
     semester: role === 'STUDENT' ? (semester || 1) : null,
+    rollNumber: role === 'STUDENT' && rollNumber ? rollNumber.trim() : undefined,
     shift: role === 'HOD' ? shift : null,
   });
 
@@ -53,6 +78,7 @@ const registerUser = async (userData) => {
     name: newUser.name,
     email: newUser.email,
     role: newUser.role,
+    rollNumber: newUser.rollNumber || null,
     departmentId: newUser.departmentId,
     courseId: newUser.courseId,
     branchId: newUser.branchId,
@@ -187,6 +213,13 @@ const refreshAccessToken = async (providedRefreshToken) => {
   return {
     accessToken: newAccessToken,
     refreshToken: newRefreshToken,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      departmentId: user.departmentId,
+    },
   };
 };
 

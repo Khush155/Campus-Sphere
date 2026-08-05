@@ -11,6 +11,9 @@ import AdminDashboard from '../pages/admin/AdminDashboard';
 import SetupHub from '../pages/admin/CollegeSetup/SetupHub';
 import UserRoster from '../pages/admin/UserManagement/UserRoster';
 import SetupWizard from '../pages/admin/SetupWizard';
+import AcademicSessionsPage from '../pages/admin/AcademicSessions/AcademicSessionsPage';
+import UserProfilePage from '../pages/profile/UserProfilePage';
+import AccountSettingsPage from '../pages/settings/AccountSettingsPage';
 import { useDepartmentsQuery } from '../queries/collegeQueries';
 import HodDashboard from '../pages/hod/HodDashboard';
 import AssignmentHub from '../pages/hod/FacultyAssignment/AssignmentHub';
@@ -21,17 +24,19 @@ import RequestHub from '../pages/hod/CrossDeptRequests/RequestHub';
 import FacultyDashboard from '../pages/faculty/FacultyDashboard';
 import AttendancePage from '../pages/faculty/attendance/AttendancePage';
 import AssignmentPage from '../pages/faculty/assignments/AssignmentPage';
-import ExamPage from '../pages/faculty/exams/ExamPage';
 import MarksPage from '../pages/faculty/marks/MarksPage';
 import TimetablePage from '../pages/faculty/timetable/TimetablePage';
 import FacultyStudentListPage from '../pages/faculty/students/FacultyStudentListPage';
+import FacultyLeavePage from '../pages/faculty/leaves/FacultyLeavePage';
+import FacultyMeetingHub from '../pages/faculty/meetings/FacultyMeetingHub';
+import FacultyComplaintHub from '../pages/faculty/complaints/FacultyComplaintHub';
 
 import HodFacultyHub from '../pages/hod/Faculty/HodFacultyHub';
 import HodStudentsHub from '../pages/hod/Students/HodStudentsHub';
+import HodPromotionsHub from '../pages/hod/PromotionsHub/HodPromotionsHub';
 import HodSubjectsHub from '../pages/hod/Subjects/HodSubjectsHub';
 import HodAttendanceHub from '../pages/hod/AttendanceHub/HodAttendanceHub';
 import HodExaminationsHub from '../pages/hod/ExaminationsHub/HodExaminationsHub';
-import HodProjectsHub from '../pages/hod/ProjectsHub/HodProjectsHub';
 import HodPlacementsHub from '../pages/hod/PlacementsHub/HodPlacementsHub';
 import HodLeaveHub from '../pages/hod/LeaveHub/HodLeaveHub';
 import HodNoticesHub from '../pages/hod/NoticesHub/HodNoticesHub';
@@ -48,6 +53,10 @@ import { AuditLogViewer } from '../pages/admin/AuditLog/AuditLogViewer';
 import { BulkPromotion } from '../pages/admin/BulkPromotion/BulkPromotion';
 import { Certificates } from '../pages/admin/Certificates/Certificates';
 import { Reports } from '../pages/admin/Reports/Reports';
+import { FacultyAssignments } from '../pages/admin/FacultyAssignments/FacultyAssignments';
+import { IdCardsHub } from '../pages/admin/IdCards/IdCardsHub';
+import { AdmissionsHub } from '../pages/admin/Admissions/AdmissionsHub';
+import { FeeClearanceHub } from '../pages/admin/FeeClearance/FeeClearanceHub';
 
 // Newly added Expanded Faculty pages
 import MaterialsPage from '../pages/faculty/materials/MaterialsPage';
@@ -77,6 +86,7 @@ const ProtectedRoute = ({ children }) => {
 
 // Guard to enforce setup wizard on empty database
 const AdminSetupGuard = ({ children }) => {
+  const { user } = useAuth();
   const { data: depts, isLoading } = useDepartmentsQuery();
   const skipped = localStorage.getItem('skip_setup_wizard') === 'true';
 
@@ -88,8 +98,8 @@ const AdminSetupGuard = ({ children }) => {
     );
   }
 
-  // If there are zero departments and the user has not skipped, redirect to Setup Wizard
-  if ((!depts || depts.length === 0) && !skipped) {
+  // Only redirect SUPER_ADMIN to Setup Wizard if database has zero departments
+  if (user?.role === 'SUPER_ADMIN' && (!depts || depts.length === 0) && !skipped) {
     return <Navigate to="/admin/setup-wizard" replace />;
   }
 
@@ -129,7 +139,7 @@ const PlaceholderView = ({ title }) => (
 
 const HomeRedirect = () => {
   const { user } = useAuth();
-  if (user?.role === 'SUPER_ADMIN') {
+  if (user?.role === 'SUPER_ADMIN' || user?.role === 'COLLEGE_ADMIN') {
     return <Navigate to="/admin/dashboard" replace />;
   }
   if (user?.role === 'HOD') {
@@ -165,7 +175,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/dashboard"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <AdminDashboard />
               </AdminSetupGuard>
@@ -183,7 +193,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/college-setup"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <Navigate to="/admin/college-setup/departments" replace />
             </RoleRoute>
           }
@@ -191,7 +201,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/college-setup/:tab"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <SetupHub />
             </RoleRoute>
           }
@@ -199,9 +209,49 @@ export const AppRoutes = () => {
         <Route
           path="admin/users"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <UserRoster />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="admin/faculty-assignments"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AdminSetupGuard>
+                <FacultyAssignments />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="admin/id-cards"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AdminSetupGuard>
+                <IdCardsHub />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="admin/admissions"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AdminSetupGuard>
+                <AdmissionsHub />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="admin/fee-clearance"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AdminSetupGuard>
+                <FeeClearanceHub />
               </AdminSetupGuard>
             </RoleRoute>
           }
@@ -212,13 +262,13 @@ export const AppRoutes = () => {
         <Route path="hod/faculty" element={<RoleRoute allowedRoles={['HOD']}><HodFacultyHub /></RoleRoute>} />
         <Route path="hod/faculty-assignment" element={<RoleRoute allowedRoles={['HOD']}><AssignmentHub /></RoleRoute>} />
         <Route path="hod/students" element={<RoleRoute allowedRoles={['HOD']}><HodStudentsHub /></RoleRoute>} />
+        <Route path="hod/promotions" element={<RoleRoute allowedRoles={['HOD']}><HodPromotionsHub /></RoleRoute>} />
         <Route path="hod/subjects" element={<RoleRoute allowedRoles={['HOD']}><HodSubjectsHub /></RoleRoute>} />
         <Route path="hod/feedback" element={<RoleRoute allowedRoles={['HOD']}><HodFeedbackHub /></RoleRoute>} />
         <Route path="hod/timetable" element={<RoleRoute allowedRoles={['HOD']}><TimetableHub /></RoleRoute>} />
         <Route path="hod/cross-dept-requests" element={<RoleRoute allowedRoles={['HOD']}><RequestHub /></RoleRoute>} />
         <Route path="hod/attendance" element={<RoleRoute allowedRoles={['HOD']}><HodAttendanceHub /></RoleRoute>} />
         <Route path="hod/examinations" element={<RoleRoute allowedRoles={['HOD']}><HodExaminationsHub /></RoleRoute>} />
-        <Route path="hod/projects" element={<RoleRoute allowedRoles={['HOD']}><HodProjectsHub /></RoleRoute>} />
         <Route path="hod/placements" element={<RoleRoute allowedRoles={['HOD']}><HodPlacementsHub /></RoleRoute>} />
         <Route path="hod/leave-management" element={<RoleRoute allowedRoles={['HOD']}><HodLeaveHub /></RoleRoute>} />
         <Route path="hod/notices" element={<RoleRoute allowedRoles={['HOD']}><HodNoticesHub /></RoleRoute>} />
@@ -285,7 +335,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/certificates"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <Certificates />
               </AdminSetupGuard>
@@ -296,9 +346,20 @@ export const AppRoutes = () => {
         <Route
           path="admin/reports"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <Reports />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/academic-sessions"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AdminSetupGuard>
+                <AcademicSessionsPage />
               </AdminSetupGuard>
             </RoleRoute>
           }
@@ -308,14 +369,16 @@ export const AppRoutes = () => {
         <Route path="faculty" element={<RoleRoute allowedRoles={['FACULTY']}><FacultyDashboard /></RoleRoute>} />
         <Route path="attendance" element={<RoleRoute allowedRoles={['FACULTY']}><AttendancePage /></RoleRoute>} />
         <Route path="assignments" element={<RoleRoute allowedRoles={['FACULTY']}><AssignmentPage /></RoleRoute>} />
-        <Route path="exams" element={<RoleRoute allowedRoles={['FACULTY']}><ExamPage /></RoleRoute>} />
         <Route path="marks" element={<RoleRoute allowedRoles={['FACULTY']}><MarksPage /></RoleRoute>} />
         <Route path="timetable" element={<RoleRoute allowedRoles={['FACULTY']}><TimetablePage /></RoleRoute>} />
         <Route path="materials" element={<RoleRoute allowedRoles={['FACULTY']}><MaterialsPage /></RoleRoute>} />
         <Route path="analytics" element={<RoleRoute allowedRoles={['FACULTY']}><AnalyticsPage /></RoleRoute>} />
-        <Route path="notifications" element={<RoleRoute allowedRoles={['FACULTY']}><NotificationPage /></RoleRoute>} />
-        <Route path="settings" element={<RoleRoute allowedRoles={['FACULTY']}><SettingsPage /></RoleRoute>} />
         <Route path="notices" element={<RoleRoute allowedRoles={['FACULTY']}><FacultyNoticeHub /></RoleRoute>} />
+        <Route path="leaves" element={<RoleRoute allowedRoles={['FACULTY']}><FacultyLeavePage /></RoleRoute>} />
+        <Route path="meetings" element={<RoleRoute allowedRoles={['FACULTY']}><FacultyMeetingHub /></RoleRoute>} />
+        <Route path="complaints" element={<RoleRoute allowedRoles={['FACULTY']}><FacultyComplaintHub /></RoleRoute>} />
+        <Route path="profile" element={<UserProfilePage />} />
+        <Route path="settings" element={<AccountSettingsPage />} />
         <Route path="fees" element={<PlaceholderView title="Fees" />} />
       </Route>
 

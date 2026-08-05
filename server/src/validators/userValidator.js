@@ -50,11 +50,26 @@ const updateUserSchema = z.object({
     .optional()
     .or(z.null())
     .optional(),
+  rollNumber: z
+    .string()
+    .trim()
+    .max(30, 'Roll Number cannot exceed 30 characters')
+    .optional()
+    .or(z.literal(''))
+    .or(z.null())
+    .optional(),
   reason: z
     .string()
     .min(3, 'A reasoning of at least 3 characters is required for updating student branches or semesters')
     .optional(),
   shift: z.enum(['GENERAL', 'MORNING', 'EVENING']).optional().or(z.literal('')).or(z.null()).optional(),
+  feeStatus: z.enum(['CLEARED', 'PENDING', 'OVERDUE']).optional(),
+  feeDues: z.object({
+    tuition: z.number().min(0).optional(),
+    hostel: z.number().min(0).optional(),
+    library: z.number().min(0).optional(),
+    lab: z.number().min(0).optional(),
+  }).optional(),
 }).superRefine((data, ctx) => {
   if (data.role === 'HOD') {
     if (!data.shift || !['GENERAL', 'MORNING', 'EVENING'].includes(data.shift)) {

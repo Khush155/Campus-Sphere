@@ -101,6 +101,10 @@ const createSubjectSchema = z.object({
 
 const updateSubjectSchema = createSubjectSchema.partial();
 
+const createBulkSubjectSchema = z.object({
+  subjects: z.array(createSubjectSchema).min(1, 'At least one subject must be provided'),
+});
+
 module.exports = {
   createDepartmentSchema,
   updateDepartmentSchema,
@@ -109,5 +113,6 @@ module.exports = {
   createBranchSchema,
   updateBranchSchema,
   createSubjectSchema,
+  createBulkSubjectSchema,
   updateSubjectSchema,
 };
