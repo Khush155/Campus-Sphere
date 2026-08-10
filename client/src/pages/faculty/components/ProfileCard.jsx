@@ -1,25 +1,10 @@
 // client/src/pages/faculty/components/ProfileCard.jsx
 //
-// Displays the faculty member's profile information in a card layout.
-// Shows avatar, name, designation, department, and contact details.
-//
-// Props:
-//   profile — object matching the shape of mockFacultyProfile:
-//     {
-//       name:         string   — full name (e.g. "Dr. Ananya Sharma")
-//       email:        string   — institutional email
-//       designation:  string   — matches Faculty.designation enum
-//       department:   { name: string, code: string }
-//       phoneNumber:  string
-//       officeHours:  string   — e.g. "Mon, Wed 2:00 PM - 4:00 PM"
-//       joiningDate:  string   — ISO date string
-//       employeeId:   string   — display-only identifier
-//     }
-//
-// Future: When backend is connected, this same prop shape will come from
-// GET /api/v1/faculty/:id (populated with User + Department data).
+// Enhanced Faculty Profile Card with cover banner, initials avatar,
+// structured metadata grid, status badge, and profile navigation.
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   CardContent,
@@ -30,6 +15,7 @@ import {
   Stack,
   Chip,
   Button,
+  useTheme,
 } from '@mui/material';
 import {
   Email as EmailIcon,
@@ -38,6 +24,8 @@ import {
   CalendarMonth as CalendarIcon,
   Badge as BadgeIcon,
   Business as DepartmentIcon,
+  ArrowForward as ArrowIcon,
+  CheckCircle as ActiveIcon,
 } from '@mui/icons-material';
 
 /**
@@ -69,28 +57,57 @@ const formatDate = (dateStr) => {
   });
 };
 
-/**
- * A single row displaying an icon, label, and value.
- * Extracted as a local helper to keep the main component clean.
- * Not exported — it's an implementation detail of ProfileCard.
- */
-const InfoRow = ({ icon, label, value }) => (
-  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, py: 1 }}>
-    <Box sx={{ color: 'text.secondary', mt: 0.25, minWidth: 20 }}>
+const QuickInfoTile = ({ icon, label, value, color = 'primary.main', bg = 'rgba(79, 70, 229, 0.08)' }) => (
+  <Box
+    sx={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1.5,
+      p: 1.25,
+      borderRadius: 2.5,
+      bgcolor: 'action.hover',
+      border: '1px solid',
+      borderColor: 'divider',
+      transition: 'all 0.2s ease',
+      '&:hover': {
+        bgcolor: 'action.selected',
+        transform: 'translateY(-1px)',
+      },
+    }}
+  >
+    <Box
+      sx={{
+        bgcolor: bg,
+        color: color,
+        width: 34,
+        height: 34,
+        borderRadius: 2,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
       {icon}
     </Box>
-    <Box sx={{ minWidth: 0 }}>
+    <Box sx={{ minWidth: 0, flex: 1 }}>
       <Typography
         variant="caption"
         color="text.secondary"
-        sx={{ fontWeight: 500, display: 'block', mb: 0.25 }}
+        sx={{ fontWeight: 600, display: 'block', fontSize: '0.68rem', lineHeight: 1.1 }}
       >
         {label}
       </Typography>
       <Typography
         variant="body2"
         color="text.primary"
-        sx={{ fontWeight: 600, wordBreak: 'break-word' }}
+        sx={{
+          fontWeight: 700,
+          fontSize: '0.78rem',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
       >
         {value || '—'}
       </Typography>
@@ -98,7 +115,11 @@ const InfoRow = ({ icon, label, value }) => (
   </Box>
 );
 
-export const ProfileCard = ({ profile }) => {
+export const ProfileCard = ({ profile = {} }) => {
+  const navigate = useNavigate();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+
   const {
     name,
     email,
@@ -111,94 +132,185 @@ export const ProfileCard = ({ profile }) => {
   } = profile;
 
   return (
-    <Card sx={{ p: 0, borderRadius: '16px', border: (theme) => `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-      <CardContent sx={{ p: 3 }}>
-        {/* ── Header: Avatar + Name + Designation ── */}
-        <Stack alignItems="center" spacing={1.5} sx={{ mb: 2.5 }}>
+    <Card
+      sx={{
+        p: 0,
+        borderRadius: '16px',
+        border: `1px solid ${theme.palette.divider}`,
+        boxShadow: 'none',
+        overflow: 'hidden',
+        background: isDark
+          ? 'linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%)'
+          : '#ffffff',
+      }}
+    >
+      {/* ── Top Cover Banner ── */}
+      <Box
+        sx={{
+          height: 80,
+          background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 50%, #06b6d4 100%)',
+          position: 'relative',
+          px: 2.5,
+          pt: 1.5,
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'flex-start',
+        }}
+      >
+        {/* Status Pill on Banner */}
+        <Chip
+          icon={<ActiveIcon sx={{ fontSize: '14px !important', color: '#10b981 !important' }} />}
+          label="Active Faculty"
+          size="small"
+          sx={{
+            bgcolor: 'rgba(255, 255, 255, 0.9)',
+            color: '#0f172a',
+            fontWeight: 800,
+            fontSize: '0.68rem',
+            height: 24,
+            backdropFilter: 'blur(4px)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+          }}
+        />
+      </Box>
+
+      <CardContent sx={{ p: 2.5, pt: 0 }}>
+        {/* ── Overlapping Avatar & Primary Info Header ── */}
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            mt: '-40px',
+            mb: 2,
+          }}
+        >
           <Avatar
             sx={{
-              width: 72,
-              height: 72,
-              fontSize: '1.5rem',
-              fontWeight: 700,
-              background: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)',
+              width: 80,
+              height: 80,
+              fontSize: '1.75rem',
+              fontWeight: 800,
+              background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+              border: `4px solid ${isDark ? '#1e293b' : '#ffffff'}`,
+              boxShadow: '0 6px 16px rgba(79,70,229,0.3)',
             }}
           >
             {getInitials(name)}
           </Avatar>
 
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography
-              variant="h6"
-              sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.3 }}
-            >
-              {name}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ fontWeight: 500, mt: 0.5 }}
-            >
-              {designation}
-            </Typography>
-          </Box>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 800,
+              color: 'text.primary',
+              lineHeight: 1.25,
+              mt: 1,
+              textAlign: 'center',
+              fontSize: '1.1rem',
+            }}
+          >
+            {name || 'Faculty Member'}
+          </Typography>
+
+          <Typography
+            variant="body2"
+            color="primary.main"
+            sx={{ fontWeight: 700, mt: 0.25, fontSize: '0.82rem' }}
+          >
+            {designation || 'Faculty'}
+          </Typography>
 
           {/* Department badge */}
-          <Chip
-            icon={<DepartmentIcon sx={{ fontSize: 16 }} />}
-            label={`${department?.name} (${department?.code})`}
-            size="small"
-            sx={{
-              fontWeight: 600,
-              fontSize: '0.75rem',
-              bgcolor: 'rgba(79, 70, 229, 0.08)',
-              color: 'primary.main',
-              '& .MuiChip-icon': { color: 'primary.main' },
-            }}
-          />
-        </Stack>
-
-        <Divider sx={{ mb: 1 }} />
-
-        {/* ── Detail Rows ── */}
-        <Stack spacing={0.5}>
-          <InfoRow
-            icon={<BadgeIcon fontSize="small" />}
-            label="Employee ID"
-            value={employeeId}
-          />
-          <InfoRow
-            icon={<EmailIcon fontSize="small" />}
-            label="Email"
-            value={email}
-          />
-          <InfoRow
-            icon={<PhoneIcon fontSize="small" />}
-            label="Phone"
-            value={phoneNumber}
-          />
-          <InfoRow
-            icon={<ScheduleIcon fontSize="small" />}
-            label="Office Hours"
-            value={officeHours}
-          />
-          <InfoRow
-            icon={<CalendarIcon fontSize="small" />}
-            label="Joining Date"
-            value={formatDate(joiningDate)}
-          />
-        </Stack>
-        <Divider sx={{ my: 2 }} />
-        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-          <Button
-            size="small"
-            color="primary"
-            onClick={() => window.location.href = '/profile'}
-            sx={{ textTransform: 'none', fontWeight: 700 }}
-          >
-            View Full Profile
-          </Button>
+          {department && (
+            <Chip
+              icon={<DepartmentIcon sx={{ fontSize: 15 }} />}
+              label={`${department?.name} (${department?.code})`}
+              size="small"
+              sx={{
+                mt: 1,
+                fontWeight: 700,
+                fontSize: '0.7rem',
+                bgcolor: isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(79, 70, 229, 0.08)',
+                color: 'primary.main',
+                border: '1px solid',
+                borderColor: isDark ? 'rgba(99, 102, 241, 0.3)' : 'rgba(79, 70, 229, 0.2)',
+                '& .MuiChip-icon': { color: 'primary.main' },
+              }}
+            />
+          )}
         </Box>
+
+        <Divider sx={{ mb: 2 }} />
+
+        {/* ── Metadata Grid Tiles ── */}
+        <Stack spacing={1.25}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.25 }}>
+            <QuickInfoTile
+              icon={<BadgeIcon fontSize="small" />}
+              label="Employee ID"
+              value={employeeId}
+              color="#4f46e5"
+              bg="rgba(79, 70, 229, 0.1)"
+            />
+            <QuickInfoTile
+              icon={<PhoneIcon fontSize="small" />}
+              label="Phone"
+              value={phoneNumber}
+              color="#10b981"
+              bg="rgba(16, 185, 129, 0.1)"
+            />
+          </Box>
+
+          <QuickInfoTile
+            icon={<EmailIcon fontSize="small" />}
+            label="Email Address"
+            value={email}
+            color="#06b6d4"
+            bg="rgba(6, 182, 212, 0.1)"
+          />
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.25 }}>
+            <QuickInfoTile
+              icon={<ScheduleIcon fontSize="small" />}
+              label="Office Hours"
+              value={officeHours}
+              color="#f59e0b"
+              bg="rgba(245, 158, 11, 0.1)"
+            />
+            <QuickInfoTile
+              icon={<CalendarIcon fontSize="small" />}
+              label="Joined On"
+              value={formatDate(joiningDate)}
+              color="#8b5cf6"
+              bg="rgba(139, 92, 246, 0.1)"
+            />
+          </Box>
+        </Stack>
+
+        <Divider sx={{ my: 2 }} />
+
+        {/* Footer Action Button */}
+        <Button
+          fullWidth
+          size="medium"
+          variant="contained"
+          color="primary"
+          endIcon={<ArrowIcon fontSize="small" />}
+          onClick={() => navigate('/profile')}
+          sx={{
+            textTransform: 'none',
+            fontWeight: 700,
+            borderRadius: '10px',
+            py: 1,
+            boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)',
+            '&:hover': {
+              boxShadow: '0 6px 16px rgba(79, 70, 229, 0.35)',
+            },
+          }}
+        >
+          View & Edit Full Profile
+        </Button>
       </CardContent>
     </Card>
   );

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -10,6 +10,13 @@ import {
   useTheme,
   Avatar,
   Paper,
+  TextField,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  InputAdornment,
 } from '@mui/material';
 import {
   GroupsOutlined,
@@ -19,14 +26,21 @@ import {
   LaunchOutlined,
   DescriptionOutlined,
   CheckCircleOutlined,
+  SearchOutlined,
+  VisibilityOutlined,
 } from '@mui/icons-material';
 
 import DataTable from '../../../components/common/DataTable';
+import EmptyState from '../../../components/common/EmptyState';
 
 import { useMeetingsQuery } from '../../../queries/hodQueries';
 
 export const FacultyMeetingHub = () => {
   const theme = useTheme();
+
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [selectedMeeting, setSelectedMeeting] = useState(null);
 
   // Fetch department meetings from backend
   const { data: meetingsData = [], isLoading, refetch } = useMeetingsQuery();
@@ -36,11 +50,26 @@ export const FacultyMeetingHub = () => {
     return meetingsData;
   }, [meetingsData]);
 
+  const filteredMeetings = useMemo(() => {
+    let list = meetingsList;
+    if (statusFilter) {
+      list = list.filter((m) => m.status === statusFilter);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      list = list.filter(
+        (m) => (m.title || '').toLowerCase().includes(q) || (m.agenda || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [meetingsList, statusFilter, search]);
+
   const stats = useMemo(() => {
     const total = meetingsList.length;
-    const upcoming = meetingsList.filter((m) => m.status === 'SCHEDULED').length;
+    const upcoming = meetingsList.filter((m) => m.status === 'SCHEDULED' || !m.status).length;
     const completed = meetingsList.filter((m) => m.status === 'COMPLETED').length;
-    return { total, upcoming, completed };
+    const momCount = meetingsList.filter((m) => Boolean(m.minutesPdfUrl || m.mom)).length;
+    return { total, upcoming, completed, momCount };
   }, [meetingsList]);
 
   const columns = [
@@ -48,8 +77,8 @@ export const FacultyMeetingHub = () => {
       id: 'title',
       label: 'Meeting Title & Agenda',
       render: (r) => (
-        <Box>
-          <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+        <Box onClick={() => setSelectedMeeting(r)} sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+          <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.ink ? theme.palette.ink[900] : 'text.primary' }}>
             {r.title}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -102,6 +131,15 @@ export const FacultyMeetingHub = () => {
       label: 'Actions',
       render: (r) => (
         <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<VisibilityOutlined />}
+            onClick={() => setSelectedMeeting(r)}
+            sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 600, fontSize: '0.72rem' }}
+          >
+            Details
+          </Button>
           {r.meetUrl && (
             <Button
               size="small"
@@ -154,13 +192,13 @@ export const FacultyMeetingHub = () => {
                   bgcolor: `${theme.palette.primary.main}15`,
                   color: theme.palette.primary.main,
                   fontWeight: 800,
-                  fontFamily: theme.typography.mono.fontFamily,
+                  fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                   letterSpacing: '0.05em',
                   fontSize: '0.7rem',
                 }}
               />
             </Box>
-            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1?.fontFamily, fontWeight: 800, color: theme.palette.ink ? theme.palette.ink[900] : 'text.primary' }}>
               Departmental Meetings & Briefings
             </Typography>
             <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
@@ -181,16 +219,35 @@ export const FacultyMeetingHub = () => {
         </Box>
       </Card>
 
-      {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
+      {/* ── 2. KPI Summary Grid (Faculty Roster Card Style) ───────────────── */}
       <Grid container spacing={2.5}>
-        <Grid item xs={12} sm={6} md={4}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        {/* 1. Total Meetings Card */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
-                  TOTAL SCHEDULED MEETINGS
+                  TOTAL MEETINGS
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.ink ? theme.palette.ink[900] : 'text.primary',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.total}
                 </Typography>
               </Box>
@@ -201,37 +258,139 @@ export const FacultyMeetingHub = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        {/* 2. Upcoming Briefings Card */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.success || '#10b981'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.success || '#10b981' }}
+                >
                   UPCOMING BRIEFINGS
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.signal?.success || '#10b981',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.upcoming}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.signal.success}15`, color: theme.palette.signal.success }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.signal?.success || '#10b981'}15`,
+                  color: theme.palette.signal?.success || '#10b981',
+                }}
+              >
                 <VideocamOutlined />
               </Avatar>
             </Box>
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={4}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        {/* 3. Completed Meetings Card */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.info?.main || '#3b82f6'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info.main }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info?.main || '#3b82f6' }}
+                >
                   COMPLETED MEETINGS
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.info?.main || '#3b82f6',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.completed}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.info.main}15`, color: theme.palette.info.main }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.info?.main || '#3b82f6'}15`,
+                  color: theme.palette.info?.main || '#3b82f6',
+                }}
+              >
                 <CheckCircleOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+
+        {/* 4. MOM Notes Available Card */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.warning?.main || '#f59e0b'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning?.main || '#f59e0b' }}
+                >
+                  MOM NOTES AVAILABLE
+                </Typography>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.warning?.main || '#f59e0b',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
+                  {stats.momCount}
+                </Typography>
+              </Box>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.warning?.main || '#f59e0b'}15`,
+                  color: theme.palette.warning?.main || '#f59e0b',
+                }}
+              >
+                <DescriptionOutlined />
               </Avatar>
             </Box>
           </Card>
@@ -240,22 +399,98 @@ export const FacultyMeetingHub = () => {
 
       {/* ── 3. Meetings Table Roster ───────────────────────────────────────── */}
       <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+          <TextField
+            size="small"
+            placeholder="Search meeting title or agenda..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchOutlined fontSize="small" sx={{ color: 'text.secondary' }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              minWidth: 260,
+              '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+            }}
+          />
+
+          <TextField
+            select
+            size="small"
+            label="Filter Status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            sx={{
+              minWidth: 180,
+              '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+            }}
+          >
+            <MenuItem value="">All Meeting Statuses</MenuItem>
+            <MenuItem value="SCHEDULED">Scheduled Briefings</MenuItem>
+            <MenuItem value="COMPLETED">Completed Meetings</MenuItem>
+          </TextField>
+        </Box>
+
         {isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
             <CircularProgress size={32} />
           </Box>
-        ) : meetingsList.length === 0 ? (
-          <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', borderRadius: '12px' }}>
-            <Typography variant="body1" color="text.secondary">
-              No department meetings currently scheduled by HOD.
-            </Typography>
-          </Paper>
+        ) : filteredMeetings.length === 0 ? (
+          <EmptyState type="reports" title="No Meetings Found" description="No department meetings match your search query." />
         ) : (
-          <DataTable columns={columns} data={meetingsList} isLoading={isLoading} emptyMessage="No meetings available." />
+          <DataTable columns={columns} data={filteredMeetings} isLoading={isLoading} emptyMessage="No meetings available." />
         )}
       </Card>
+
+      {/* Meeting Detail Modal */}
+      <Dialog
+        open={Boolean(selectedMeeting)}
+        onClose={() => setSelectedMeeting(null)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '16px' } }}
+      >
+        {selectedMeeting && (
+          <>
+            <DialogTitle sx={{ fontWeight: 800 }}>{selectedMeeting.title}</DialogTitle>
+            <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Chip label={selectedMeeting.status || 'SCHEDULED'} color={selectedMeeting.status === 'COMPLETED' ? 'success' : 'primary'} size="small" sx={{ fontWeight: 800 }} />
+                <Typography variant="caption" color="text.secondary">
+                  {new Date(selectedMeeting.meetingDate || selectedMeeting.date || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} • {selectedMeeting.startTime || '10:00 AM'} — {selectedMeeting.endTime || '11:00 AM'}
+                </Typography>
+              </Box>
+
+              <Typography variant="body1" sx={{ whiteSpace: 'pre-line', lineHeight: 1.6 }}>
+                {selectedMeeting.agenda || 'Regular department briefing & curriculum sync.'}
+              </Typography>
+
+              {selectedMeeting.meetUrl && (
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: '8px', bgcolor: 'rgba(0,0,0,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="caption" sx={{ wordBreak: 'break-all', maxWidth: '70%' }}>
+                    {selectedMeeting.meetUrl}
+                  </Typography>
+                  <Button variant="contained" size="small" href={selectedMeeting.meetUrl} target="_blank" startIcon={<LaunchOutlined />}>
+                    Join Call
+                  </Button>
+                </Paper>
+              )}
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+              <Button onClick={() => setSelectedMeeting(null)} variant="contained" sx={{ borderRadius: '8px', fontWeight: 700 }}>
+                Close
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
     </Box>
   );
 };
 
 export default FacultyMeetingHub;
+

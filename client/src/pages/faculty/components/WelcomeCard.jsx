@@ -10,8 +10,7 @@ export const WelcomeCard = ({ facultyName, designation, departmentName }) => {
   return (
     <Card
       sx={{
-        p: 3.5,
-        mb: 3.5,
+        p: 2.5,
         borderRadius: '16px',
         border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
         background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,

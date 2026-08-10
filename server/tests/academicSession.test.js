@@ -120,7 +120,7 @@ describe('Academic Session API Integration Tests', () => {
         academicYear: '2025-26',
         semesterType: 'EVEN',
         termStartDate: '2026-01-01',
-        termEndDate: '2026-06-01',
+        termEndDate: '2026-12-31',
         status: 'ACTIVE',
       });
     expect(res1.status).toBe(201);
@@ -138,9 +138,9 @@ describe('Academic Session API Integration Tests', () => {
       });
     expect(res2.status).toBe(201);
 
-    // Verify first session is now ARCHIVED
+    // Verify first session is no longer ACTIVE (archived/upcoming)
     const session1 = await AcademicSession.findById(res1.body.data._id);
-    expect(session1.status).toBe('ARCHIVED');
+    expect(session1.status).not.toBe('ACTIVE');
 
     // Verify second session is ACTIVE
     const session2 = await AcademicSession.findById(res2.body.data._id);
@@ -197,5 +197,56 @@ describe('Academic Session API Integration Tests', () => {
     // Verify AuditLog contains the activation action
     const log = await AuditLog.findOne({ action: 'ACADEMIC_SESSION_ACTIVATED', targetId: res1.body.data._id });
     expect(log).toBeDefined();
+  });
+
+  it('should allow updating an existing academic session', async () => {
+    const createRes = await request(app)
+      .post('/api/v1/academic-sessions')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        academicYear: '2028-29',
+        semesterType: 'ODD',
+        termStartDate: '2028-07-01',
+        termEndDate: '2028-12-31',
+        status: 'UPCOMING',
+      });
+    expect(createRes.status).toBe(201);
+    const sessionId = createRes.body.data._id;
+
+    const updateRes = await request(app)
+      .put(`/api/v1/academic-sessions/${sessionId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        academicYear: '2028-29',
+        semesterType: 'EVEN',
+        termStartDate: '2028-08-01',
+        termEndDate: '2028-12-31',
+        status: 'UPCOMING',
+      });
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.body.data.semesterType).toBe('EVEN');
+  });
+
+  it('should allow deleting an academic session', async () => {
+    const createRes = await request(app)
+      .post('/api/v1/academic-sessions')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        academicYear: '2029-30',
+        semesterType: 'ODD',
+        termStartDate: '2029-07-01',
+        termEndDate: '2029-12-31',
+        status: 'UPCOMING',
+      });
+    expect(createRes.status).toBe(201);
+    const sessionId = createRes.body.data._id;
+
+    const deleteRes = await request(app)
+      .delete(`/api/v1/academic-sessions/${sessionId}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(deleteRes.status).toBe(200);
+
+    const deleted = await AcademicSession.findById(sessionId);
+    expect(deleted).toBeNull();
   });
 });

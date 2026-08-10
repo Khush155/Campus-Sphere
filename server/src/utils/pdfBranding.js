@@ -53,14 +53,18 @@ const drawLetterhead = async (doc) => {
       }
     }
     const textStartX = profile.logoUrl ? 120 : 50;
-    doc.fontSize(16).font('Helvetica-Bold').fillColor('#1c2e45').text(profile.name, textStartX, 45);
-    if (profile.affiliation) {
-      doc.fontSize(9).font('Helvetica').fillColor('#4b5563').text(profile.affiliation, textStartX, 68);
+    doc.fontSize(16).font('Helvetica-Bold').fillColor('#1c2e45').text(profile.name, textStartX, 40);
+
+    const subLineText = [profile.affiliation, profile.accreditation].filter(Boolean).join(' • ');
+    if (subLineText) {
+      doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#4b5563').text(subLineText, textStartX, 62);
     }
-    if (profile.address) {
-      doc.fontSize(8).font('Helvetica').fillColor('#6b7280').text(profile.address, textStartX, 80);
+
+    const contactLineText = [profile.address, profile.website || profile.contactEmail].filter(Boolean).join(' | ');
+    if (contactLineText) {
+      doc.fontSize(7.5).font('Helvetica').fillColor('#6b7280').text(contactLineText, textStartX, 75);
     }
-    doc.moveTo(50, 110).lineTo(doc.page.width - 50, 110).strokeColor('#b8863e').lineWidth(1.5).stroke();
+    doc.moveTo(50, 105).lineTo(doc.page.width - 50, 105).strokeColor('#b8863e').lineWidth(1.5).stroke();
   }
 
   // Restore defaults for downstream operations

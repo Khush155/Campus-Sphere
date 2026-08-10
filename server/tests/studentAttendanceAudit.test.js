@@ -49,7 +49,7 @@ beforeAll(async () => {
   // 4. Create Subject under Department
   testSubject = await Subject.create({
     name: 'Data Structures & Algorithms',
-    code: 'CS201',
+    sequenceNo: 1,
     type: 'THEORY',
     credits: 4,
     departmentId: testDept._id,

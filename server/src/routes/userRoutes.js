@@ -61,7 +61,7 @@ router.post('/import-students', adminAndHodGuard, upload.single('file'), asyncHa
  *       200:
  *         description: Audit logs list.
  */
-router.get('/audit-logs', superAdminGuard, asyncHandler(userController.getAuditLogs));
+router.get('/audit-logs', adminGuard, asyncHandler(userController.getAuditLogs));
 
 /**
  * @openapi
@@ -74,7 +74,7 @@ router.get('/audit-logs', superAdminGuard, asyncHandler(userController.getAuditL
  *       200:
  *         description: Insights list.
  */
-router.get('/insights', superAdminGuard, asyncHandler(userController.getInsights));
+router.get('/insights', adminGuard, asyncHandler(userController.getInsights));
 
 router.get('/:id', adminAndHodGuard, asyncHandler(userController.getUser));
 
@@ -103,5 +103,18 @@ router.put('/:id', updateGuard, asyncHandler(userController.updateUser));
  *         description: User deactivated.
  */
 router.delete('/:id', adminGuard, asyncHandler(userController.deleteUser));
+
+/**
+ * @openapi
+ * /api/v1/users/{id}/permanent:
+ *   delete:
+ *     summary: Permanently delete a user account (hard delete — irreversible)
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User permanently deleted.
+ */
+router.delete('/:id/permanent', superAdminGuard, asyncHandler(userController.hardDeleteUser));
 
 module.exports = router;

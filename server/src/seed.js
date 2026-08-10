@@ -40,10 +40,7 @@ const seedDatabase = async () => {
     await mongoose.connect(mongoUri);
     console.log('✅ Connected successfully!');
 
-    // 1. Drop the entire database to clear all collections and old indexes
-    console.log('🧹 Dropping entire database...');
-    await mongoose.connection.db.dropDatabase();
-    console.log('✅ Database dropped.');
+    console.log('🧹 Clearing all collections...');
 
     await Promise.all([
       User.deleteMany({}),

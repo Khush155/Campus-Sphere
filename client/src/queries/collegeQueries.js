@@ -111,11 +111,11 @@ export const useDeleteCourseMutation = () => {
 // BRANCHES
 // ==========================================
 
-export const useBranchesQuery = () => {
+export const useBranchesQuery = (filters) => {
   return useQuery({
-    queryKey: ['branches'],
+    queryKey: ['branches', filters],
     queryFn: async () => {
-      const response = await api.get('/college/branches', { params: { limit: 100 } });
+      const response = await api.get('/college/branches', { params: { limit: 100, ...filters } });
       return response.data.data;
     },
   });
@@ -170,6 +170,19 @@ export const useSubjectsQuery = (filters) => {
     queryFn: async () => {
       const response = await api.get('/college/subjects', { params: filters });
       return response.data.data;
+    },
+    keepPreviousData: true,
+  });
+};
+
+// Paginated variant — returns { data: [], meta: { page, limit, total, totalPages } }
+// Used by SubjectTab for server-side pagination
+export const useSubjectsPaginatedQuery = (filters) => {
+  return useQuery({
+    queryKey: ['subjects-paginated', filters],
+    queryFn: async () => {
+      const response = await api.get('/college/subjects', { params: filters });
+      return response.data; // { data: [...], meta: { page, limit, total, totalPages } }
     },
     keepPreviousData: true,
   });

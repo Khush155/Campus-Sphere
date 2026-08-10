@@ -65,6 +65,45 @@ const STATUS_COLORS = {
   POSTPONED: 'default',
 };
 
+const KpiCard = ({ title, value, subtitle, accentColor, icon }) => {
+  const theme = useTheme();
+  return (
+    <Card
+      sx={{
+        p: 2.5,
+        borderRadius: '14px',
+        border: `1px solid ${theme.palette.divider}`,
+        borderTop: `4px solid ${accentColor}`,
+        boxShadow: 'none',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: '0 6px 20px rgba(0,0,0,0.04)',
+        },
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.06em', color: accentColor, textTransform: 'uppercase', fontSize: '0.65rem' }}>
+          {title}
+        </Typography>
+        {icon && <Box sx={{ color: accentColor, opacity: 0.8 }}>{icon}</Box>}
+      </Box>
+      <Typography variant="h3" sx={{ fontWeight: 900, color: accentColor, mt: 1, fontFamily: 'monospace', lineHeight: 1.1 }}>
+        {value}
+      </Typography>
+      {subtitle && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          {subtitle}
+        </Typography>
+      )}
+    </Card>
+  );
+};
+
 export const HodMeetingsHub = () => {
   const theme = useTheme();
   const { user } = useAuth();
@@ -455,59 +494,43 @@ export const HodMeetingsHub = () => {
       {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
-              TOTAL ASSEMBLIES
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.total}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Convened department meetings
-            </Typography>
-          </Card>
+          <KpiCard
+            title="TOTAL ASSEMBLIES"
+            value={isLoading ? <CircularProgress size={24} /> : stats.total}
+            subtitle="Convened department meetings"
+            accentColor={theme.palette.ink[900]}
+            icon={<EventOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
-              SCHEDULED MEETINGS
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.scheduled}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Upcoming assemblies
-            </Typography>
-          </Card>
+          <KpiCard
+            title="SCHEDULED MEETINGS"
+            value={isLoading ? <CircularProgress size={24} /> : stats.scheduled}
+            subtitle="Upcoming assemblies"
+            accentColor={theme.palette.warning.main}
+            icon={<EventOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
-              COMPLETED ASSEMBLIES
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.completed}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Minutes recorded & filed
-            </Typography>
-          </Card>
+          <KpiCard
+            title="COMPLETED ASSEMBLIES"
+            value={isLoading ? <CircularProgress size={24} /> : stats.completed}
+            subtitle="Minutes recorded & filed"
+            accentColor={theme.palette.signal.success}
+            icon={<CheckCircleOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
-              CANCELLED / OVERDUE
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.cancelled}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Calling adjustments
-            </Typography>
-          </Card>
+          <KpiCard
+            title="CANCELLED / OVERDUE"
+            value={isLoading ? <CircularProgress size={24} /> : stats.cancelled}
+            subtitle="Calling adjustments"
+            accentColor={theme.palette.signal.error}
+            icon={<CancelOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
       </Grid>
 

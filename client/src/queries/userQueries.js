@@ -49,6 +49,22 @@ export const useDeleteUserMutation = () => {
 };
 
 /**
+ * Hook to permanently (hard) delete a user. SUPER_ADMIN only.
+ */
+export const useHardDeleteUserMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      const response = await api.delete(`/users/${id}/permanent`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['users']);
+    },
+  });
+};
+
+/**
  * Hook to bulk import students via CSV upload.
  */
 export const useImportStudentsMutation = () => {

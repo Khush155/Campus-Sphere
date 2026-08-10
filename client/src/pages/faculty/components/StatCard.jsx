@@ -7,14 +7,14 @@ export const StatCard = ({ title, value, icon, color = '#4f46e5' }) => {
   return (
     <Card
       sx={{
-        p: 3,
+        p: 2.5,
         borderRadius: '14px',
         border: `1px solid ${theme.palette.divider}`,
-        borderLeft: `4px solid ${color}`,
+        borderTop: `4px solid ${color}`,
         boxShadow: 'none',
         height: '100%',
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: 'column',
         justifyContent: 'space-between',
         transition: 'transform 0.2s, box-shadow 0.2s',
         '&:hover': {
@@ -23,25 +23,24 @@ export const StatCard = ({ title, value, icon, color = '#4f46e5' }) => {
         },
       }}
     >
-      <Box>
-        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.06em', color: color, textTransform: 'uppercase', fontSize: '0.65rem' }}>
           {title}
         </Typography>
-        <Typography variant="h3" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 0.5, fontFamily: theme.typography.mono.fontFamily }}>
-          {value ?? '0'}
-        </Typography>
+        <Avatar
+          sx={{
+            width: 38,
+            height: 38,
+            bgcolor: `${color}15`,
+            color: color,
+          }}
+        >
+          {icon}
+        </Avatar>
       </Box>
-
-      <Avatar
-        sx={{
-          width: 46,
-          height: 46,
-          bgcolor: `${color}15`,
-          color: color,
-        }}
-      >
-        {icon}
-      </Avatar>
+      <Typography variant="h3" sx={{ fontWeight: 900, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily, lineHeight: 1.1 }}>
+        {value ?? '0'}
+      </Typography>
     </Card>
   );
 };

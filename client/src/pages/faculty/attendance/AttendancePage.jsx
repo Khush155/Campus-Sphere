@@ -9,16 +9,20 @@ import {
   Chip,
   useTheme,
   Avatar,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import {
   Save as SubmitIcon,
-  RestartAlt as ResetIcon,
   Download as DownloadIcon,
   FactCheckOutlined,
   CheckCircleOutlined,
   CancelOutlined,
   PeopleOutlined,
   PercentOutlined,
+  ArticleOutlined,
 } from '@mui/icons-material';
 
 // Attendance components
@@ -55,6 +59,7 @@ export const AttendancePage = () => {
   const [selectedSectionId, setSelectedSectionId] = useState('ALL');
   const [selectedDate, setSelectedDate] = useState(formatDateToISO(new Date()));
   const [attendanceRecords, setAttendanceRecords] = useState({});
+  const [exportAnchorEl, setExportAnchorEl] = useState(null);
 
   // 1. Fetch dashboard stats for assigned subjects list
   const { data: dashboardData, isLoading: isDashboardLoading } = useFacultyDashboardQuery();
@@ -191,14 +196,6 @@ export const AttendancePage = () => {
     setAttendanceRecords(newRecords);
   };
 
-  const handleReset = () => {
-    const records = {};
-    formattedStudents.forEach((s) => {
-      records[s.id] = 'PRESENT';
-    });
-    setAttendanceRecords(records);
-  };
-
   const handleSubmit = () => {
     if (!canSubmit) return;
 
@@ -224,6 +221,7 @@ export const AttendancePage = () => {
   };
 
   const handleExport = (type) => {
+    setExportAnchorEl(null);
     const filename = `attendance_${currentSubject?.code || selectedSubjectId}_${selectedDate}.${type === 'csv' ? 'csv' : 'txt'}`;
     const element = document.createElement('a');
     let content = '';
@@ -252,7 +250,7 @@ export const AttendancePage = () => {
   if (isDashboardLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <CircularProgress size={36} />
+        <CircularProgress size={40} />
       </Box>
     );
   }
@@ -266,81 +264,137 @@ export const AttendancePage = () => {
   }));
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
       <Card
+        elevation={0}
         sx={{
           p: 3.5,
           borderRadius: '16px',
-          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
-          boxShadow: 'none',
+          border: `1px solid ${theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}12 0%, ${theme.palette.primary.main}04 100%)`,
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-          <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2.5 }}>
+          <Box sx={{ maxWidth: 680 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
               <Chip
                 icon={<FactCheckOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
-                label="FACULTY LECTURE ATTENDANCE & SESSION MARKING DESK"
+                label="FACULTY ATTENDANCE DESK"
                 size="small"
                 sx={{
                   bgcolor: `${theme.palette.primary.main}15`,
                   color: theme.palette.primary.main,
                   fontWeight: 800,
-                  fontFamily: theme.typography.mono.fontFamily,
-                  letterSpacing: '0.05em',
                   fontSize: '0.7rem',
+                  letterSpacing: '0.05em',
                 }}
               />
+              {currentSubject && (
+                <Chip
+                  label={`${currentSubject.name} (${currentSubject.code})`}
+                  size="small"
+                  sx={{
+                    bgcolor: 'rgba(16, 185, 129, 0.12)',
+                    color: '#10b981',
+                    fontWeight: 700,
+                    fontSize: '0.7rem',
+                  }}
+                />
+              )}
             </Box>
-            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em' }}>
               Faculty Attendance & Daily Sessions
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
-              Mark daily class attendance, track Present/Absent/Medical Leave statuses, export attendance rosters, and sync session logs with department records.
+            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75 }}>
+              Mark live class attendance, monitor present vs. absent ratios, export student rosters, and sync attendance sheets directly with department records.
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
             <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
-              onClick={() => handleExport('csv')}
+              onClick={(e) => setExportAnchorEl(e.currentTarget)}
               disabled={formattedStudents.length === 0}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              sx={{
+                borderRadius: '10px',
+                textTransform: 'none',
+                fontWeight: 700,
+                px: 2.5,
+                py: 1,
+                borderColor: theme.palette.divider,
+              }}
             >
-              Export CSV Roster
+              Export Roster
             </Button>
+            <Menu
+              anchorEl={exportAnchorEl}
+              open={Boolean(exportAnchorEl)}
+              onClose={() => setExportAnchorEl(null)}
+              PaperProps={{ sx: { borderRadius: '12px', minWidth: 180, mt: 1 } }}
+            >
+              <MenuItem onClick={() => handleExport('csv')}>
+                <ListItemIcon><ArticleOutlined fontSize="small" /></ListItemIcon>
+                <ListItemText primary="Export as CSV" primaryTypographyProps={{ fontWeight: 600, fontSize: '0.85rem' }} />
+              </MenuItem>
+              <MenuItem onClick={() => handleExport('txt')}>
+                <ListItemIcon><ArticleOutlined fontSize="small" /></ListItemIcon>
+                <ListItemText primary="Export Plain Text" primaryTypographyProps={{ fontWeight: 600, fontSize: '0.85rem' }} />
+              </MenuItem>
+            </Menu>
+
             <Button
               variant="contained"
-              startIcon={<SubmitIcon />}
+              startIcon={submitAttendanceMutation.isPending ? <CircularProgress size={18} color="inherit" /> : <SubmitIcon />}
               onClick={handleSubmit}
               disabled={!canSubmit || submitAttendanceMutation.isPending}
               sx={{
-                borderRadius: '8px',
+                borderRadius: '10px',
                 textTransform: 'none',
                 fontWeight: 700,
-                background: theme.palette.primary.gradient || theme.palette.primary.main,
-                color: '#ffffff',
+                px: 3,
+                py: 1,
+                boxShadow: submitAttendanceMutation.isPending ? 'none' : '0px 4px 12px rgba(79, 70, 229, 0.25)',
               }}
             >
-              {submitAttendanceMutation.isPending ? 'Saving...' : 'Submit Attendance Sheet'}
+              {submitAttendanceMutation.isPending ? 'Saving Sheet...' : 'Submit Attendance'}
             </Button>
           </Box>
         </Box>
       </Card>
 
-      {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
+      {/* ── 2. KPI Summary Grid (Exact Faculty Student Roster Card Style) ── */}
       <Grid container spacing={2.5}>
+        {/* 1. Enrolled Students Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
                   ENROLLED STUDENTS
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.ink ? theme.palette.ink[900] : 'text.primary',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {totalStudents}
                 </Typography>
               </Box>
@@ -351,54 +405,138 @@ export const AttendancePage = () => {
           </Card>
         </Grid>
 
+        {/* 2. Present Students Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.success || '#10b981'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.success || '#10b981' }}
+                >
                   PRESENT STUDENTS
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.signal?.success || '#10b981',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {summaryCounts.present}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.signal.success}15`, color: theme.palette.signal.success }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.signal?.success || '#10b981'}15`,
+                  color: theme.palette.signal?.success || '#10b981',
+                }}
+              >
                 <CheckCircleOutlined />
               </Avatar>
             </Box>
           </Card>
         </Grid>
 
+        {/* 3. Absent Students Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.error || '#ef4444'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.error || '#ef4444' }}
+                >
                   ABSENT STUDENTS
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.signal?.error || '#ef4444',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {summaryCounts.absent}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.signal.error}15`, color: theme.palette.signal.error }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.signal?.error || '#ef4444'}15`,
+                  color: theme.palette.signal?.error || '#ef4444',
+                }}
+              >
                 <CancelOutlined />
               </Avatar>
             </Box>
           </Card>
         </Grid>
 
+        {/* 4. Attendance Rate Card (Info Blue accent to match Student Roster Card 4) */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.info?.main || '#3b82f6'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.primary.main }}>
-                  ATTENDANCE RATE
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info?.main || '#3b82f6' }}
+                >
+                  CLASS ATTENDANCE RATE
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.primary.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.info?.main || '#3b82f6',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {attendancePercentage}%
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.info?.main || '#3b82f6'}15`,
+                  color: theme.palette.info?.main || '#3b82f6',
+                }}
+              >
                 <PercentOutlined />
               </Avatar>
             </Box>
@@ -407,7 +545,15 @@ export const AttendancePage = () => {
       </Grid>
 
       {/* ── 3. Controls Bar: Subject, Section & Date ────────────────────────── */}
-      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+      <Card
+        elevation={0}
+        sx={{
+          p: 3,
+          borderRadius: '16px',
+          border: `1px solid ${theme.palette.divider}`,
+          background: theme.palette.background.paper,
+        }}
+      >
         <Grid container spacing={2.5} alignItems="center">
           <Grid item xs={12} md={4}>
             <SubjectSelector subjects={filterSubjects} selectedSubjectId={selectedSubjectId} onSubjectChange={handleSubjectChange} />
@@ -421,35 +567,17 @@ export const AttendancePage = () => {
         </Grid>
       </Card>
 
-      {/* ── 4. Student Attendance Table ────────────────────────────────────── */}
-      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5, flexWrap: 'wrap', gap: 2 }}>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
-              Student Attendance Roster — {currentSubject?.name || 'Subject'}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Date: <strong>{selectedDate}</strong> • Section: <strong>{selectedSectionId}</strong>
-            </Typography>
-          </Box>
-
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button size="small" variant="outlined" startIcon={<ResetIcon />} onClick={handleReset} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}>
-              Reset All Present
-            </Button>
-          </Box>
-        </Box>
-
-        <StudentAttendanceTable
-          students={formattedStudents}
-          attendanceRecords={attendanceRecords}
-          onStatusChange={handleStatusChange}
-          onMarkAll={handleMarkAll}
-          disabled={submitAttendanceMutation.isPending}
-        />
-      </Card>
+      {/* ── 4. Student Attendance Roster Table ────────────────────────────── */}
+      <StudentAttendanceTable
+        students={formattedStudents}
+        attendanceRecords={attendanceRecords}
+        onStatusChange={handleStatusChange}
+        onMarkAll={handleMarkAll}
+        disabled={submitAttendanceMutation.isPending}
+      />
     </Box>
   );
 };
 
 export default AttendancePage;
+

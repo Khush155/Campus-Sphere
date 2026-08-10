@@ -73,7 +73,9 @@ const getAttendance = asyncHandler(async (req, res) => {
  * @access  Private/SuperAdmin/HOD
  */
 const getAttendanceSummary = asyncHandler(async (req, res) => {
-  const result = await attendanceService.getAttendanceSummary(req.query.subjectId, req.user);
+  const { subjectId, courseId, branchId, semester, group } = req.query;
+  const cohortFilters = { courseId, branchId, semester, group };
+  const result = await attendanceService.getAttendanceSummary(subjectId, req.user, cohortFilters);
   return successResponse(res, 200, 'Attendance summary retrieved successfully', result.data || result);
 });
 

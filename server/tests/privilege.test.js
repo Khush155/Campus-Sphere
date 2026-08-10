@@ -38,7 +38,7 @@ beforeAll(async () => {
   // Subjects
   subjectCS = await Subject.create({
     name: 'Computer Networks',
-    code: 'CS301',
+    sequenceNo: 1,
     credits: 4,
     type: 'THEORY',
     branchId: branchCSE._id,

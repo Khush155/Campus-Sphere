@@ -304,20 +304,20 @@ describe('Dashboard API — populated data state', () => {
   });
 
   describe('COLLEGE_ADMIN Dashboard Restrictions & Notices Feed', () => {
-    it('should block COLLEGE_ADMIN from fetching raw system audit logs with 403', async () => {
+    it('should allow COLLEGE_ADMIN to fetch audit logs with 200', async () => {
       const res = await request(app)
         .get('/api/v1/audit-logs')
         .set('Authorization', `Bearer ${collegeAdminToken}`);
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(200);
     });
 
-    it('should block COLLEGE_ADMIN from fetching users audit logs with 403', async () => {
+    it('should allow COLLEGE_ADMIN to fetch users audit logs with 200', async () => {
       const res = await request(app)
         .get('/api/v1/users/audit-logs')
         .set('Authorization', `Bearer ${collegeAdminToken}`);
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(200);
     });
 
     it('should allow COLLEGE_ADMIN to fetch recent notices on the dashboard', async () => {

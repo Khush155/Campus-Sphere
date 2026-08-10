@@ -27,6 +27,8 @@ router.get('/', adminGuard, asyncHandler(academicSessionController.getSessions))
 
 // SUPER_ADMIN configuration changes
 router.post('/', superAdminGuard, asyncHandler(academicSessionController.createSession));
+router.put('/:id', superAdminGuard, asyncHandler(academicSessionController.updateSession));
 router.put('/:id/activate', superAdminGuard, asyncHandler(academicSessionController.activateSession));
+router.delete('/:id', superAdminGuard, asyncHandler(academicSessionController.deleteSession));
 
 module.exports = router;

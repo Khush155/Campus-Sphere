@@ -315,16 +315,35 @@ export const MaterialsPage = () => {
         </Box>
       </Card>
 
-      {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
+      {/* ── 2. KPI Summary Grid (Faculty Roster Card Style) ───────────────── */}
       <Grid container spacing={2.5}>
+        {/* 1. Total Resources Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
                   TOTAL RESOURCES
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.ink ? theme.palette.ink[900] : 'text.primary',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.total}
                 </Typography>
               </Box>
@@ -335,54 +354,138 @@ export const MaterialsPage = () => {
           </Card>
         </Grid>
 
+        {/* 2. PDFs & Decks Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.error || '#ef4444'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
-                  PDFs & DECKS
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.error || '#ef4444' }}
+                >
+                  PDFs &amp; DECKS
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.signal?.error || '#ef4444',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.pdfs}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.signal.error}15`, color: theme.palette.signal.error }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.signal?.error || '#ef4444'}15`,
+                  color: theme.palette.signal?.error || '#ef4444',
+                }}
+              >
                 <PdfIcon />
               </Avatar>
             </Box>
           </Card>
         </Grid>
 
+        {/* 3. Video & Links Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.info?.main || '#3b82f6'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info.main }}>
-                  VIDEO & LINKS
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info?.main || '#3b82f6' }}
+                >
+                  VIDEO &amp; LINKS
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.info?.main || '#3b82f6',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.videos}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.info.main}15`, color: theme.palette.info.main }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.info?.main || '#3b82f6'}15`,
+                  color: theme.palette.info?.main || '#3b82f6',
+                }}
+              >
                 <VideoIcon />
               </Avatar>
             </Box>
           </Card>
         </Grid>
 
+        {/* 4. Unit Reading Notes Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.warning?.main || '#f59e0b'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning?.main || '#f59e0b' }}
+                >
                   UNIT NOTES
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.warning?.main || '#f59e0b',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.notes}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.warning.main}15`, color: theme.palette.warning.main }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.warning?.main || '#f59e0b'}15`,
+                  color: theme.palette.warning?.main || '#f59e0b',
+                }}
+              >
                 <NoteIcon />
               </Avatar>
             </Box>
@@ -404,6 +507,7 @@ export const MaterialsPage = () => {
                 setSelectedSubjectId(e.target.value);
                 setSelectedSectionId('ALL');
               }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
             >
               {assignedSubjects.map((sub) => (
                 <MenuItem key={sub.id} value={sub.id}>
@@ -421,6 +525,7 @@ export const MaterialsPage = () => {
               label="Section / Group"
               value={selectedSectionId}
               onChange={(e) => setSelectedSectionId(e.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
             >
               {sectionsOptions.map((sec) => (
                 <MenuItem key={sec.id} value={sec.id}>{sec.name}</MenuItem>
@@ -436,6 +541,7 @@ export const MaterialsPage = () => {
               label="Syllabus Unit Filter"
               value={selectedUnit}
               onChange={(e) => setSelectedUnit(e.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
             >
               <MenuItem value="ALL">All Syllabus Units</MenuItem>
               {UNIT_OPTIONS.map((u) => (
@@ -451,6 +557,7 @@ export const MaterialsPage = () => {
               placeholder="Search notes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
               InputProps={{
                 startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 0.5, fontSize: 18 }} />,
               }}

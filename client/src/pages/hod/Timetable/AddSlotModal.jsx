@@ -18,6 +18,7 @@ import { z } from 'zod';
 import { useSubjectsQuery } from '../../../queries/collegeQueries';
 import { useAssignmentsQuery } from '../../../queries/assignmentQueries';
 import { useCreateSlotMutation } from '../../../queries/timetableQueries';
+import { computeSubjectCode } from '../../../utils/subjectCode';
 
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
@@ -177,7 +178,7 @@ const AddSlotModal = ({ open, onClose, filters, existingSlots = [], presets = nu
                 >
                   <MenuItem value=""><em>Select Subject</em></MenuItem>
                   {subjects.map((sub) => (
-                    <MenuItem key={sub._id} value={sub._id}>{sub.name} ({sub.code})</MenuItem>
+                    <MenuItem key={sub._id} value={sub._id}>{sub.name} ({computeSubjectCode(sub, sub.branchId)})</MenuItem>
                   ))}
                 </TextField>
               )}

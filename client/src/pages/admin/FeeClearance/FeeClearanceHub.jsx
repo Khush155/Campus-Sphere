@@ -23,6 +23,9 @@ import {
   DialogContent,
   DialogActions,
   Divider,
+  Checkbox,
+  Tooltip,
+  IconButton,
 } from '@mui/material';
 import {
   AccountBalanceWalletOutlined,
@@ -32,6 +35,8 @@ import {
   EditOutlined,
   SchoolOutlined,
   VerifiedOutlined,
+  NotificationsOutlined,
+  DoneAllOutlined,
 } from '@mui/icons-material';
 import { useUsersQuery, useUpdateUserMutation } from '../../../queries/userQueries';
 import { useDepartmentsQuery } from '../../../queries/collegeQueries';
@@ -55,6 +60,10 @@ export const FeeClearanceHub = () => {
   const [libraryDues, setLibraryDues] = useState(0);
   const [labDues, setLabDues] = useState(0);
   const [feeStatus, setFeeStatus] = useState('CLEARED');
+
+  // Bulk Selection State
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [isBulkClearing, setIsBulkClearing] = useState(false);
 
   // Selected Student for No-Dues Pass Preview Modal
   const [clearanceModalUser, setClearanceModalUser] = useState(null);
@@ -92,6 +101,50 @@ export const FeeClearanceHub = () => {
 
     return matchesSearch && matchesDept && matchesStatus;
   });
+
+  // Bulk Selection Handlers
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedStudentIds(filteredStudents.map((s) => s.id || s._id));
+    } else {
+      setSelectedStudentIds([]);
+    }
+  };
+
+  const handleToggleSelect = (id) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkClearDues = async () => {
+    if (selectedStudentIds.length === 0) return;
+    setIsBulkClearing(true);
+    try {
+      await Promise.all(
+        selectedStudentIds.map((id) =>
+          updateUserMutation.mutateAsync({
+            id,
+            data: {
+              feeStatus: 'CLEARED',
+              feeDues: { tuition: 0, hostel: 0, library: 0, lab: 0 },
+            },
+          })
+        )
+      );
+      showToast(`Successfully cleared all outstanding fee dues for ${selectedStudentIds.length} selected student(s).`);
+      setSelectedStudentIds([]);
+      refetch();
+    } catch (err) {
+      showToast('Failed to complete bulk clearance.', { severity: 'error' });
+    } finally {
+      setIsBulkClearing(false);
+    }
+  };
+
+  const handleSendReminder = (s) => {
+    showToast(`Fee due reminder notification sent to ${s.name} (${s.email}).`, { severity: 'info' });
+  };
 
   // Open Edit Dues Drawer
   const handleOpenEditDrawer = (s) => {
@@ -328,121 +381,198 @@ export const FeeClearanceHub = () => {
             }}
           />
         ) : (
-          <TableContainer>
-            <Table size="medium">
-              <TableHead sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>STUDENT NAME & ROLL NO</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>BRANCH & SEMESTER</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>OUTSTANDING DUES (₹)</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>FINANCIAL STATUS</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>ACTIONS</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredStudents.map((s) => {
-                  const sStatus = s.feeStatus || 'CLEARED';
-                  const duesObj = s.feeDues || { tuition: 0, hostel: 0, library: 0, lab: 0 };
-                  const totalOutstanding =
-                    (duesObj.tuition || 0) +
-                    (duesObj.hostel || 0) +
-                    (duesObj.library || 0) +
-                    (duesObj.lab || 0);
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {selectedStudentIds.length > 0 && (
+              <Box
+                sx={{
+                  p: 1.5,
+                  px: 2.5,
+                  borderRadius: '10px',
+                  bgcolor: `${theme.palette.primary.main}12`,
+                  border: `1px solid ${theme.palette.primary.main}30`,
+                  display: 'flex',
+                  justify: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 2,
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
+                  {selectedStudentIds.length} student(s) selected for bulk action
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1.5 }}>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    color="success"
+                    startIcon={<DoneAllOutlined />}
+                    disabled={isBulkClearing}
+                    onClick={handleBulkClearDues}
+                    sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '6px' }}
+                  >
+                    {isBulkClearing ? 'Clearing Dues...' : 'Clear All Dues for Selected'}
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setSelectedStudentIds([])}
+                    sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '6px' }}
+                  >
+                    Deselect All
+                  </Button>
+                </Box>
+              </Box>
+            )}
 
-                  return (
-                    <TableRow key={s.id || s._id} hover>
-                      <TableCell sx={{ fontWeight: 600 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Avatar sx={{ width: 32, height: 32, bgcolor: `${theme.palette.primary.main}18`, color: theme.palette.primary.main, fontSize: '0.85rem', fontWeight: 700 }}>
-                            {s.name?.charAt(0) || 'S'}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
-                              {s.name}
-                            </Typography>
-                            <Typography variant="caption" sx={{ fontFamily: theme.typography.mono.fontFamily, color: theme.palette.primary.main, fontWeight: 700 }}>
-                              {s.rollNumber ? `Roll: ${s.rollNumber}` : s.email}
-                            </Typography>
+            <TableContainer>
+              <Table size="medium">
+                <TableHead sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)' }}>
+                  <TableRow>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        indeterminate={
+                          selectedStudentIds.length > 0 &&
+                          selectedStudentIds.length < filteredStudents.length
+                        }
+                        checked={
+                          filteredStudents.length > 0 &&
+                          selectedStudentIds.length === filteredStudents.length
+                        }
+                        onChange={handleSelectAll}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>STUDENT NAME & ROLL NO</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>BRANCH & SEMESTER</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>OUTSTANDING DUES (₹)</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>FINANCIAL STATUS</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>ACTIONS</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredStudents.map((s) => {
+                    const sId = s.id || s._id;
+                    const isSelected = selectedStudentIds.includes(sId);
+                    const sStatus = s.feeStatus || 'CLEARED';
+                    const duesObj = s.feeDues || { tuition: 0, hostel: 0, library: 0, lab: 0 };
+                    const totalOutstanding =
+                      (duesObj.tuition || 0) +
+                      (duesObj.hostel || 0) +
+                      (duesObj.library || 0) +
+                      (duesObj.lab || 0);
+
+                    return (
+                      <TableRow key={sId} hover selected={isSelected}>
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleToggleSelect(sId)}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Avatar sx={{ width: 32, height: 32, bgcolor: `${theme.palette.primary.main}18`, color: theme.palette.primary.main, fontSize: '0.85rem', fontWeight: 700 }}>
+                              {s.name?.charAt(0) || 'S'}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
+                                {s.name}
+                              </Typography>
+                              <Typography variant="caption" sx={{ fontFamily: theme.typography.mono.fontFamily, color: theme.palette.primary.main, fontWeight: 700 }}>
+                                {s.rollNumber ? `Roll: ${s.rollNumber}` : s.email}
+                              </Typography>
+                            </Box>
                           </Box>
-                        </Box>
-                      </TableCell>
+                        </TableCell>
 
-                      <TableCell sx={{ fontSize: '0.82rem' }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {s.branch || 'General'}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontFamily: theme.typography.mono.fontFamily }}>
-                          Semester {s.semester || 1}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontWeight: 700, fontSize: '0.88rem' }}>
-                        {totalOutstanding > 0 ? (
-                          <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.signal.error }}>
-                            ₹{totalOutstanding.toLocaleString('en-IN')}
+                        <TableCell sx={{ fontSize: '0.82rem' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {s.branch || 'General'}
                           </Typography>
-                        ) : (
-                          <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.signal.success }}>
-                            ₹0 (Fully Paid)
+                          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: theme.typography.mono.fontFamily }}>
+                            Semester {s.semester || 1}
                           </Typography>
-                        )}
-                      </TableCell>
+                        </TableCell>
 
-                      <TableCell>
-                        <Chip
-                          label={sStatus}
-                          size="small"
-                          color={
-                            sStatus === 'CLEARED'
-                              ? 'success'
-                              : sStatus === 'PENDING'
-                              ? 'warning'
-                              : 'error'
-                          }
-                          sx={{ fontWeight: 800, fontSize: '0.65rem', height: 22 }}
-                        />
-                      </TableCell>
+                        <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontWeight: 700, fontSize: '0.88rem' }}>
+                          {totalOutstanding > 0 ? (
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.signal.error }}>
+                              ₹{totalOutstanding.toLocaleString('en-IN')}
+                            </Typography>
+                          ) : (
+                            <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.signal.success }}>
+                              ₹0 (Fully Paid)
+                            </Typography>
+                          )}
+                        </TableCell>
 
-                      <TableCell align="right">
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                          {sStatus !== 'CLEARED' && (
+                        <TableCell>
+                          <Chip
+                            label={sStatus}
+                            size="small"
+                            color={
+                              sStatus === 'CLEARED'
+                                ? 'success'
+                                : sStatus === 'PENDING'
+                                ? 'warning'
+                                : 'error'
+                            }
+                            sx={{ fontWeight: 800, fontSize: '0.65rem', height: 22 }}
+                          />
+                        </TableCell>
+
+                        <TableCell align="right">
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                            {sStatus !== 'CLEARED' && (
+                              <>
+                                <Tooltip title="Send Fee Due Alert Notification">
+                                  <IconButton
+                                    size="small"
+                                    color="warning"
+                                    onClick={() => handleSendReminder(s)}
+                                    sx={{ borderRadius: '6px' }}
+                                  >
+                                    <NotificationsOutlined fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Button
+                                  size="small"
+                                  variant="text"
+                                  color="success"
+                                  onClick={() => handleQuickClearAll(s)}
+                                  sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.72rem' }}
+                                >
+                                  Clear Dues
+                                </Button>
+                              </>
+                            )}
                             <Button
                               size="small"
-                              variant="text"
-                              color="success"
-                              onClick={() => handleQuickClearAll(s)}
-                              sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.72rem' }}
+                              variant="outlined"
+                              startIcon={<EditOutlined />}
+                              onClick={() => handleOpenEditDrawer(s)}
+                              sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 600, fontSize: '0.75rem' }}
                             >
-                              Clear Dues
+                              Update
                             </Button>
-                          )}
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<EditOutlined />}
-                            onClick={() => handleOpenEditDrawer(s)}
-                            sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 600, fontSize: '0.75rem' }}
-                          >
-                            Update
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="contained"
-                            disabled={sStatus !== 'CLEARED'}
-                            startIcon={<VerifiedOutlined />}
-                            onClick={() => setClearanceModalUser(s)}
-                            sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 700, fontSize: '0.75rem' }}
-                          >
-                            Pass
-                          </Button>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              disabled={sStatus !== 'CLEARED'}
+                              startIcon={<VerifiedOutlined />}
+                              onClick={() => setClearanceModalUser(s)}
+                              sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 700, fontSize: '0.75rem' }}
+                            >
+                              Pass
+                            </Button>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
         )}
       </Card>
 

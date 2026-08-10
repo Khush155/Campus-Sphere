@@ -19,6 +19,14 @@ vi.mock('../src/queries/collegeQueries', () => ({
     ],
     isLoading: false,
   }),
+  useCoursesQuery: () => ({
+    data: [{ _id: 'c1', name: 'B.Tech', code: 'BT' }],
+    isLoading: false,
+  }),
+  useBranchesQuery: () => ({
+    data: [{ _id: 'b1', name: 'Computer Science', code: 'CSE' }],
+    isLoading: false,
+  }),
 }));
 
 vi.mock('../src/queries/userQueries', () => ({
@@ -58,9 +66,9 @@ describe('AssignFacultyDrawer', () => {
     );
 
     // Initial state: drawer should be visible and "Save Assignment" button present
-    expect(screen.getByText('Assign Faculty')).toBeInTheDocument();
+    expect(screen.getByText(/Assign Faculty/i)).toBeInTheDocument();
     
-    const submitBtn = screen.getByRole('button', { name: /Save Assignment/i });
+    const submitBtn = screen.getByRole('button', { name: /Save Allocation/i });
     
     // Click submit without selecting anything
     fireEvent.click(submitBtn);

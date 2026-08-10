@@ -360,6 +360,7 @@ export const MarksPage = () => {
     id: sub.id,
     name: sub.name,
     code: sub.code,
+    credits: sub.credits,
   }));
 
   return (
@@ -458,16 +459,35 @@ export const MarksPage = () => {
         </Card>
       )}
 
-      {/* ── 3. KPI Summary Grid ────────────────────────────────────────────── */}
+      {/* ── 3. KPI Summary Grid (Faculty Roster Card Style) ───────────────── */}
       <Grid container spacing={2.5}>
+        {/* 1. Evaluated Students Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
                   EVALUATED STUDENTS
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.ink ? theme.palette.ink[900] : 'text.primary',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {totalStudents}
                 </Typography>
               </Box>
@@ -478,54 +498,138 @@ export const MarksPage = () => {
           </Card>
         </Grid>
 
+        {/* 2. Passed Students Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.success || '#10b981'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.success || '#10b981' }}
+                >
                   PASSED STUDENTS (≥40%)
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.signal?.success || '#10b981',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {passCount}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.signal.success}15`, color: theme.palette.signal.success }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.signal?.success || '#10b981'}15`,
+                  color: theme.palette.signal?.success || '#10b981',
+                }}
+              >
                 <CheckCircleOutlined />
               </Avatar>
             </Box>
           </Card>
         </Grid>
 
+        {/* 3. Failed / Remedial Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.error || '#ef4444'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.error || '#ef4444' }}
+                >
                   FAILED / REMEDIAL (&lt;40%)
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.signal?.error || '#ef4444',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {failCount}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.signal.error}15`, color: theme.palette.signal.error }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.signal?.error || '#ef4444'}15`,
+                  color: theme.palette.signal?.error || '#ef4444',
+                }}
+              >
                 <CancelOutlined />
               </Avatar>
             </Box>
           </Card>
         </Grid>
 
+        {/* 4. Class Average Score Card (Info Blue Accent) */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.info?.main || '#3b82f6'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.primary.main }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info?.main || '#3b82f6' }}
+                >
                   CLASS AVERAGE SCORE
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.primary.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.info?.main || '#3b82f6',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {avgScore}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.info?.main || '#3b82f6'}15`,
+                  color: theme.palette.info?.main || '#3b82f6',
+                }}
+              >
                 <PercentOutlined />
               </Avatar>
             </Box>

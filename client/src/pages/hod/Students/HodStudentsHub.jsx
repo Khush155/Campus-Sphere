@@ -16,6 +16,10 @@ import {
   Card,
   Avatar,
   Paper,
+  Drawer,
+  IconButton,
+  Divider,
+  Tooltip,
 } from '@mui/material';
 import {
   AddOutlined,
@@ -23,6 +27,11 @@ import {
   UploadOutlined,
   PeopleOutlined,
   RefreshOutlined,
+  ClearOutlined,
+  CloseOutlined,
+  CheckCircleOutlined,
+  CancelOutlined,
+  VisibilityOutlined,
 } from '@mui/icons-material';
 import DataTable from '../../../components/common/DataTable';
 import Pagination from '../../../components/common/Pagination';
@@ -59,6 +68,9 @@ export const HodStudentsHub = () => {
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+
+  // Profile Drawer State
+  const [selectedStudentForDrawer, setSelectedStudentForDrawer] = useState(null);
 
   // Debounce search input
   React.useEffect(() => {
@@ -136,6 +148,12 @@ export const HodStudentsHub = () => {
     [responseData]
   );
 
+  // Available Branches for Main Filter
+  const filteredMainBranches = useMemo(() => {
+    if (!selectedCourse) return branches;
+    return branches.filter((b) => String(b.courseId?._id || b.courseId) === String(selectedCourse));
+  }, [branches, selectedCourse]);
+
   // Filter available branches based on selected course in forms
   const filteredCreateBranches = useMemo(() => {
     if (!formData.courseId) return branches;
@@ -175,15 +193,20 @@ export const HodStudentsHub = () => {
 
   const handleOpenEdit = (student) => {
     const { firstName, lastName } = splitName(student.name);
+    const crsId = typeof student.courseId === 'object' ? student.courseId?._id || '' : student.courseId || '';
+    const brnId = typeof student.branchId === 'object' ? student.branchId?._id || '' : student.branchId || '';
+    const deptId = typeof student.departmentId === 'object' ? student.departmentId?._id || '' : student.departmentId || '';
+
     const dataToSet = {
       id: student.id || student._id,
       firstName,
       lastName,
       email: student.email,
       status: student.status || 'ACTIVE',
-      courseId: student.courseId || '',
-      branchId: student.branchId || '',
-      semester: student.semester || 1,
+      departmentId: String(deptId),
+      courseId: String(crsId),
+      branchId: String(brnId),
+      semester: Number(student.semester) || 1,
       rollNumber: student.rollNumber || '',
       reason: '',
     };
@@ -204,9 +227,13 @@ export const HodStudentsHub = () => {
       if (name === 'courseId') {
         next.branchId = '';
       } else if (name === 'branchId' && value) {
-        const foundBranch = branches.find((b) => String(b._id || b.id) === String(value));
+        const foundBranch = branches?.find((b) => String(b._id || b.id) === String(value));
         if (foundBranch) {
           next.courseId = String(foundBranch.courseId?._id || foundBranch.courseId || prev.courseId);
+          const homeDeptId = foundBranch.hostingDepartmentId?._id || foundBranch.hostingDepartmentId;
+          if (homeDeptId) {
+            next.departmentId = String(homeDeptId);
+          }
         }
       }
       return next;
@@ -220,9 +247,13 @@ export const HodStudentsHub = () => {
       if (name === 'courseId') {
         next.branchId = '';
       } else if (name === 'branchId' && value) {
-        const foundBranch = branches.find((b) => String(b._id || b.id) === String(value));
+        const foundBranch = branches?.find((b) => String(b._id || b.id) === String(value));
         if (foundBranch) {
           next.courseId = String(foundBranch.courseId?._id || foundBranch.courseId || prev.courseId);
+          const homeDeptId = foundBranch.hostingDepartmentId?._id || foundBranch.hostingDepartmentId;
+          if (homeDeptId) {
+            next.departmentId = String(homeDeptId);
+          }
         }
       }
       return next;
@@ -326,17 +357,28 @@ export const HodStudentsHub = () => {
     }
   };
 
+  const handleClearFilters = () => {
+    setSearch('');
+    setSelectedCourse('');
+    setSelectedBranch('');
+    setSelectedSemester('');
+    setSelectedStatus('');
+    setPage(1);
+  };
+
+  const hasActiveFilters = Boolean(search || selectedCourse || selectedBranch || selectedSemester || selectedStatus);
+
   const columns = [
     {
       id: 'name',
-      label: 'Student Name & Email',
+      label: 'STUDENT NAME & EMAIL',
       render: (row) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar sx={{ width: 34, height: 34, bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main, fontWeight: 700, fontSize: '0.85rem' }}>
+          <Avatar sx={{ width: 34, height: 34, bgcolor: `${theme.palette.primary.main}18`, color: theme.palette.primary.main, fontWeight: 700, fontSize: '0.85rem' }}>
             {row.name?.charAt(0) || 'S'}
           </Avatar>
           <Box>
-            <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
+            <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.ink[900], lineHeight: 1.2 }}>
               {row.name}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -348,7 +390,7 @@ export const HodStudentsHub = () => {
     },
     {
       id: 'rollNumber',
-      label: 'Roll Number',
+      label: 'ROLL NUMBER',
       render: (row) =>
         row.rollNumber ? (
           <Chip
@@ -356,10 +398,10 @@ export const HodStudentsHub = () => {
             size="small"
             sx={{
               fontWeight: 800,
-              fontFamily: theme.typography.mono.fontFamily,
+              fontFamily: 'monospace',
               fontSize: '0.7rem',
-              bgcolor: `${theme.palette.brass?.[500] || '#b8863e'}15`,
-              color: theme.palette.brass?.[500] || '#b8863e',
+              bgcolor: `${theme.palette.primary.main}12`,
+              color: theme.palette.primary.main,
             }}
           />
         ) : (
@@ -368,28 +410,47 @@ export const HodStudentsHub = () => {
     },
     {
       id: 'academic',
-      label: 'Course & Branch',
-      render: (row) => (
-        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {row.branch || row.course || 'Unassigned Batch'}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: theme.typography.mono.fontFamily }}>
-            Semester {row.semester || 1} {row.group ? `• Group ${row.group}` : ''}
-          </Typography>
-        </Box>
-      ),
+      label: 'COURSE & BRANCH',
+      render: (row) => {
+        const branchName = row.branch || row.branchId?.name || row.course || 'General Branch';
+        const courseCode = row.courseId?.code || row.course || 'DEGREE';
+        return (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.ink?.[800] || 'text.primary' }}>
+              {branchName}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 0.8, alignItems: 'center' }}>
+              <Chip label={courseCode} size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.65rem', height: 18 }} />
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                Semester {row.semester || 1}
+              </Typography>
+            </Box>
+          </Box>
+        );
+      },
     },
     {
       id: 'status',
-      label: 'Status',
+      label: 'STATUS',
       render: (row) => (
         <Chip
+          icon={row.status === 'ACTIVE' ? <CheckCircleOutlined sx={{ fontSize: '0.8rem !important' }} /> : <CancelOutlined sx={{ fontSize: '0.8rem !important' }} />}
           label={row.status || 'ACTIVE'}
           size="small"
           color={row.status === 'ACTIVE' ? 'success' : 'error'}
-          sx={{ fontWeight: 800, fontSize: '0.65rem' }}
+          sx={{ fontWeight: 800, fontSize: '0.65rem', height: 22 }}
         />
+      ),
+    },
+    {
+      id: 'actions_extra',
+      label: 'PROFILE',
+      render: (row) => (
+        <Tooltip title="View Student Profile Breakdown">
+          <IconButton size="small" onClick={() => setSelectedStudentForDrawer(row)}>
+            <VisibilityOutlined fontSize="small" />
+          </IconButton>
+        </Tooltip>
       ),
     },
   ];
@@ -399,10 +460,10 @@ export const HodStudentsHub = () => {
       {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
       <Card
         sx={{
-          p: 3.5,
+          p: { xs: 2.5, md: 3.5 },
           borderRadius: '16px',
-          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
+          border: `1px solid ${theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}12 0%, ${theme.palette.primary.main}04 100%)`,
           boxShadow: 'none',
         }}
       >
@@ -410,23 +471,22 @@ export const HodStudentsHub = () => {
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
               <Chip
-                icon={<PeopleOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+                icon={<PeopleOutlined sx={{ fontSize: '0.85rem !important', color: `${theme.palette.primary.main} !important` }} />}
                 label="DEPARTMENT STUDENT ROSTER & ADMISSIONS DESK"
                 size="small"
                 sx={{
-                  bgcolor: `${theme.palette.primary.main}15`,
+                  bgcolor: `${theme.palette.primary.main}18`,
                   color: theme.palette.primary.main,
                   fontWeight: 800,
-                  fontFamily: theme.typography.mono.fontFamily,
-                  letterSpacing: '0.05em',
-                  fontSize: '0.7rem',
+                  fontSize: '0.68rem',
+                  letterSpacing: '0.04em',
                 }}
               />
             </Box>
-            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
-              Student Roster & Admissions
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], letterSpacing: '-0.02em' }}>
+              Student Directory & Admissions
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5, maxWidth: 680 }}>
               Manage student accounts, track Roll Numbers, filter by course & semester, perform bulk CSV batch imports, and handle single student admissions.
             </Typography>
           </Box>
@@ -436,7 +496,7 @@ export const HodStudentsHub = () => {
               variant="outlined"
               startIcon={<RefreshOutlined />}
               onClick={() => refetch()}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 2 }}
             >
               Refresh
             </Button>
@@ -449,7 +509,7 @@ export const HodStudentsHub = () => {
                 setImportError(null);
                 setImportModalOpen(true);
               }}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 2 }}
             >
               Bulk CSV Import
             </Button>
@@ -458,11 +518,11 @@ export const HodStudentsHub = () => {
               startIcon={<AddOutlined />}
               onClick={handleOpen}
               sx={{
-                borderRadius: '8px',
+                borderRadius: '10px',
                 textTransform: 'none',
                 fontWeight: 700,
-                background: theme.palette.primary.gradient || theme.palette.primary.main,
-                color: '#ffffff',
+                px: 2.5,
+                boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
               }}
             >
               Admit New Student
@@ -474,56 +534,56 @@ export const HodStudentsHub = () => {
       {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.primary.main}`, boxShadow: 'none' }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               ENROLLED STUDENTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : meta.total}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : meta.total}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              In department roster
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              Total in department roster
             </Typography>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.success.main}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               ACTIVE STUDENTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : studentsList.filter((s) => s.status === 'ACTIVE').length}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.success.main, mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : studentsList.filter((s) => s.status === 'ACTIVE').length}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
               Active study status
             </Typography>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.brass?.[500] || '#b8863e' }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.info.main}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               ASSIGNED ROLL NUMBERS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.brass?.[500] || '#b8863e', mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : studentsList.filter((s) => s.rollNumber).length}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : studentsList.filter((s) => s.rollNumber).length}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
               Indexed roll codes
             </Typography>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.primary.main }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.warning.main}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               CURRENT PAGE ROSTER
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.primary.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : studentsList.length}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : studentsList.length}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
               Page {meta.page} of {meta.totalPages}
             </Typography>
           </Card>
@@ -531,9 +591,27 @@ export const HodStudentsHub = () => {
       </Grid>
 
       {/* ── 3. Filters & Roster Directory Table ───────────────────────────── */}
-      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+      <Card sx={{ p: { xs: 2, md: 2.5 }, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PeopleOutlined sx={{ color: theme.palette.primary.main, fontSize: 18 }} /> Filter Student Directory
+          </Typography>
+
+          {hasActiveFilters && (
+            <Button
+              size="small"
+              onClick={handleClearFilters}
+              startIcon={<ClearOutlined />}
+              sx={{ textTransform: 'none', fontWeight: 700, color: theme.palette.text.secondary }}
+            >
+              Clear Filters
+            </Button>
+          )}
+        </Box>
+
         <Grid container spacing={2} sx={{ mb: 3 }} alignItems="center">
-          <Grid item xs={12} sm={4}>
+          {/* Search */}
+          <Grid item xs={12} sm={6} md={3}>
             <TextField
               fullWidth
               size="small"
@@ -546,20 +624,19 @@ export const HodStudentsHub = () => {
             />
           </Grid>
 
-          <Grid item xs={12} sm={2.5}>
+          {/* Course */}
+          <Grid item xs={12} sm={6} md={2.5}>
             <TextField
               select
               fullWidth
               size="small"
-              label="Course"
+              label="Course Program"
               value={selectedCourse}
               onChange={(e) => {
                 setSelectedCourse(e.target.value);
                 setSelectedBranch('');
                 setPage(1);
               }}
-              SelectProps={{ displayEmpty: true }}
-              InputLabelProps={{ shrink: true }}
             >
               <MenuItem value="">All Courses</MenuItem>
               {courses.map((c) => (
@@ -570,22 +647,21 @@ export const HodStudentsHub = () => {
             </TextField>
           </Grid>
 
-          <Grid item xs={12} sm={2.5}>
+          {/* Branch */}
+          <Grid item xs={12} sm={6} md={2.5}>
             <TextField
               select
               fullWidth
               size="small"
-              label="Branch"
+              label="Branch Specialization"
               value={selectedBranch}
               onChange={(e) => {
                 setSelectedBranch(e.target.value);
                 setPage(1);
               }}
-              SelectProps={{ displayEmpty: true }}
-              InputLabelProps={{ shrink: true }}
             >
               <MenuItem value="">All Branches</MenuItem>
-              {branches.map((b) => (
+              {filteredMainBranches.map((b) => (
                 <MenuItem key={b._id || b.id} value={b._id || b.id}>
                   {b.name} ({b.code})
                 </MenuItem>
@@ -593,7 +669,8 @@ export const HodStudentsHub = () => {
             </TextField>
           </Grid>
 
-          <Grid item xs={12} sm={1.5}>
+          {/* Semester */}
+          <Grid item xs={6} sm={3} md={2}>
             <TextField
               select
               fullWidth
@@ -604,19 +681,18 @@ export const HodStudentsHub = () => {
                 setSelectedSemester(e.target.value);
                 setPage(1);
               }}
-              SelectProps={{ displayEmpty: true }}
-              InputLabelProps={{ shrink: true }}
             >
-              <MenuItem value="">All Sems</MenuItem>
+              <MenuItem value="">All Semesters</MenuItem>
               {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
                 <MenuItem key={s} value={s}>
-                  Sem {s}
+                  Semester {s}
                 </MenuItem>
               ))}
             </TextField>
           </Grid>
 
-          <Grid item xs={12} sm={1.5}>
+          {/* Status */}
+          <Grid item xs={6} sm={3} md={2}>
             <TextField
               select
               fullWidth
@@ -627,8 +703,6 @@ export const HodStudentsHub = () => {
                 setSelectedStatus(e.target.value);
                 setPage(1);
               }}
-              SelectProps={{ displayEmpty: true }}
-              InputLabelProps={{ shrink: true }}
             >
               <MenuItem value="">All Statuses</MenuItem>
               <MenuItem value="ACTIVE">Active</MenuItem>
@@ -645,15 +719,9 @@ export const HodStudentsHub = () => {
           <EmptyState
             type="users"
             title="No Student Records Found"
-            description="No students match the active filter criteria."
-            actionText="Reset Filters"
-            onAction={() => {
-              setSearch('');
-              setSelectedCourse('');
-              setSelectedBranch('');
-              setSelectedSemester('');
-              setSelectedStatus('');
-            }}
+            description={hasActiveFilters ? "No students match your search or filter criteria." : "No student records found in your department roster."}
+            actionText={hasActiveFilters ? "Clear All Filters" : "Admit New Student"}
+            onAction={hasActiveFilters ? handleClearFilters : handleOpen}
           />
         ) : (
           <>
@@ -877,6 +945,106 @@ export const HodStudentsHub = () => {
           </DialogActions>
         </form>
       </Dialog>
+
+      {/* ── 7. Student Quick Profile Drawer ───────────────────────────────── */}
+      <Drawer
+        anchor="right"
+        open={Boolean(selectedStudentForDrawer)}
+        onClose={() => setSelectedStudentForDrawer(null)}
+        PaperProps={{
+          sx: { width: { xs: '100%', sm: 420 }, p: 0, bgcolor: 'background.default' },
+        }}
+      >
+        {selectedStudentForDrawer && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            {/* Drawer Header */}
+            <Box sx={{ p: 3, borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>Student Academic Details</Typography>
+              <IconButton onClick={() => setSelectedStudentForDrawer(null)} size="small"><CloseOutlined /></IconButton>
+            </Box>
+
+            <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2.5, overflowY: 'auto' }}>
+              {/* Profile Card */}
+              <Paper sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, bgcolor: `${theme.palette.primary.main}04`, textAlign: 'center' }}>
+                <Avatar
+                  sx={{
+                    width: 64,
+                    height: 64,
+                    mx: 'auto',
+                    mb: 1.5,
+                    bgcolor: `${theme.palette.primary.main}20`,
+                    color: theme.palette.primary.main,
+                    fontSize: '1.5rem',
+                    fontWeight: 800,
+                  }}
+                >
+                  {selectedStudentForDrawer.name?.charAt(0) || 'S'}
+                </Avatar>
+                <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                  {selectedStudentForDrawer.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  {selectedStudentForDrawer.email}
+                </Typography>
+                <Chip
+                  icon={selectedStudentForDrawer.status === 'ACTIVE' ? <CheckCircleOutlined sx={{ fontSize: '0.8rem !important' }} /> : <CancelOutlined sx={{ fontSize: '0.8rem !important' }} />}
+                  label={selectedStudentForDrawer.status || 'ACTIVE'}
+                  size="small"
+                  color={selectedStudentForDrawer.status === 'ACTIVE' ? 'success' : 'error'}
+                  sx={{ fontWeight: 800, fontSize: '0.65rem' }}
+                />
+              </Paper>
+
+              {/* Data Breakdown */}
+              <Paper sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                    ROLL NUMBER
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 800, fontFamily: 'monospace', color: theme.palette.primary.main }}>
+                    {selectedStudentForDrawer.rollNumber || 'Unassigned'}
+                  </Typography>
+                </Box>
+
+                <Divider />
+
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                    BRANCH & DEGREE PROGRAM
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {selectedStudentForDrawer.branch || selectedStudentForDrawer.branchId?.name || selectedStudentForDrawer.course || 'N/A'}
+                  </Typography>
+                </Box>
+
+                <Divider />
+
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                    CURRENT SEMESTER
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    Semester {selectedStudentForDrawer.semester || 1}
+                  </Typography>
+                </Box>
+              </Paper>
+
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={() => {
+                  const s = selectedStudentForDrawer;
+                  setSelectedStudentForDrawer(null);
+                  handleOpenEdit(s);
+                }}
+                sx={{ borderRadius: '10px', fontWeight: 700, mt: 'auto' }}
+              >
+                Edit Academic Record
+              </Button>
+            </Box>
+          </Box>
+        )}
+      </Drawer>
     </Box>
   );
 };

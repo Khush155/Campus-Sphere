@@ -22,12 +22,17 @@ import {
   CircularProgress,
   Button,
   Drawer,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   useTheme,
   Grid,
   Skeleton,
   Checkbox,
   Avatar,
   Divider,
+  Tooltip,
 } from '@mui/material';
 import {
   MoreVertOutlined,
@@ -35,15 +40,21 @@ import {
   SearchOutlined,
   FileDownloadOutlined,
   VisibilityOutlined,
+  EditOutlined,
   CheckCircleOutlined,
   CancelOutlined,
   PeopleOutlined,
+  DeleteOutline,
+  BlockOutlined,
+  DevicesOutlined,
+  BadgeOutlined,
 } from '@mui/icons-material';
 import {
   useUsersQuery,
   useUserQuery,
   useUpdateUserMutation,
   useDeleteUserMutation,
+  useHardDeleteUserMutation,
 } from '../../../queries/userQueries';
 import {
   useDepartmentsQuery,
@@ -55,6 +66,7 @@ import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
 import UserRegister from './UserRegister';
 import EmptyState from '../../../components/common/EmptyState';
 import { useAuth } from '../../../contexts/AuthContext';
+import { usePermissions } from '../../../utils/permissions';
 
 const userEditSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters long').max(50, 'Name cannot exceed 50 characters').trim(),
@@ -115,8 +127,8 @@ export const UserRoster = () => {
   const theme = useTheme();
   const { showToast } = useToast();
   const { user: currentUser } = useAuth();
-  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
-  const canRegister = isSuperAdmin || currentUser?.role === 'COLLEGE_ADMIN';
+  const { isAdmin, canActOnUser, canDelete } = usePermissions();
+  const canRegister = isAdmin;
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Search & Filter State
@@ -150,6 +162,8 @@ export const UserRoster = () => {
   const [editUser, setEditUser] = useState(null);
   const [editDrawerOpen, setEditDrawerOpen] = useState(false);
   const [deactivateUser, setDeactivateUser] = useState(null);
+  const [hardDeleteUser, setHardDeleteUser] = useState(null); // user selected for permanent delete
+  const [hardDeleteConfirmText, setHardDeleteConfirmText] = useState(''); // must type DELETE
   const [anchorEl, setAnchorEl] = useState(null);
   const [activeMenuUser, setActiveMenuUser] = useState(null);
   const [sessionsDrawerOpen, setSessionsDrawerOpen] = useState(false);
@@ -185,6 +199,7 @@ export const UserRoster = () => {
   // Mutations
   const updateUser = useUpdateUserMutation();
   const deleteUser = useDeleteUserMutation();
+  const hardDelete = useHardDeleteUserMutation();
 
   const handleMenuOpen = (event, user) => {
     setAnchorEl(event.currentTarget);
@@ -196,17 +211,6 @@ export const UserRoster = () => {
     setActiveMenuUser(null);
   };
 
-  const handleViewProfileClick = () => {
-    setViewUser(activeMenuUser);
-    handleMenuClose();
-  };
-
-  const handleEditClick = () => {
-    setEditUser(activeMenuUser);
-    setEditDrawerOpen(true);
-    handleMenuClose();
-  };
-
   const handleViewSessionsClick = () => {
     setSessionsDrawerUser(activeMenuUser);
     setSessionsDrawerOpen(true);
@@ -216,6 +220,25 @@ export const UserRoster = () => {
   const handleDeactivateClick = () => {
     setDeactivateUser(activeMenuUser);
     handleMenuClose();
+  };
+
+  const handleHardDeleteClick = () => {
+    setHardDeleteUser(activeMenuUser);
+    setHardDeleteConfirmText('');
+    handleMenuClose();
+  };
+
+  const handleHardDeleteConfirm = async () => {
+    if (hardDeleteConfirmText !== 'DELETE') return;
+    const target = hardDeleteUser;
+    setHardDeleteUser(null);
+    setHardDeleteConfirmText('');
+    try {
+      await hardDelete.mutateAsync(target.id);
+      showToast(`${target.name}'s account has been permanently deleted.`, { severity: 'success' });
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to permanently delete user.', { severity: 'error' });
+    }
   };
 
   const handleGenerateIdCardClick = () => {
@@ -516,7 +539,7 @@ export const UserRoster = () => {
               fullWidth
               size="small"
               label="Role"
-              value={roleFilter}
+              value={roleFilter || ''}
               onChange={(e) => {
                 setRoleFilter(e.target.value);
                 setPage(1);
@@ -537,7 +560,7 @@ export const UserRoster = () => {
               fullWidth
               size="small"
               label="Department"
-              value={deptFilter}
+              value={deptFilter || ''}
               onChange={(e) => {
                 setDeptFilter(e.target.value);
                 setPage(1);
@@ -558,7 +581,7 @@ export const UserRoster = () => {
               fullWidth
               size="small"
               label="Status"
-              value={statusFilter}
+              value={statusFilter || ''}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
                 setPage(1);
@@ -599,102 +622,253 @@ export const UserRoster = () => {
           }
         />
       ) : (
-        <TableContainer
-          component={Card}
+        <Card
           sx={{
             border: `1px solid ${theme.palette.divider}`,
             boxShadow: 'none',
             borderRadius: '12px',
-            maxHeight: '60vh',
-            overflowY: 'auto',
+            overflow: 'hidden',
           }}
         >
-          <Table aria-label="users directory list table" stickyHeader size={density === 'compact' ? 'small' : 'medium'}>
-            <TableHead>
-              <TableRow>
-                {isSuperAdmin && (
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      size="small"
-                      checked={
-                        selectedUserIds.length > 0 &&
-                        selectedUserIds.length === (usersData?.data?.length || 0)
-                      }
-                      indeterminate={
-                        selectedUserIds.length > 0 &&
-                        selectedUserIds.length < (usersData?.data?.length || 0)
-                      }
-                      onChange={handleSelectAll}
-                    />
-                  </TableCell>
-                )}
-                <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                  NAME
-                </TableCell>
-                <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                  ID / EMAIL
-                </TableCell>
-                <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                  ROLE
-                </TableCell>
-                <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                  MAPPING DETAILS
-                </TableCell>
-                <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                  STATUS
-                </TableCell>
-                <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                  LAST LOGIN
-                </TableCell>
-                <TableCell align="right" sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
-                  ACTIONS
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {usersData.data.map((user, index) => {
-                const isInactive = user.status === 'INACTIVE';
-                const chipStyles = getRoleChipStyles(user.role);
-                const isSelected = selectedUserIds.includes(user.id);
-
-                return (
-                  <TableRow
-                    key={user.id}
-                    className="staggered-row"
-                    style={{ animationDelay: `${index * 20}ms` }}
-                    sx={{
-                      opacity: isInactive ? 0.55 : 1,
-                      bgcolor: isSelected ? `${theme.palette.primary.main}0D` : 'transparent',
-                      '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' },
-                      transition: 'opacity 0.15s ease-in-out',
-                    }}
-                  >
-                    {isSuperAdmin && (
-                      <TableCell padding="checkbox">
-                        <Checkbox
-                          size="small"
-                          checked={isSelected}
-                          onChange={() => handleSelectOne(user.id)}
-                        />
-                      </TableCell>
-                    )}
+          <TableContainer
+            sx={{
+              maxHeight: '60vh',
+              overflowY: 'auto',
+              overflowX: 'auto',
+            }}
+          >
+            <Table aria-label="users directory list table" stickyHeader size={density === 'compact' ? 'small' : 'medium'} sx={{ tableLayout: 'fixed', minWidth: 960, width: '100%' }}>
+              <TableHead>
+                <TableRow>
+                  {isAdmin && (
                     <TableCell
-                      onClick={() => setViewUser(user)}
+                      align="center"
                       sx={{
-                        py: density === 'compact' ? 1 : 1.75,
-                        fontFamily: theme.typography.body1.fontFamily,
-                        fontSize: density === 'compact' ? '0.82rem' : '0.88rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        '&:hover': { color: theme.palette.primary.main, textDecoration: 'underline' },
+                        width: 56,
+                        minWidth: 56,
+                        maxWidth: 56,
+                        px: 1,
+                        py: density === 'compact' ? 1 : 1.5,
+                        bgcolor: theme.palette.background.paper,
+                        borderBottom: `2px solid ${theme.palette.divider}`,
+                        zIndex: 10,
                       }}
                     >
-                      {user.name}
+                      <Checkbox
+                        size="small"
+                        checked={
+                          selectedUserIds.length > 0 &&
+                          selectedUserIds.length === (usersData?.data?.length || 0)
+                        }
+                        indeterminate={
+                          selectedUserIds.length > 0 &&
+                          selectedUserIds.length < (usersData?.data?.length || 0)
+                        }
+                        onChange={handleSelectAll}
+                        sx={{ p: 0.5 }}
+                      />
                     </TableCell>
-                    <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.mono.fontFamily, fontSize: density === 'compact' ? '0.74rem' : '0.78rem', color: theme.palette.text.secondary }}>
-                      {user.email}
+                  )}
+                  <TableCell
+                    sx={{
+                      width: 190,
+                      py: density === 'compact' ? 1 : 1.5,
+                      fontFamily: theme.typography.body2.fontFamily,
+                      fontWeight: 700,
+                      fontSize: '0.76rem',
+                      color: theme.palette.text.primary,
+                      bgcolor: theme.palette.background.paper,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                      zIndex: 10,
+                    }}
+                  >
+                    NAME
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      width: 250,
+                      py: density === 'compact' ? 1 : 1.5,
+                      fontFamily: theme.typography.body2.fontFamily,
+                      fontWeight: 700,
+                      fontSize: '0.76rem',
+                      color: theme.palette.text.primary,
+                      bgcolor: theme.palette.background.paper,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                      zIndex: 10,
+                    }}
+                  >
+                    ROLL NUMBER / EMAIL
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      width: 110,
+                      py: density === 'compact' ? 1 : 1.5,
+                      fontFamily: theme.typography.body2.fontFamily,
+                      fontWeight: 700,
+                      fontSize: '0.76rem',
+                      color: theme.palette.text.primary,
+                      bgcolor: theme.palette.background.paper,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                      zIndex: 10,
+                    }}
+                  >
+                    ROLE
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      width: 210,
+                      py: density === 'compact' ? 1 : 1.5,
+                      fontFamily: theme.typography.body2.fontFamily,
+                      fontWeight: 700,
+                      fontSize: '0.76rem',
+                      color: theme.palette.text.primary,
+                      bgcolor: theme.palette.background.paper,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                      zIndex: 10,
+                    }}
+                  >
+                    MAPPING DETAILS
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      width: 100,
+                      py: density === 'compact' ? 1 : 1.5,
+                      fontFamily: theme.typography.body2.fontFamily,
+                      fontWeight: 700,
+                      fontSize: '0.76rem',
+                      color: theme.palette.text.primary,
+                      bgcolor: theme.palette.background.paper,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                      zIndex: 10,
+                    }}
+                  >
+                    STATUS
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      width: 110,
+                      py: density === 'compact' ? 1 : 1.5,
+                      fontFamily: theme.typography.body2.fontFamily,
+                      fontWeight: 700,
+                      fontSize: '0.76rem',
+                      color: theme.palette.text.primary,
+                      bgcolor: theme.palette.background.paper,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                      zIndex: 10,
+                    }}
+                  >
+                    LAST LOGIN
+                  </TableCell>
+                  <TableCell
+                    align="right"
+                    sx={{
+                      width: 110,
+                      py: density === 'compact' ? 1 : 1.5,
+                      fontFamily: theme.typography.body2.fontFamily,
+                      fontWeight: 700,
+                      fontSize: '0.76rem',
+                      color: theme.palette.text.primary,
+                      bgcolor: theme.palette.background.paper,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                      zIndex: 10,
+                    }}
+                  >
+                    ACTIONS
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {usersData.data.map((user, index) => {
+                  const isInactive = user.status === 'INACTIVE';
+                  const chipStyles = getRoleChipStyles(user.role);
+                  const isSelected = selectedUserIds.includes(user.id);
+
+                  return (
+                    <TableRow
+                      key={user.id}
+                      className="staggered-row"
+                      style={{ animationDelay: `${index * 20}ms` }}
+                      sx={{
+                        opacity: isInactive ? 0.55 : 1,
+                        bgcolor: isSelected ? `${theme.palette.primary.main}0D` : 'transparent',
+                        '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' },
+                        transition: 'opacity 0.15s ease-in-out',
+                      }}
+                    >
+                      {isAdmin && (
+                        <TableCell align="center" sx={{ width: 56, minWidth: 56, maxWidth: 56, px: 1 }}>
+                          <Checkbox
+                            size="small"
+                            checked={isSelected}
+                            onChange={() => handleSelectOne(user.id)}
+                            sx={{ p: 0.5 }}
+                          />
+                        </TableCell>
+                      )}
+                      <TableCell
+                        onClick={() => setViewUser(user)}
+                        sx={{
+                          width: 190,
+                          py: density === 'compact' ? 0.75 : 1.25,
+                          fontFamily: theme.typography.body1.fontFamily,
+                          fontSize: density === 'compact' ? '0.8rem' : '0.84rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          '&:hover': { color: theme.palette.primary.main, textDecoration: 'underline' },
+                        }}
+                      >
+                        {user.name}
+                      </TableCell>
+                    <TableCell sx={{ width: 260, py: density === 'compact' ? 1 : 1.75, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {user.role === 'STUDENT' && user.rollNumber ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, overflow: 'hidden' }}>
+                          <Chip
+                            label={user.rollNumber}
+                            size="small"
+                            sx={{
+                              fontWeight: 800,
+                              fontFamily: theme.typography.mono.fontFamily,
+                              fontSize: '0.72rem',
+                              bgcolor: `${theme.palette.primary.main}15`,
+                              color: theme.palette.primary.main,
+                              width: 'fit-content',
+                              height: 20,
+                            }}
+                          />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontFamily: theme.typography.mono.fontFamily,
+                              fontSize: '0.68rem',
+                              color: 'text.secondary',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {user.email}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontFamily: theme.typography.mono.fontFamily,
+                            fontSize: density === 'compact' ? '0.74rem' : '0.78rem',
+                            color: theme.palette.text.secondary,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {user.email}
+                        </Typography>
+                      )}
                     </TableCell>
-                    <TableCell sx={{ py: density === 'compact' ? 1 : 1.75 }}>
+                    <TableCell sx={{ width: 120, py: density === 'compact' ? 1 : 1.75 }}>
                       <Chip
                         label={user.role.replace('_', ' ')}
                         size="small"
@@ -708,7 +882,7 @@ export const UserRoster = () => {
                         }}
                       />
                     </TableCell>
-                    <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontSize: density === 'compact' ? '0.78rem' : '0.82rem' }}>
+                    <TableCell sx={{ width: 220, py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontSize: density === 'compact' ? '0.78rem' : '0.82rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {user.role === 'STUDENT' ? (
                         <>
                           {user.branch || 'No Branch'} ·{' '}
@@ -727,7 +901,7 @@ export const UserRoster = () => {
                         user.department || 'Global / Administrator'
                       )}
                     </TableCell>
-                    <TableCell sx={{ py: density === 'compact' ? 1 : 1.75 }}>
+                    <TableCell sx={{ width: 110, py: density === 'compact' ? 1 : 1.75 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box
                           sx={{
@@ -742,13 +916,36 @@ export const UserRoster = () => {
                         </Typography>
                       </Box>
                     </TableCell>
-                    <TableCell sx={{ py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontSize: density === 'compact' ? '0.78rem' : '0.82rem', color: theme.palette.text.secondary }}>
+                    <TableCell sx={{ width: 120, py: density === 'compact' ? 1 : 1.75, fontFamily: theme.typography.body2.fontFamily, fontSize: density === 'compact' ? '0.78rem' : '0.82rem', color: theme.palette.text.secondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {formatRelativeTime(user.lastLoginAt)}
                     </TableCell>
-                    <TableCell align="right" sx={{ py: density === 'compact' ? 1 : 1.75 }}>
-                      <IconButton aria-label="user actions menu" size="small" onClick={(e) => handleMenuOpen(e, user)}>
-                        <MoreVertOutlined fontSize="small" sx={{ color: theme.palette.text.secondary }} />
-                      </IconButton>
+                    <TableCell align="right" sx={{ width: 110, py: density === 'compact' ? 1 : 1.75, whiteSpace: 'nowrap' }}>
+                      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                        <Tooltip title="View Profile">
+                          <IconButton size="small" onClick={() => setViewUser(user)} sx={{ color: theme.palette.primary.main }}>
+                            <VisibilityOutlined fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        {canActOnUser(user.role) && (
+                          <Tooltip title="Edit User">
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setEditUser(user);
+                                setEditDrawerOpen(true);
+                              }}
+                              sx={{ color: theme.palette.text.secondary, '&:hover': { color: theme.palette.primary.main } }}
+                            >
+                              <EditOutlined fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <Tooltip title="More Actions">
+                          <IconButton aria-label="user actions menu" size="small" onClick={(e) => handleMenuOpen(e, user)}>
+                            <MoreVertOutlined fontSize="small" sx={{ color: theme.palette.text.secondary }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 );
@@ -766,6 +963,7 @@ export const UserRoster = () => {
             />
           </Box>
         </TableContainer>
+        </Card>
       )}
 
       {/* ── 4. Bulk Action Floating Bar ───────────────────────────────────── */}
@@ -828,28 +1026,39 @@ export const UserRoster = () => {
 
       {/* ── 5. Action Dropdown Menu ────────────────────────────────────────── */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={handleViewProfileClick}>
-          <VisibilityOutlined sx={{ fontSize: 18, mr: 1.25, color: theme.palette.primary.main }} />
-          View Full Profile
+        {canActOnUser(activeMenuUser?.role) && canDelete('USER', activeMenuUser?.role) && (
+          <MenuItem
+            onClick={handleDeactivateClick}
+            sx={{ color: activeMenuUser?.status === 'INACTIVE' ? theme.palette.signal.success : 'rgb(217, 119, 6)' }}
+          >
+            {activeMenuUser?.status === 'INACTIVE' ? (
+              <>
+                <CheckCircleOutlined sx={{ fontSize: 18, mr: 1.25, color: theme.palette.signal.success }} />
+                Activate
+              </>
+            ) : (
+              <>
+                <BlockOutlined sx={{ fontSize: 18, mr: 1.25, color: 'rgb(217, 119, 6)' }} />
+                Deactivate
+              </>
+            )}
+          </MenuItem>
+        )}
+        {canActOnUser(activeMenuUser?.role) && canDelete('PERMANENT_USER_DELETE', activeMenuUser?.role) && (
+          <MenuItem onClick={handleHardDeleteClick} sx={{ color: theme.palette.signal.error }}>
+            <DeleteOutline sx={{ fontSize: 18, mr: 1.25, color: theme.palette.signal.error }} />
+            Delete
+          </MenuItem>
+        )}
+        <MenuItem onClick={handleViewSessionsClick}>
+          <DevicesOutlined sx={{ fontSize: 18, mr: 1.25, color: theme.palette.text.secondary }} />
+          View Sessions
         </MenuItem>
-        {isSuperAdmin && (
-          <MenuItem onClick={handleEditClick}>
-            Edit Profile
-          </MenuItem>
-        )}
-        {isSuperAdmin && (
-          <MenuItem onClick={handleDeactivateClick}>
-            {activeMenuUser?.status === 'INACTIVE' ? 'Activate Account' : 'Deactivate Account'}
-          </MenuItem>
-        )}
-        {isSuperAdmin && (
-          <MenuItem onClick={handleDeactivateClick} sx={{ color: theme.palette.signal.error }}>
-            Delete Account
-          </MenuItem>
-        )}
-        <MenuItem onClick={handleViewSessionsClick}>View Active Sessions</MenuItem>
         {['STUDENT', 'FACULTY', 'HOD'].includes(activeMenuUser?.role) && (
-          <MenuItem onClick={handleGenerateIdCardClick}>Generate ID Card</MenuItem>
+          <MenuItem onClick={handleGenerateIdCardClick}>
+            <BadgeOutlined sx={{ fontSize: 18, mr: 1.25, color: theme.palette.primary.main }} />
+            ID Card
+          </MenuItem>
         )}
       </Menu>
 
@@ -990,19 +1199,50 @@ export const UserRoster = () => {
               </Box>
             </Box>
 
-            <Box sx={{ mt: 'auto', display: 'flex', gap: 2 }}>
+            <Box sx={{ mt: 'auto', display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <Button
                 variant="outlined"
-                fullWidth
                 onClick={() => setViewUser(null)}
-                sx={{ color: theme.palette.text.secondary, borderColor: theme.palette.divider }}
+                sx={{ color: theme.palette.text.secondary, borderColor: theme.palette.divider, minWidth: 70 }}
               >
                 Close
               </Button>
-              {isSuperAdmin && (
+              {canActOnUser(viewUser?.role) && canDelete('USER', viewUser?.role) && (
+                <Button
+                  variant="outlined"
+                  sx={{
+                    color: viewUser?.status === 'INACTIVE' ? theme.palette.signal.success : 'rgb(217, 119, 6)',
+                    borderColor: viewUser?.status === 'INACTIVE' ? theme.palette.signal.success : 'rgb(217, 119, 6)',
+                    fontWeight: 700,
+                    textTransform: 'none',
+                  }}
+                  startIcon={viewUser?.status === 'INACTIVE' ? <CheckCircleOutlined /> : <BlockOutlined />}
+                  onClick={() => {
+                    setDeactivateUser(viewUser);
+                    setViewUser(null);
+                  }}
+                >
+                  {viewUser?.status === 'INACTIVE' ? 'Reactivate' : 'Deactivate'}
+                </Button>
+              )}
+              {canActOnUser(viewUser?.role) && canDelete('PERMANENT_USER_DELETE', viewUser?.role) && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<DeleteOutline />}
+                  onClick={() => {
+                    setHardDeleteUser(viewUser);
+                    setHardDeleteConfirmText('');
+                    setViewUser(null);
+                  }}
+                  sx={{ fontWeight: 700, textTransform: 'none' }}
+                >
+                  Delete
+                </Button>
+              )}
+              {canActOnUser(viewUser?.role) && (
                 <Button
                   variant="contained"
-                  fullWidth
                   onClick={() => {
                     setEditUser(viewUser);
                     setViewUser(null);
@@ -1012,6 +1252,7 @@ export const UserRoster = () => {
                     background: theme.palette.primary.gradient || theme.palette.primary.main,
                     color: '#ffffff',
                     fontWeight: 700,
+                    ml: 'auto',
                   }}
                 >
                   Edit Profile
@@ -1066,16 +1307,74 @@ export const UserRoster = () => {
       {/* Deactivate Confirmation Modal */}
       <ConfirmDeleteModal
         open={Boolean(deactivateUser)}
-        title={deactivateUser?.status === 'INACTIVE' ? "Reactivate Account" : "Deactivate Account"}
+        title={deactivateUser?.status === 'INACTIVE' ? "Reactivate User Account" : "Deactivate User Account"}
         description={
           deactivateUser?.status === 'INACTIVE'
-            ? `Are you sure you want to reactivate ${deactivateUser?.name}'s account? They will regain login access.`
-            : `Are you sure you want to deactivate ${deactivateUser?.name}'s account? They will be logged out of all active sessions and prevented from logging in.`
+            ? `Are you sure you want to reactivate ${deactivateUser?.name}'s (${deactivateUser?.email}) account? They will regain active login access.`
+            : `Are you sure you want to deactivate ${deactivateUser?.name}'s (${deactivateUser?.email}) account? Their access will be suspended and they will be logged out.`
         }
+        actionText={deactivateUser?.status === 'INACTIVE' ? 'Reactivate User' : 'Deactivate User'}
+        confirmationWord={deactivateUser?.status === 'INACTIVE' ? 'REACTIVATE' : 'DEACTIVATE'}
         onClose={() => setDeactivateUser(null)}
         onConfirm={handleDeactivateConfirm}
         isDeleting={deleteUser.isPending || updateUser.isPending}
       />
+
+      {/* Hard Delete Confirmation — requires typing DELETE */}
+      {Boolean(hardDeleteUser) && (
+        <Dialog
+          open
+          onClose={() => { setHardDeleteUser(null); setHardDeleteConfirmText(''); }}
+          maxWidth="xs"
+          fullWidth
+          PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
+        >
+          <DialogTitle sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 700, color: theme.palette.signal.error }}>
+            Permanently Delete Account
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" sx={{ mb: 2, color: theme.palette.text.secondary }}>
+              This will <strong>permanently and irreversibly</strong> remove{' '}
+              <strong>{hardDeleteUser?.name}</strong>&apos;s account from the system. This action cannot be undone.
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 600 }}>
+              Type <strong>DELETE</strong> to confirm:
+            </Typography>
+            <TextField
+              autoFocus
+              fullWidth
+              size="small"
+              placeholder="DELETE"
+              value={hardDeleteConfirmText}
+              onChange={(e) => setHardDeleteConfirmText(e.target.value)}
+              inputProps={{ style: { fontFamily: 'monospace', letterSpacing: 2 } }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+            <Button
+              variant="outlined"
+              onClick={() => { setHardDeleteUser(null); setHardDeleteConfirmText(''); }}
+              sx={{ borderRadius: 2 }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              disabled={hardDeleteConfirmText !== 'DELETE' || hardDelete.isPending}
+              onClick={handleHardDeleteConfirm}
+              sx={{
+                borderRadius: 2,
+                bgcolor: theme.palette.signal.error,
+                '&:hover': { bgcolor: theme.palette.signal.error, opacity: 0.9 },
+                '&:disabled': { bgcolor: theme.palette.signal.error, opacity: 0.4 },
+              }}
+            >
+              {hardDelete.isPending ? 'Deleting…' : 'Delete Permanently'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Box>
   );
 };
@@ -1083,7 +1382,7 @@ export const UserRoster = () => {
 /**
  * Subcomponent to handle Edit User Form state, validation, cascading selects and loader skeleton.
  */
-const EditUserForm = ({ userId, onClose, onSaveSuccess, depts, _courses, _branches, _allHods, theme }) => {
+const EditUserForm = ({ userId, onClose, onSaveSuccess, depts, courses, branches, theme }) => {
   const { data: user, isLoading } = useUserQuery(userId);
   const updateUser = useUpdateUserMutation();
 
@@ -1091,6 +1390,7 @@ const EditUserForm = ({ userId, onClose, onSaveSuccess, depts, _courses, _branch
     register,
     handleSubmit,
     watch,
+    setValue,
     control,
     formState: { errors, isDirty },
     reset,
@@ -1099,23 +1399,36 @@ const EditUserForm = ({ userId, onClose, onSaveSuccess, depts, _courses, _branch
   });
 
   const selectedRole = watch('role');
+  const selectedCourseId = watch('courseId');
 
   useEffect(() => {
     if (user) {
+      const deptId = typeof user.departmentId === 'object' ? user.departmentId?._id || '' : user.departmentId || '';
+      const crsId = typeof user.courseId === 'object' ? user.courseId?._id || '' : user.courseId || '';
+      const brnId = typeof user.branchId === 'object' ? user.branchId?._id || '' : user.branchId || '';
+
       reset({
         name: user.name || '',
         role: user.role || 'STUDENT',
-        departmentId: user.departmentId?._id || user.departmentId || '',
+        departmentId: String(deptId),
         status: user.status || 'ACTIVE',
-        courseId: user.courseId?._id || user.courseId || '',
-        branchId: user.branchId?._id || user.branchId || '',
-        semester: user.semester || 1,
+        courseId: String(crsId),
+        branchId: String(brnId),
+        semester: Number(user.semester) || 1,
         rollNumber: user.rollNumber || '',
         shift: user.shift || 'GENERAL',
         reason: '',
       });
     }
   }, [user, reset]);
+
+  const filteredBranches = React.useMemo(() => {
+    if (!selectedCourseId) return branches || [];
+    return (branches || []).filter((b) => {
+      const bCourseId = typeof b.courseId === 'object' ? b.courseId?._id : b.courseId;
+      return String(bCourseId) === String(selectedCourseId);
+    });
+  }, [branches, selectedCourseId]);
 
   const onSubmit = async (formData) => {
     try {
@@ -1250,20 +1563,124 @@ const EditUserForm = ({ userId, onClose, onSaveSuccess, depts, _courses, _branch
           )}
 
           {selectedRole === 'STUDENT' && (
-            <Box>
-              <Typography component="label" htmlFor="edit-user-rollno" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 0.75 }}>
-                Roll Number
-              </Typography>
-              <TextField
-                id="edit-user-rollno"
-                fullWidth
-                size="small"
-                placeholder="e.g. 2026-CSE-042"
-                {...register('rollNumber')}
-                error={!!errors.rollNumber}
-                helperText={errors.rollNumber?.message}
-              />
-            </Box>
+            <>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography component="label" htmlFor="edit-user-course" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 0.75 }}>
+                    Degree Course
+                  </Typography>
+                  <Controller
+                    name="courseId"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          setValue('branchId', '');
+                        }}
+                        id="edit-user-course"
+                        select
+                        fullWidth
+                        size="small"
+                        error={!!errors.courseId}
+                        helperText={errors.courseId?.message}
+                      >
+                        <MenuItem value="">Select Course...</MenuItem>
+                        {courses?.map((c) => (
+                          <MenuItem key={c._id || c.id} value={c._id || c.id}>
+                            {c.name} ({c.code})
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
+                  />
+                </Grid>
+
+                <Grid item xs={6}>
+                  <Typography component="label" htmlFor="edit-user-branch" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 0.75 }}>
+                    Branch
+                  </Typography>
+                  <Controller
+                    name="branchId"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          const selectedBranch = branches?.find((b) => String(b._id || b.id) === String(e.target.value));
+                          if (selectedBranch) {
+                            const bCrsId = selectedBranch.courseId?._id || selectedBranch.courseId;
+                            const bDeptId = selectedBranch.hostingDepartmentId?._id || selectedBranch.hostingDepartmentId;
+                            if (bCrsId) setValue('courseId', String(bCrsId));
+                            if (bDeptId) setValue('departmentId', String(bDeptId));
+                          }
+                        }}
+                        id="edit-user-branch"
+                        select
+                        fullWidth
+                        size="small"
+                        error={!!errors.branchId}
+                        helperText={errors.branchId?.message}
+                      >
+                        <MenuItem value="">Select Branch...</MenuItem>
+                        {filteredBranches.map((b) => (
+                          <MenuItem key={b._id || b.id} value={b._id || b.id}>
+                            {b.name} ({b.code})
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
+                  />
+                </Grid>
+              </Grid>
+
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography component="label" htmlFor="edit-user-semester" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 0.75 }}>
+                    Semester
+                  </Typography>
+                  <Controller
+                    name="semester"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        id="edit-user-semester"
+                        select
+                        fullWidth
+                        size="small"
+                        error={!!errors.semester}
+                        helperText={errors.semester?.message}
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                          <MenuItem key={sem} value={sem}>
+                            Semester {sem}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
+                  />
+                </Grid>
+
+                <Grid item xs={6}>
+                  <Typography component="label" htmlFor="edit-user-rollno" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 0.75 }}>
+                    Roll Number
+                  </Typography>
+                  <TextField
+                    id="edit-user-rollno"
+                    fullWidth
+                    size="small"
+                    placeholder="e.g. 2026-CSE-042"
+                    {...register('rollNumber')}
+                    error={!!errors.rollNumber}
+                    helperText={errors.rollNumber?.message}
+                  />
+                </Grid>
+              </Grid>
+            </>
           )}
 
           {selectedRole === 'HOD' && (

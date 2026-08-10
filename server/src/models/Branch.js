@@ -20,6 +20,11 @@ const branchSchema = new mongoose.Schema(
       ref: 'Course',
       required: [true, 'Course reference is required'],
     },
+    hostingDepartmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Department',
+      required: false,
+    },
   },
   {
     timestamps: true,

@@ -2,162 +2,285 @@ import React, { useState, useMemo } from 'react';
 import {
   Box,
   Typography,
+  Card,
+  Grid,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Chip,
+  CircularProgress,
+  useTheme,
   TextField,
   MenuItem,
-  Chip,
-  LinearProgress,
-  Grid,
-  Card,
-  useTheme,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  CircularProgress,
-  Avatar,
-  ToggleButtonGroup,
-  ToggleButton,
+  Divider,
 } from '@mui/material';
 import {
-  WarningAmber,
-  CheckCircle,
-  LocalHospital,
-  DownloadOutlined,
-  SearchOutlined,
-  RefreshOutlined,
   FactCheckOutlined,
-  SchoolOutlined,
+  DownloadOutlined,
+  RefreshOutlined,
+  SearchOutlined,
+  CheckCircleOutlined,
+  CancelOutlined,
+  LocalHospitalOutlined,
+  ClearOutlined,
+  CalendarTodayOutlined,
 } from '@mui/icons-material';
 import DataTable from '../../../components/common/DataTable';
 import EmptyState from '../../../components/common/EmptyState';
+import MarkAttendanceModal from './MarkAttendanceModal';
 import {
   useAttendanceQuery,
   useAttendanceSummaryQuery,
-  useBulkMarkAttendanceMutation,
   useApproveMedicalLeaveMutation,
 } from '../../../queries/hodQueries';
-import { useSubjectsQuery } from '../../../queries/collegeQueries';
+import { useSubjectsQuery, useCoursesQuery, useBranchesQuery } from '../../../queries/collegeQueries';
 import { useUsersQuery } from '../../../queries/userQueries';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
-
-const SESSION_TYPES = ['LECTURE', 'LAB', 'TUTORIAL'];
-const AT_RISK_THRESHOLD = 75;
+import GroupSelect from '../../../components/common/GroupSelect';
 
 const AttendanceBar = ({ pct }) => {
-  const color = pct < AT_RISK_THRESHOLD ? 'error' : pct < 85 ? 'warning' : 'success';
+  const theme = useTheme();
+  const color = pct >= 75 ? theme.palette.success.main : theme.palette.error.main;
+
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 140 }}>
-      <LinearProgress
-        variant="determinate"
-        value={Math.min(pct, 100)}
-        color={color}
-        sx={{ flex: 1, height: 8, borderRadius: 4 }}
-      />
-      <Typography variant="caption" fontWeight={700} color={`${color}.main`}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 150 }}>
+      <Box sx={{ flex: 1, height: 8, borderRadius: 4, bgcolor: `${color}20`, overflow: 'hidden' }}>
+        <Box sx={{ width: `${Math.min(pct, 100)}%`, height: '100%', bgcolor: color, borderRadius: 4 }} />
+      </Box>
+      <Typography variant="caption" sx={{ fontWeight: 800, color, fontFamily: 'monospace', minWidth: 42 }}>
         {pct}%
       </Typography>
     </Box>
   );
 };
 
-const getCleanId = (val) => {
-  if (!val) return '';
-  if (typeof val === 'string') return val;
-  if (val._id) return String(val._id);
-  if (val.id) return String(val.id);
-  return String(val);
-};
-
 export const HodAttendanceHub = () => {
   const theme = useTheme();
   const { user } = useAuth();
   const { showToast } = useToast();
-  const cleanDeptId = getCleanId(user?.departmentId || user?.department);
 
-  // View & Tab state
-  const [viewMode, setViewMode] = useState('summary'); // 'summary' | 'records'
+  const cleanDeptId = useMemo(() => {
+    if (!user) return undefined;
+    const d = user.departmentId || user.department;
+    return typeof d === 'object' ? d?._id || d?.id : d;
+  }, [user]);
 
-  // Filter States
+  // View Mode: 'summary' | 'records'
+  const [viewMode, setViewMode] = useState('summary');
+
+  // Comprehensive Filter States
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [selectedSemester, setSelectedSemester] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState('');
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedSessionType, setSelectedSessionType] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
+
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Bulk Mark Modal States
+  // Bulk Mark Modal State
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
-  const [bulkFormData, setBulkFormData] = useState({
-    subjectId: '',
-    date: new Date().toISOString().split('T')[0],
-    sessionType: 'LECTURE',
-  });
-  const [bulkStudentStatuses, setBulkStudentStatuses] = useState({});
 
-  // Debounce search input
+  // Debounce search
   React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 400);
+    const handler = setTimeout(() => setDebouncedSearch(search), 400);
     return () => clearTimeout(handler);
   }, [search]);
 
-  // Queries
-  const { data: subjects = [] } = useSubjectsQuery(cleanDeptId ? { departmentId: cleanDeptId } : {});
+  // Global Metadata Queries
+  const { data: allCourses = [] } = useCoursesQuery();
+  const { data: branches = [] } = useBranchesQuery();
 
-  // Set default subject selection for Summary mode if subjects are loaded
+  // Fetch HOD department students to derive distinct courses
+  const { data: baseStudentsResponse } = useUsersQuery({
+    role: 'STUDENT',
+    departmentId: cleanDeptId,
+    limit: 1000,
+  });
+
+  const baseStudents = useMemo(() => {
+    if (!baseStudentsResponse) return [];
+    return baseStudentsResponse.data || (Array.isArray(baseStudentsResponse) ? baseStudentsResponse : []);
+  }, [baseStudentsResponse]);
+
+  // Derived HOD Courses
+  const hodCourses = useMemo(() => {
+    const map = new Map();
+    baseStudents.forEach((s) => {
+      const cObj = typeof s.courseId === 'object' ? s.courseId : null;
+      const cId = cObj?._id || (typeof s.courseId === 'string' ? s.courseId : null);
+      if (cId && !map.has(String(cId))) {
+        const matchingGlobal = allCourses.find((c) => String(c._id || c.id) === String(cId));
+        map.set(String(cId), {
+          _id: String(cId),
+          id: String(cId),
+          name: cObj?.name || matchingGlobal?.name || s.course || 'Course Program',
+          code: cObj?.code || matchingGlobal?.code || s.course || 'DEGREE',
+          durationYears: matchingGlobal?.durationYears || cObj?.durationYears || 4,
+        });
+      }
+    });
+
+    if (map.size === 0 && allCourses.length > 0) {
+      allCourses.forEach((c) => {
+        const id = String(c._id || c.id);
+        map.set(id, {
+          _id: id,
+          id,
+          name: c.name,
+          code: c.code,
+          durationYears: c.durationYears || 4,
+        });
+      });
+    }
+
+    return Array.from(map.values());
+  }, [baseStudents, allCourses]);
+
+  // Available Branches for Filter
+  const availableBranches = useMemo(() => {
+    if (!selectedCourse) return branches;
+    return branches.filter((b) => {
+      const crsId = typeof b.courseId === 'object' ? b.courseId?._id || b.courseId?.id : b.courseId;
+      return String(crsId) === String(selectedCourse);
+    });
+  }, [branches, selectedCourse]);
+
+  // Semester Options
+  const selectedCourseObj = useMemo(() => {
+    if (!selectedCourse) return null;
+    return hodCourses.find((c) => String(c._id || c.id) === String(selectedCourse));
+  }, [hodCourses, selectedCourse]);
+
+  const maxSemesters = useMemo(() => {
+    if (!selectedCourseObj) return 8;
+    return (selectedCourseObj.durationYears || 4) * 2;
+  }, [selectedCourseObj]);
+
+  const semesterOptions = useMemo(() => {
+    return Array.from({ length: maxSemesters }, (_, i) => i + 1);
+  }, [maxSemesters]);
+
+  // Subjects Query filtered by department, branch, semester
+  const { data: subjects = [] } = useSubjectsQuery(
+    cleanDeptId
+      ? {
+          departmentId: cleanDeptId,
+          branchId: selectedBranch || undefined,
+          semester: selectedSemester ? Number(selectedSemester) : undefined,
+        }
+      : {}
+  );
+
+  // Auto-reset subject when branch or semester changes (subjects list changes)
+  const prevBranchRef = React.useRef(selectedBranch);
+  const prevSemRef = React.useRef(selectedSemester);
+  React.useEffect(() => {
+    const branchChanged = prevBranchRef.current !== selectedBranch;
+    const semChanged = prevSemRef.current !== selectedSemester;
+    prevBranchRef.current = selectedBranch;
+    prevSemRef.current = selectedSemester;
+    if (branchChanged || semChanged) {
+      setSelectedSubjectId('');
+    }
+  }, [selectedBranch, selectedSemester]);
+
+  // Auto-set first subject once subjects list loads
   React.useEffect(() => {
     if (subjects.length > 0 && !selectedSubjectId) {
       setSelectedSubjectId(String(subjects[0]._id || subjects[0].id));
     }
   }, [subjects, selectedSubjectId]);
 
-  const { data: records = [], isLoading: recordsLoading, refetch: refetchRecords } = useAttendanceQuery({
+  // Build cohort filter params for queries
+  const cohortParams = useMemo(() => ({
     subjectId: selectedSubjectId || undefined,
+    courseId: selectedCourse || undefined,
+    branchId: selectedBranch || undefined,
+    semester: selectedSemester || undefined,
+    group: selectedGroup || undefined,
+  }), [selectedSubjectId, selectedCourse, selectedBranch, selectedSemester, selectedGroup]);
+
+  // Queries for Daily Records & Overall Summary
+  const { data: records = [], isLoading: recordsLoading, refetch: refetchRecords } = useAttendanceQuery({
+    ...cohortParams,
     sessionType: selectedSessionType || undefined,
     status: selectedStatus || undefined,
     date: selectedDate || undefined,
   });
 
-  const { data: summaryData, isLoading: summaryLoading, refetch: refetchSummary } = useAttendanceSummaryQuery(selectedSubjectId);
-  const { data: studentsData } = useUsersQuery({ role: 'STUDENT', department: cleanDeptId, limit: 100 });
+  const { data: summaryData, isLoading: summaryLoading, refetch: refetchSummary } = useAttendanceSummaryQuery(cohortParams);
 
   const approveMedical = useApproveMedicalLeaveMutation();
-  const bulkMarkMutation = useBulkMarkAttendanceMutation();
 
   const handleRefresh = () => {
     refetchRecords();
     refetchSummary();
   };
 
-  // Filter records locally for search text (Student Name/Email)
+  const handleClearFilters = () => {
+    setSelectedCourse('');
+    setSelectedBranch('');
+    setSelectedSemester('');
+    setSelectedGroup('');
+    setSelectedSubjectId('');
+    setSelectedSessionType('');
+    setSelectedStatus('');
+    setSelectedDate('');
+    setSearch('');
+    setDebouncedSearch('');
+  };
+
+  const isAnyFilterActive = useMemo(() => {
+    return Boolean(
+      selectedCourse ||
+        selectedBranch ||
+        selectedSemester ||
+        selectedGroup ||
+        selectedSubjectId ||
+        selectedSessionType ||
+        selectedStatus ||
+        selectedDate ||
+        search
+    );
+  }, [
+    selectedCourse,
+    selectedBranch,
+    selectedSemester,
+    selectedGroup,
+    selectedSubjectId,
+    selectedSessionType,
+    selectedStatus,
+    selectedDate,
+    search,
+  ]);
+
+  // Filter daily records locally by search query (cohort already filtered server-side)
   const filteredRecords = useMemo(() => {
     if (!records) return [];
-    if (!debouncedSearch) return records;
-    const query = debouncedSearch.toLowerCase();
-    return records.filter((r) => {
-      const studentName = r.studentId?.name?.toLowerCase() || '';
-      const studentEmail = r.studentId?.email?.toLowerCase() || '';
-      const subjectName = r.subjectId?.name?.toLowerCase() || '';
-      return studentName.includes(query) || studentEmail.includes(query) || subjectName.includes(query);
-    });
+    let list = records;
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      list = list.filter((r) => {
+        const studentName = r.studentId?.name?.toLowerCase() || '';
+        const studentEmail = r.studentId?.email?.toLowerCase() || '';
+        const subjectName = r.subjectId?.name?.toLowerCase() || '';
+        return studentName.includes(q) || studentEmail.includes(q) || subjectName.includes(q);
+      });
+    }
+    return list;
   }, [records, debouncedSearch]);
 
-  // Filter summary list locally for search text
+  // Filter summary list locally by search query (cohort already filtered server-side)
   const filteredSummary = useMemo(() => {
-    const list = summaryData?.summary || [];
-    if (!debouncedSearch) return list;
-    const query = debouncedSearch.toLowerCase();
-    return list.filter((s) => (s.name?.toLowerCase() || '').includes(query) || (s.email?.toLowerCase() || '').includes(query));
+    let list = summaryData?.summary || [];
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      list = list.filter((s) => (s.name?.toLowerCase() || '').includes(q) || (s.email?.toLowerCase() || '').includes(q));
+    }
+    return list;
   }, [summaryData, debouncedSearch]);
 
   const summaryList = summaryData?.summary || [];
@@ -168,14 +291,14 @@ export const HodAttendanceHub = () => {
   const handleApproveMedical = async (id, name) => {
     try {
       await approveMedical.mutateAsync(id);
-      showToast(`Medical leave approved for ${name}. Absence excluded from calculation.`);
+      showToast(`Medical leave approved for ${name}.`);
       handleRefresh();
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to approve medical leave.', { severity: 'error' });
     }
   };
 
-  // CSV Download Handler
+  // Export CSV
   const handleDownloadCSV = () => {
     let csvContent = 'data:text/csv;charset=utf-8,';
 
@@ -202,140 +325,135 @@ export const HodAttendanceHub = () => {
         const absent = s.absent || 0;
         const medical = s.medicalLeave || 0;
         const total = s.total || 0;
-        const percentage = `${s.percentage || 0}%`;
-        const status = s.isAtRisk ? 'AT RISK' : 'ADEQUATE';
+        const pct = `${s.percentage || 0}%`;
+        const status = s.isAtRisk ? 'AT RISK (<75%)' : 'REGULAR (>75%)';
 
-        csvContent += `${studentName},${studentEmail},${present},${absent},${medical},${total},${percentage},${status}\n`;
+        csvContent += `${studentName},${studentEmail},${present},${absent},${medical},${total},${pct},${status}\n`;
       });
     }
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `attendance_${viewMode}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `Attendance_Report_${viewMode}_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Open Bulk Mark Modal
-  const handleOpenBulkModal = () => {
-    const initialSubject = selectedSubjectId || (subjects[0]?._id || subjects[0]?.id || '');
-    setBulkFormData({
-      subjectId: initialSubject,
-      date: new Date().toISOString().split('T')[0],
-      sessionType: 'LECTURE',
-    });
-
-    const students = studentsData?.data || [];
-    const initialMap = {};
-    students.forEach((st) => {
-      initialMap[st.id || st._id] = 'PRESENT';
-    });
-    setBulkStudentStatuses(initialMap);
-    setBulkModalOpen(true);
-  };
-
-  const handleBulkStatusChange = (studentId, status) => {
-    setBulkStudentStatuses((prev) => ({ ...prev, [studentId]: status }));
-  };
-
-  const handleBulkMarkSubmit = async (e) => {
-    e.preventDefault();
-    const studentsList = Object.entries(bulkStudentStatuses).map(([studentId, status]) => ({
-      studentId,
-      status,
-    }));
-
-    if (studentsList.length === 0) {
-      showToast('No students available for bulk marking.', { severity: 'error' });
-      return;
-    }
-
-    try {
-      await bulkMarkMutation.mutateAsync({
-        subjectId: bulkFormData.subjectId,
-        date: bulkFormData.date,
-        sessionType: bulkFormData.sessionType,
-        students: studentsList,
-      });
-      showToast('Bulk attendance session recorded successfully!');
-      setBulkModalOpen(false);
-      handleRefresh();
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to submit bulk attendance', { severity: 'error' });
-    }
-  };
+  const summaryColumns = [
+    {
+      id: 'student',
+      label: 'STUDENT NAME & EMAIL',
+      render: (r) => (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.ink?.[900], lineHeight: 1.2 }}>
+            {r.name || 'Student Name'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {r.email || '—'}
+          </Typography>
+        </Box>
+      ),
+    },
+    {
+      id: 'breakdown',
+      label: 'ATTENDANCE SESSIONS',
+      render: (r) => (
+        <Typography variant="caption" sx={{ fontWeight: 700 }}>
+          {r.present || 0} Present / {r.total || 0} Total ({r.absent || 0} Absent)
+        </Typography>
+      ),
+    },
+    {
+      id: 'pct',
+      label: 'AGGREGATE ATTENDANCE',
+      render: (r) => <AttendanceBar pct={r.percentage || 0} />,
+    },
+    {
+      id: 'status',
+      label: 'ELIGIBILITY STATUS',
+      render: (r) => (
+        <Chip
+          icon={r.isAtRisk ? <CancelOutlined sx={{ fontSize: '0.8rem !important' }} /> : <CheckCircleOutlined sx={{ fontSize: '0.8rem !important' }} />}
+          label={r.isAtRisk ? 'AT RISK (<75%)' : 'REGULAR (>75%)'}
+          size="small"
+          color={r.isAtRisk ? 'error' : 'success'}
+          sx={{ fontWeight: 800, fontSize: '0.65rem', height: 22 }}
+        />
+      ),
+    },
+  ];
 
   const recordColumns = [
     {
       id: 'student',
-      label: 'Student Name & Email',
-      render: (row) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar sx={{ width: 32, height: 32, bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main, fontSize: '0.85rem', fontWeight: 700 }}>
-            {row.studentId?.name?.charAt(0) || 'S'}
-          </Avatar>
-          <Box>
-            <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
-              {row.studentId?.name || 'Student'}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {row.studentId?.email || 'N/A'}
-            </Typography>
-          </Box>
+      label: 'STUDENT NAME & EMAIL',
+      render: (r) => (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.ink?.[900], lineHeight: 1.2 }}>
+            {r.studentId?.name || 'Student Name'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {r.studentId?.email || '—'}
+          </Typography>
         </Box>
       ),
     },
     {
       id: 'subject',
-      label: 'Subject',
-      render: (row) => row.subjectId?.name || 'N/A',
-    },
-    {
-      id: 'date',
-      label: 'Session Date',
-      render: (row) => new Date(row.date).toLocaleDateString('en-IN'),
-    },
-    {
-      id: 'type',
-      label: 'Session Type',
-      render: (row) => (
-        <Chip label={row.sessionType || 'LECTURE'} size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.68rem' }} />
+      label: 'SUBJECT & SESSION',
+      render: (r) => (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            {r.subjectId?.name || 'Subject'}
+          </Typography>
+          <Chip label={r.sessionType || 'LECTURE'} size="small" variant="outlined" sx={{ fontWeight: 800, fontSize: '0.62rem', height: 18, mt: 0.3 }} />
+        </Box>
       ),
     },
     {
-      id: 'status',
-      label: 'Attendance Status',
-      render: (row) => (
+      id: 'date',
+      label: 'ATTENDANCE DATE',
+      render: (r) => (
         <Chip
-          label={row.status || 'PRESENT'}
+          icon={<CalendarTodayOutlined sx={{ fontSize: '0.75rem !important' }} />}
+          label={new Date(r.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
           size="small"
-          color={row.status === 'PRESENT' ? 'success' : row.status === 'ABSENT' ? 'error' : 'warning'}
-          sx={{ fontWeight: 800, fontSize: '0.65rem' }}
+          sx={{ fontWeight: 700, fontSize: '0.68rem', height: 22 }}
         />
       ),
     },
     {
-      id: 'medical',
-      label: 'Medical Action',
-      render: (row) =>
-        row.status === 'ABSENT' && !row.isMedicalApproved ? (
+      id: 'status',
+      label: 'DAILY ATTENDANCE STATUS',
+      render: (r) => (
+        <Chip
+          label={r.status}
+          size="small"
+          color={r.status === 'PRESENT' ? 'success' : r.status === 'ABSENT' ? 'error' : r.status === 'MEDICAL_LEAVE' ? 'info' : 'warning'}
+          sx={{ fontWeight: 800, fontSize: '0.65rem', height: 22 }}
+        />
+      ),
+    },
+    {
+      id: 'actions',
+      label: 'EXEMPTIONS',
+      render: (r) =>
+        r.status === 'ABSENT' && !r.isMedicalApproved ? (
           <Button
             size="small"
             variant="outlined"
             color="info"
-            startIcon={<LocalHospital />}
-            onClick={() => handleApproveMedical(row._id || row.id, row.studentId?.name)}
-            sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 600, fontSize: '0.72rem' }}
+            startIcon={<LocalHospitalOutlined fontSize="small" />}
+            onClick={() => handleApproveMedical(r._id, r.studentId?.name)}
+            sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700, fontSize: '0.68rem', py: 0.2 }}
           >
             Approve Medical
           </Button>
-        ) : row.isMedicalApproved ? (
-          <Chip icon={<CheckCircle sx={{ fontSize: '0.8rem !important' }} />} label="Medical Excused" size="small" color="info" sx={{ fontWeight: 800, fontSize: '0.62rem' }} />
-        ) : (
-          <Typography variant="caption" color="text.disabled">—</Typography>
-        ),
+        ) : r.isMedicalApproved ? (
+          <Chip label="Medical Approved" size="small" color="info" variant="outlined" sx={{ fontWeight: 800, fontSize: '0.65rem', height: 20 }} />
+        ) : null,
     },
   ];
 
@@ -344,10 +462,10 @@ export const HodAttendanceHub = () => {
       {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
       <Card
         sx={{
-          p: 3.5,
+          p: { xs: 2.5, md: 3.5 },
           borderRadius: '16px',
-          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
+          border: `1px solid ${theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}12 0%, ${theme.palette.primary.main}04 100%)`,
           boxShadow: 'none',
         }}
       >
@@ -355,24 +473,23 @@ export const HodAttendanceHub = () => {
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
               <Chip
-                icon={<FactCheckOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
-                label="DEPARTMENT ATTENDANCE ANALYTICS & LOW-ATTENDANCE WARNINGS DESK"
+                icon={<FactCheckOutlined sx={{ fontSize: '0.85rem !important', color: `${theme.palette.primary.main} !important` }} />}
+                label="DEPARTMENT ATTENDANCE ANALYTICS & DAILY LOGS DESK"
                 size="small"
                 sx={{
-                  bgcolor: `${theme.palette.primary.main}15`,
+                  bgcolor: `${theme.palette.primary.main}18`,
                   color: theme.palette.primary.main,
                   fontWeight: 800,
-                  fontFamily: theme.typography.mono.fontFamily,
-                  letterSpacing: '0.05em',
-                  fontSize: '0.7rem',
+                  fontSize: '0.68rem',
+                  letterSpacing: '0.04em',
                 }}
               />
             </Box>
-            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
-              Attendance Analytics & Low-Attendance Warnings
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink?.[900], letterSpacing: '-0.02em' }}>
+              Attendance Analytics & Daily Logs
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
-              Track attendance percentages per subject, detect at-risk students (&lt;75%), approve medical leave exemptions, and export attendance CSVs.
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5, maxWidth: 680 }}>
+              Track aggregate attendance percentages, view separate daily attendance logs per date, detect low-attendance warnings (&lt;75%), and mark session logs.
             </Typography>
           </Box>
 
@@ -381,7 +498,7 @@ export const HodAttendanceHub = () => {
               variant="outlined"
               startIcon={<RefreshOutlined />}
               onClick={handleRefresh}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 2 }}
             >
               Refresh
             </Button>
@@ -389,20 +506,20 @@ export const HodAttendanceHub = () => {
               variant="outlined"
               startIcon={<DownloadOutlined />}
               onClick={handleDownloadCSV}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 2 }}
             >
               Export CSV
             </Button>
             <Button
               variant="contained"
               startIcon={<FactCheckOutlined />}
-              onClick={handleOpenBulkModal}
+              onClick={() => setBulkModalOpen(true)}
               sx={{
-                borderRadius: '8px',
+                borderRadius: '10px',
                 textTransform: 'none',
                 fontWeight: 700,
-                background: theme.palette.primary.gradient || theme.palette.primary.main,
-                color: '#ffffff',
+                px: 2.5,
+                boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
               }}
             >
               Mark Session Attendance
@@ -414,360 +531,296 @@ export const HodAttendanceHub = () => {
       {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.primary.main}`, boxShadow: 'none' }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               SUBJECT STUDENTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {summaryLoading ? <CircularProgress size={24} /> : summaryList.length}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink?.[900], mt: 0.5 }}>
+              {summaryLoading ? <CircularProgress size={22} /> : summaryList.length}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
               Tracked in selected subject
             </Typography>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.success.main}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               ADEQUATE ATTENDANCE (&gt;75%)
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {summaryLoading ? <CircularProgress size={24} /> : adequateStudents.length}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.success.main, mt: 0.5 }}>
+              {summaryLoading ? <CircularProgress size={22} /> : adequateStudents.length}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
               Eligible for examinations
             </Typography>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
-              AT-RISK STUDENTS (&lt;75%)
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.warning.main}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+              AT-RISK WARNINGS (&lt;75%)
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {summaryLoading ? <CircularProgress size={24} /> : atRiskStudents.length}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 0.5 }}>
+              {summaryLoading ? <CircularProgress size={22} /> : atRiskStudents.length}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
               Low-attendance warnings
             </Typography>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info?.main || '#0288d1' }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.info.main}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               MEDICAL LEAVES EXCUSED
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info?.main || '#0288d1', mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {summaryLoading ? <CircularProgress size={24} /> : medicalCount}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 0.5 }}>
+              {summaryLoading ? <CircularProgress size={22} /> : medicalCount}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
               Approved medical exemptions
             </Typography>
           </Card>
         </Grid>
       </Grid>
 
-      {/* ── 3. Filters & Mode Switcher ──────────────────────────────────────── */}
-      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-          <Box sx={{ display: 'flex', gap: 2, flex: 1, flexWrap: 'wrap', maxWidth: 850 }}>
-            <TextField
+      {/* ── 3. Filters & View Mode Control Card ───────────────────────────── */}
+      <Card sx={{ p: { xs: 2, md: 2.5 }, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 2.5 }}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
               size="small"
-              placeholder="Search student name, email, subject..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{ flex: 1, minWidth: 220 }}
-              InputProps={{
-                startAdornment: <SearchOutlined sx={{ color: 'text.secondary', mr: 1, fontSize: 18 }} />,
-              }}
-            />
+              variant={viewMode === 'summary' ? 'contained' : 'outlined'}
+              onClick={() => setViewMode('summary')}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700 }}
+            >
+              Overall Subject Summary
+            </Button>
+            <Button
+              size="small"
+              variant={viewMode === 'records' ? 'contained' : 'outlined'}
+              onClick={() => setViewMode('records')}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700 }}
+            >
+              Daily Attendance Logs per Date
+            </Button>
+          </Box>
 
+          {isAnyFilterActive && (
+            <Button size="small" startIcon={<ClearOutlined />} onClick={handleClearFilters} sx={{ textTransform: 'none', fontSize: '0.75rem' }}>
+              Clear All Filters
+            </Button>
+          )}
+        </Box>
+
+        {/* ── Section A: Academic Cohort & Subject Filters ── */}
+        <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', letterSpacing: '0.06em', mb: 1.2, display: 'block' }}>
+          ACADEMIC COHORT & CURRICULUM FILTERS
+        </Typography>
+        <Grid container spacing={1.5} sx={{ mb: 2 }}>
+          {/* Course Filter */}
+          <Grid item xs={12} sm={6} md={2.4}>
             <TextField
               select
+              fullWidth
               size="small"
-              label="Subject"
+              label="Course Program"
+              value={selectedCourse}
+              onChange={(e) => {
+                setSelectedCourse(e.target.value);
+                setSelectedBranch('');
+                setSelectedSemester('');
+                setSelectedSubjectId('');
+              }}
+            >
+              <MenuItem value="">All Courses</MenuItem>
+              {hodCourses.map((c) => (
+                <MenuItem key={c._id} value={c._id}>
+                  {c.code} — {c.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+
+          {/* Branch Filter */}
+          <Grid item xs={12} sm={6} md={2.4}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Branch Specialization"
+              value={selectedBranch}
+              onChange={(e) => {
+                setSelectedBranch(e.target.value);
+                setSelectedSubjectId('');
+              }}
+            >
+              <MenuItem value="">All Branches</MenuItem>
+              {availableBranches.map((b) => (
+                <MenuItem key={b._id || b.id} value={b._id || b.id}>
+                  {b.name} ({b.code})
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+
+          {/* Semester Filter */}
+          <Grid item xs={12} sm={6} md={2.4}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Semester"
+              value={selectedSemester}
+              onChange={(e) => {
+                setSelectedSemester(e.target.value);
+                setSelectedSubjectId('');
+              }}
+            >
+              <MenuItem value="">All Semesters</MenuItem>
+              {semesterOptions.map((s) => (
+                <MenuItem key={s} value={s}>
+                  Semester {s}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+
+          {/* Group Filter */}
+          <Grid item xs={12} sm={6} md={2.4}>
+            <GroupSelect
+              value={selectedGroup}
+              onChange={(val) => setSelectedGroup(val)}
+              label="Branch Group"
+              allowFullBatch={true}
+              fullBatchLabel="All Groups (G1-G6)"
+              size="small"
+              sx={{ width: '100%' }}
+            />
+          </Grid>
+
+          {/* Subject Filter */}
+          <Grid item xs={12} sm={6} md={2.4}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Curriculum Subject"
               value={selectedSubjectId}
               onChange={(e) => setSelectedSubjectId(e.target.value)}
-              sx={{ minWidth: 200 }}
-              SelectProps={{ displayEmpty: true }}
-              InputLabelProps={{ shrink: true }}
             >
               <MenuItem value="">All Subjects</MenuItem>
               {subjects.map((sub) => (
                 <MenuItem key={sub._id || sub.id} value={sub._id || sub.id}>
-                  {sub.name} ({sub.code})
+                  {sub.code ? `${sub.code} — ` : ''}{sub.name}
                 </MenuItem>
               ))}
             </TextField>
+          </Grid>
+        </Grid>
 
+        <Divider sx={{ my: 2 }} />
+
+        {/* ── Section B: Log Search & Date Filters ── */}
+        <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', letterSpacing: '0.06em', mb: 1.2, display: 'block' }}>
+          DAILY DATE & LOG SEARCH FILTERS
+        </Typography>
+        <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search student or email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              InputProps={{
+                startAdornment: <SearchOutlined sx={{ color: 'text.secondary', mr: 1, fontSize: 18 }} />,
+              }}
+            />
+          </Grid>
+
+          {/* Date Picker Filter */}
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              type="date"
+              fullWidth
+              size="small"
+              label="Specific Date Log"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+
+          {/* Session Type Filter */}
+          <Grid item xs={12} sm={6} md={3}>
             <TextField
               select
+              fullWidth
               size="small"
               label="Session Type"
               value={selectedSessionType}
               onChange={(e) => setSelectedSessionType(e.target.value)}
-              sx={{ minWidth: 140 }}
-              SelectProps={{ displayEmpty: true }}
-              InputLabelProps={{ shrink: true }}
             >
-              <MenuItem value="">All Types</MenuItem>
-              {SESSION_TYPES.map((t) => (
-                <MenuItem key={t} value={t}>
-                  {t}
-                </MenuItem>
-              ))}
+              <MenuItem value="">All Session Types</MenuItem>
+              <MenuItem value="LECTURE">Lecture</MenuItem>
+              <MenuItem value="LAB">Practical / Lab</MenuItem>
+              <MenuItem value="TUTORIAL">Tutorial</MenuItem>
             </TextField>
+          </Grid>
 
+          {/* Status Filter */}
+          <Grid item xs={12} sm={6} md={3}>
             <TextField
               select
+              fullWidth
               size="small"
-              label="Status"
+              label="Attendance Status"
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              sx={{ minWidth: 140 }}
-              SelectProps={{ displayEmpty: true }}
-              InputLabelProps={{ shrink: true }}
             >
               <MenuItem value="">All Statuses</MenuItem>
               <MenuItem value="PRESENT">PRESENT</MenuItem>
               <MenuItem value="ABSENT">ABSENT</MenuItem>
               <MenuItem value="MEDICAL_LEAVE">MEDICAL LEAVE</MenuItem>
             </TextField>
+          </Grid>
+        </Grid>
 
-            <TextField
-              type="date"
-              size="small"
-              label="Session Date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              sx={{ minWidth: 150 }}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Box>
-
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, next) => next && setViewMode(next)}
-            size="small"
-            sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.03)' }}
-          >
-            <ToggleButton value="summary">
-              <SchoolOutlined sx={{ fontSize: 18, mr: 0.5 }} /> % Summary View
-            </ToggleButton>
-            <ToggleButton value="records">
-              <FactCheckOutlined sx={{ fontSize: 18, mr: 0.5 }} /> Daily Sessions View
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-
-        {/* ── 4. Main Attendance View: Summary vs Daily Sessions ─────────────── */}
+        {/* Render Table based on View Mode */}
         {viewMode === 'summary' ? (
           summaryLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
               <CircularProgress size={32} />
             </Box>
           ) : filteredSummary.length === 0 ? (
-            <EmptyState
-              type="reports"
-              title="No Attendance Summary Available"
-              description="Select a subject with recorded attendance sessions to view percentage breakdown."
-            />
+            <EmptyState type="reports" title="No Attendance Summary Found" description="No student summary data matches the selected subject or group filter." />
           ) : (
-            <TableContainer>
-              <Table size="medium">
-                <TableHead sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)' }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 700 }}>STUDENT NAME & EMAIL</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>CLASSES ATTENDED</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>ABSENT / MEDICAL</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>ATTENDANCE PERCENTAGE</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700 }}>EXAM ELIGIBILITY</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredSummary.map((s) => (
-                    <TableRow key={s.studentId} hover>
-                      <TableCell sx={{ fontWeight: 600 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Avatar sx={{ width: 32, height: 32, bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main, fontSize: '0.85rem', fontWeight: 700 }}>
-                            {s.name?.charAt(0) || 'S'}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
-                              {s.name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {s.email}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-
-                      <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontWeight: 700 }}>
-                        {s.present || 0} / {s.total || 0} Sessions
-                      </TableCell>
-
-                      <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily }}>
-                        <Typography variant="caption" color="error.main" sx={{ fontWeight: 700, mr: 1 }}>
-                          {s.absent || 0} Absent
-                        </Typography>
-                        {s.medicalLeave > 0 && (
-                          <Chip label={`${s.medicalLeave} Medical`} size="small" color="info" sx={{ fontSize: '0.62rem', height: 18 }} />
-                        )}
-                      </TableCell>
-
-                      <TableCell>
-                        <AttendanceBar pct={s.percentage || 0} />
-                      </TableCell>
-
-                      <TableCell align="right">
-                        {s.isAtRisk ? (
-                          <Chip
-                            icon={<WarningAmber sx={{ fontSize: '0.8rem !important' }} />}
-                            label="AT RISK (<75%)"
-                            size="small"
-                            color="error"
-                            sx={{ fontWeight: 800, fontSize: '0.65rem' }}
-                          />
-                        ) : (
-                          <Chip
-                            icon={<CheckCircle sx={{ fontSize: '0.8rem !important' }} />}
-                            label="ELIGIBLE FOR EXAMS"
-                            size="small"
-                            color="success"
-                            sx={{ fontWeight: 800, fontSize: '0.65rem' }}
-                          />
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <DataTable columns={summaryColumns} data={filteredSummary} isLoading={summaryLoading} emptyMessage="No attendance summary available." />
           )
+        ) : recordsLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : filteredRecords.length === 0 ? (
+          <EmptyState type="reports" title="No Daily Attendance Records Found" description="No daily logs found for the selected date, subject, or group." />
         ) : (
-          <DataTable
-            columns={recordColumns}
-            data={filteredRecords}
-            isLoading={recordsLoading}
-            emptyMessage="No daily session attendance records found."
-          />
+          <DataTable columns={recordColumns} data={filteredRecords} isLoading={recordsLoading} emptyMessage="No attendance logs found." />
         )}
       </Card>
 
-      {/* ── 5. Bulk Mark Attendance Modal ─────────────────────────────────── */}
-      <Dialog open={bulkModalOpen} onClose={() => setBulkModalOpen(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Mark Session Attendance</DialogTitle>
-        <form onSubmit={handleBulkMarkSubmit}>
-          <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  label="Subject"
-                  value={bulkFormData.subjectId}
-                  onChange={(e) => setBulkFormData({ ...bulkFormData, subjectId: e.target.value })}
-                  required
-                >
-                  {subjects.map((sub) => (
-                    <MenuItem key={sub._id || sub.id} value={sub._id || sub.id}>
-                      {sub.name} ({sub.code})
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  type="date"
-                  fullWidth
-                  size="small"
-                  label="Session Date"
-                  value={bulkFormData.date}
-                  onChange={(e) => setBulkFormData({ ...bulkFormData, date: e.target.value })}
-                  required
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  label="Session Type"
-                  value={bulkFormData.sessionType}
-                  onChange={(e) => setBulkFormData({ ...bulkFormData, sessionType: e.target.value })}
-                  required
-                >
-                  {SESSION_TYPES.map((t) => (
-                    <MenuItem key={t} value={t}>
-                      {t}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-            </Grid>
-
-            <Paper sx={{ p: 2, maxHeight: 320, overflowY: 'auto', border: `1px solid ${theme.palette.divider}` }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>
-                Department Student Attendance Roll:
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {(studentsData?.data || []).map((st) => {
-                  const stId = st.id || st._id;
-                  const currentStatus = bulkStudentStatuses[stId] || 'PRESENT';
-
-                  return (
-                    <Box key={stId} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, borderBottom: `1px solid ${theme.palette.divider}` }}>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                          {st.name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {st.rollNumber ? `Roll: ${st.rollNumber}` : st.email}
-                        </Typography>
-                      </Box>
-
-                      <ToggleButtonGroup
-                        value={currentStatus}
-                        exclusive
-                        onChange={(_, next) => next && handleBulkStatusChange(stId, next)}
-                        size="small"
-                      >
-                        <ToggleButton value="PRESENT" color="success" sx={{ fontSize: '0.7rem', fontWeight: 700 }}>
-                          PRESENT
-                        </ToggleButton>
-                        <ToggleButton value="ABSENT" color="error" sx={{ fontSize: '0.7rem', fontWeight: 700 }}>
-                          ABSENT
-                        </ToggleButton>
-                        <ToggleButton value="MEDICAL_LEAVE" color="warning" sx={{ fontSize: '0.7rem', fontWeight: 700 }}>
-                          MEDICAL
-                        </ToggleButton>
-                      </ToggleButtonGroup>
-                    </Box>
-                  );
-                })}
-              </Box>
-            </Paper>
-          </DialogContent>
-
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setBulkModalOpen(false)} variant="outlined" sx={{ borderRadius: '8px' }}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="contained" disabled={bulkMarkMutation.isPending} sx={{ borderRadius: '8px', fontWeight: 700 }}>
-              {bulkMarkMutation.isPending ? 'Submitting Session...' : 'Submit Session Attendance'}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+      {/* Mark Session Attendance Modal */}
+      {bulkModalOpen && (
+        <MarkAttendanceModal
+          open={bulkModalOpen}
+          onClose={() => setBulkModalOpen(false)}
+          deptId={cleanDeptId}
+          onSuccess={() => handleRefresh()}
+        />
+      )}
     </Box>
   );
 };

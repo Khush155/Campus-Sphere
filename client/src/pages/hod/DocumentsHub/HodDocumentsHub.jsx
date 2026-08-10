@@ -80,6 +80,45 @@ const INITIAL_VAULT_FILES = [
   },
 ];
 
+const KpiCard = ({ title, value, subtitle, accentColor, icon }) => {
+  const theme = useTheme();
+  return (
+    <Card
+      sx={{
+        p: 2.5,
+        borderRadius: '14px',
+        border: `1px solid ${theme.palette.divider}`,
+        borderTop: `4px solid ${accentColor}`,
+        boxShadow: 'none',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: '0 6px 20px rgba(0,0,0,0.04)',
+        },
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.06em', color: accentColor, textTransform: 'uppercase', fontSize: '0.65rem' }}>
+          {title}
+        </Typography>
+        {icon && <Box sx={{ color: accentColor, opacity: 0.8 }}>{icon}</Box>}
+      </Box>
+      <Typography variant="h3" sx={{ fontWeight: 900, color: accentColor, mt: 1, fontFamily: 'monospace', lineHeight: 1.1 }}>
+        {value}
+      </Typography>
+      {subtitle && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          {subtitle}
+        </Typography>
+      )}
+    </Card>
+  );
+};
+
 export const HodDocumentsHub = () => {
   const theme = useTheme();
   const { showToast } = useToast();
@@ -405,59 +444,43 @@ export const HodDocumentsHub = () => {
       {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
-              VAULT SECURED FILES
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {vaultFiles.length}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Stored department archives
-            </Typography>
-          </Card>
+          <KpiCard
+            title="VAULT SECURED FILES"
+            value={vaultFiles.length}
+            subtitle="Stored department archives"
+            accentColor={theme.palette.ink[900]}
+            icon={<FolderOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
-              PENDING CERTIFICATES
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : pendingRequests}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Awaiting HOD verification
-            </Typography>
-          </Card>
+          <KpiCard
+            title="PENDING CERTIFICATES"
+            value={isLoading ? <CircularProgress size={24} /> : pendingRequests}
+            subtitle="Awaiting HOD verification"
+            accentColor={theme.palette.warning.main}
+            icon={<DescriptionOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
-              PROCESSED CERTIFICATES
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : processedRequests}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Issued & signed documents
-            </Typography>
-          </Card>
+          <KpiCard
+            title="PROCESSED CERTIFICATES"
+            value={isLoading ? <CircularProgress size={24} /> : processedRequests}
+            subtitle="Issued & signed documents"
+            accentColor={theme.palette.signal.success}
+            icon={<CheckCircleOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
-              SLA BREACHED REQUESTS
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : slaBreachedCount}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Overdue certificate SLA
-            </Typography>
-          </Card>
+          <KpiCard
+            title="SLA BREACHED REQUESTS"
+            value={isLoading ? <CircularProgress size={24} /> : slaBreachedCount}
+            subtitle="Overdue certificate SLA"
+            accentColor={theme.palette.signal.error}
+            icon={<CancelOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
       </Grid>
 

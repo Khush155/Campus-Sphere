@@ -61,3 +61,37 @@ export const useActivateAcademicSessionMutation = () => {
     },
   });
 };
+
+/**
+ * Hook to delete an academic session.
+ */
+export const useDeleteAcademicSessionMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id) => {
+      const response = await api.delete(`/academic-sessions/${id}`);
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['academic-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['active-session'] });
+    },
+  });
+};
+
+/**
+ * Hook to update an academic session.
+ */
+export const useUpdateAcademicSessionMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }) => {
+      const response = await api.put(`/academic-sessions/${id}`, data);
+      return response.data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['academic-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['active-session'] });
+    },
+  });
+};

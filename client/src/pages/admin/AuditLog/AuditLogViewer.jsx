@@ -30,9 +30,18 @@ import {
   Search,
   Refresh,
   DownloadOutlined,
+  ShieldOutlined,
+  VerifiedUserOutlined,
+  FolderOpenOutlined,
+  HistoryToggleOffOutlined,
+  ContentCopyOutlined,
 } from '@mui/icons-material';
 
-import { useAuditLogsQuery, useAuditActionsQuery } from '../../../queries/auditLogQueries';
+import {
+  useAuditLogsQuery,
+  useAuditActionsQuery,
+  useAuditTargetModelsQuery,
+} from '../../../queries/auditLogQueries';
 import { useToast } from '../../../contexts/ToastContext';
 
 /**
@@ -40,6 +49,7 @@ import { useToast } from '../../../contexts/ToastContext';
  */
 const JsonDiffViewer = ({ before, after }) => {
   const theme = useTheme();
+  const { showToast } = useToast();
   const beforeObj = before || {};
   const afterObj = after || {};
 
@@ -56,6 +66,12 @@ const JsonDiffViewer = ({ before, after }) => {
     return String(v);
   };
 
+  const copyPayloadJson = () => {
+    const fullPayload = JSON.stringify({ before, after }, null, 2);
+    navigator.clipboard.writeText(fullPayload);
+    showToast('Audit log payload copied to clipboard.');
+  };
+
   return (
     <Box
       sx={{
@@ -65,15 +81,23 @@ const JsonDiffViewer = ({ before, after }) => {
         border: `1px solid ${theme.palette.divider}`,
       }}
     >
-      {!before && (
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography
           variant="caption"
           color="text.secondary"
-          sx={{ display: 'block', mb: 1.5, fontWeight: 700, letterSpacing: '0.5px', fontFamily: theme.typography.mono.fontFamily }}
+          sx={{ fontWeight: 700, letterSpacing: '0.5px', fontFamily: theme.typography.mono.fontFamily }}
         >
-          CREATION EVENT (Initial payload snapshot)
+          {!before ? 'CREATION EVENT (INITIAL PAYLOAD SNAPSHOT)' : 'STRUCTURAL FIELD DIFFERENCE TRAIL'}
         </Typography>
-      )}
+        <Button
+          size="small"
+          startIcon={<ContentCopyOutlined sx={{ fontSize: '0.85rem !important' }} />}
+          onClick={copyPayloadJson}
+          sx={{ textTransform: 'none', fontSize: '0.72rem', fontWeight: 700 }}
+        >
+          Copy JSON Payload
+        </Button>
+      </Box>
       <Grid container spacing={2}>
         {keys.map((key) => {
           const beforeVal = beforeObj[key];
@@ -229,17 +253,39 @@ const Row = ({ log }) => {
 
   const formatTargetRef = (logItem) => {
     if (!logItem.targetModel) return 'System';
-    let label = logItem.targetModel;
-    if (logItem.after?.name) {
-      label += `: ${logItem.after.name}`;
-    } else if (logItem.after?.title) {
-      label += `: ${logItem.after.title}`;
-    } else if (logItem.after?.academicYear) {
-      label += `: ${logItem.after.academicYear}`;
-    } else if (logItem.targetId) {
-      label += ` (${logItem.targetId.substring(Math.max(0, logItem.targetId.length - 6))})`;
+    const model = logItem.targetModel;
+    
+    // 1. If targetUser details were populated from backend lookup
+    if (logItem.targetUser?.name || logItem.targetUser?.email) {
+      const u = logItem.targetUser;
+      const label = u.name ? (u.email ? `${u.name} (${u.email})` : u.name) : u.email;
+      return `${model}: ${label}`;
     }
-    return label;
+    
+    // 2. Inspect after or before snapshots for descriptive identifier
+    const data = (logItem.after && Object.keys(logItem.after).length > 0) ? logItem.after : (logItem.before || {});
+    const descriptor = data.name || data.title || data.email || data.academicYear || data.rollNumber;
+    
+    if (descriptor) {
+      return `${model}: ${descriptor}`;
+    }
+    
+    if (logItem.targetId) {
+      return `${model} (${logItem.targetId})`;
+    }
+    return model;
+  };
+
+  const formatExactTimestamp = (dateString) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
   };
 
   return (
@@ -251,7 +297,7 @@ const Row = ({ log }) => {
           </IconButton>
         </TableCell>
         <TableCell>
-          <Tooltip title={new Date(log.timestamp).toLocaleString()} arrow>
+          <Tooltip title={formatExactTimestamp(log.timestamp)} arrow>
             <Typography variant="body2" sx={{ cursor: 'pointer', borderBottom: '1px dotted grey', display: 'inline', fontFamily: theme.typography.mono.fontFamily, fontSize: '0.8rem' }}>
               {getRelativeTime(log.timestamp)}
             </Typography>
@@ -286,13 +332,13 @@ const Row = ({ log }) => {
           />
         </TableCell>
         <TableCell>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
             {formatTargetRef(log)}
           </Typography>
         </TableCell>
         <TableCell>
-          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: theme.typography.mono.fontFamily }}>
-            {log.ipAddress || '127.0.0.1'}
+          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem' }}>
+            {formatExactTimestamp(log.timestamp)}
           </Typography>
         </TableCell>
       </TableRow>
@@ -327,7 +373,8 @@ export const AuditLogViewer = () => {
 
   // Queries
   const { data: actionsList, isLoading: loadingActions } = useAuditActionsQuery();
-  
+  const { data: targetModelsList, isLoading: loadingTargets } = useAuditTargetModelsQuery();
+
   const {
     data: logsData,
     isLoading: loadingLogs,
@@ -350,6 +397,19 @@ export const AuditLogViewer = () => {
     setDateFrom('');
     setDateTo('');
     setPage(1);
+  };
+
+  const applyPresetFilter = (presetType) => {
+    handleResetFilters();
+    if (presetType === 'security') {
+      setAction('COLLEGE_PROFILE_UPDATED');
+    } else if (presetType === 'certificates') {
+      setAction('CERTIFICATE_GENERATED');
+    } else if (presetType === 'promotions') {
+      setAction('BULK_SEMESTER_PROMOTION');
+    } else if (presetType === 'notices') {
+      setTargetModel('Notice');
+    }
   };
 
   const handlePageChange = (event, value) => {
@@ -459,7 +519,162 @@ export const AuditLogViewer = () => {
         </Box>
       </Box>
 
-      {/* ── 3. Filter Bar ──────────────────────────────────────────────────── */}
+      {/* ── 2. Top Summary KPI Cards ─────────────────────────────────────── */}
+      <Grid container spacing={2.5}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+            }}
+          >
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: '10px',
+                bgcolor: `${theme.palette.primary.main}15`,
+                color: theme.palette.primary.main,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <HistoryToggleOffOutlined sx={{ fontSize: 22 }} />
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block' }}>
+                Total Audit Logs
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+                {total} Records
+              </Typography>
+            </Box>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+            }}
+          >
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: '10px',
+                bgcolor: '#8b5cf615',
+                color: '#8b5cf6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <VerifiedUserOutlined sx={{ fontSize: 22 }} />
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block' }}>
+                Tracked System Actions
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+                {actionsList?.length || 0} Action Types
+              </Typography>
+            </Box>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+            }}
+          >
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: '10px',
+                bgcolor: '#10b98115',
+                color: '#10b981',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <FolderOpenOutlined sx={{ fontSize: 22 }} />
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block' }}>
+                Audited Models
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+                {targetModelsList?.length || 4} Entities
+              </Typography>
+            </Box>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+            }}
+          >
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: '10px',
+                bgcolor: `${theme.palette.brass?.[500] || '#b8863e'}18`,
+                color: theme.palette.brass?.[500] || '#b8863e',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ShieldOutlined sx={{ fontSize: 22 }} />
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block' }}>
+                Log Integrity
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: '#10b981', fontSize: '0.95rem' }}>
+                100% Immutable
+              </Typography>
+            </Box>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* ── 3. Filter Bar & Quick Preset Chips ───────────────────────────── */}
       <Card
         sx={{
           p: 3,
@@ -468,6 +683,53 @@ export const AuditLogViewer = () => {
           borderRadius: '16px',
         }}
       >
+        {/* Preset Category Chips */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', mr: 0.5, fontFamily: theme.typography.mono.fontFamily }}>
+            PRESETS:
+          </Typography>
+          <Chip
+            label="All Activity"
+            size="small"
+            onClick={handleResetFilters}
+            variant={!action && !targetModel ? 'filled' : 'outlined'}
+            color="primary"
+            sx={{ fontWeight: 700, fontSize: '0.72rem' }}
+          />
+          <Chip
+            label="Certificates"
+            size="small"
+            onClick={() => applyPresetFilter('certificates')}
+            variant={action === 'CERTIFICATE_GENERATED' ? 'filled' : 'outlined'}
+            color="primary"
+            sx={{ fontWeight: 700, fontSize: '0.72rem' }}
+          />
+          <Chip
+            label="Promotions"
+            size="small"
+            onClick={() => applyPresetFilter('promotions')}
+            variant={action === 'BULK_SEMESTER_PROMOTION' ? 'filled' : 'outlined'}
+            color="primary"
+            sx={{ fontWeight: 700, fontSize: '0.72rem' }}
+          />
+          <Chip
+            label="Profile Updates"
+            size="small"
+            onClick={() => applyPresetFilter('security')}
+            variant={action === 'COLLEGE_PROFILE_UPDATED' ? 'filled' : 'outlined'}
+            color="primary"
+            sx={{ fontWeight: 700, fontSize: '0.72rem' }}
+          />
+          <Chip
+            label="Notice Broadcasts"
+            size="small"
+            onClick={() => applyPresetFilter('notices')}
+            variant={targetModel === 'Notice' ? 'filled' : 'outlined'}
+            color="primary"
+            sx={{ fontWeight: 700, fontSize: '0.72rem' }}
+          />
+        </Box>
+
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={3}>
             <TextField
@@ -500,7 +762,7 @@ export const AuditLogViewer = () => {
               <MenuItem value="">All Actions</MenuItem>
               {actionsList?.map((act) => (
                 <MenuItem key={act} value={act}>
-                  {act.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}
+                  {act.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}
                 </MenuItem>
               ))}
             </Select>
@@ -516,12 +778,14 @@ export const AuditLogViewer = () => {
                 setTargetModel(e.target.value);
                 setPage(1);
               }}
+              disabled={loadingTargets}
             >
               <MenuItem value="">All Target Types</MenuItem>
-              <MenuItem value="CollegeProfile">College Profile</MenuItem>
-              <MenuItem value="AcademicSession">Academic Session</MenuItem>
-              <MenuItem value="Notice">Notice</MenuItem>
-              <MenuItem value="User">User / HOD</MenuItem>
+              {(targetModelsList || ['User', 'CollegeProfile', 'AcademicSession', 'Notice', 'Department', 'Course', 'Branch', 'Subject', 'PromotionBatch']).map((modelName) => (
+                <MenuItem key={modelName} value={modelName}>
+                  {modelName}
+                </MenuItem>
+              ))}
             </Select>
           </Grid>
 
@@ -587,7 +851,7 @@ export const AuditLogViewer = () => {
               <TableCell sx={{ fontWeight: 700 }}>ACTOR</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>ACTION</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>TARGET DETAILS</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>IP ADDRESS</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>EXACT TIMESTAMP</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

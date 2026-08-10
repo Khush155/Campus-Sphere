@@ -64,10 +64,13 @@ import {
   Assessment as AssessmentIcon,
   CalendarToday as CalendarTodayIcon,
   MenuBook as BookIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
+import { useQueryClient } from '@tanstack/react-query';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import CommandPalette from '../components/common/CommandPalette';
 import { useCollegeProfileQuery } from '../queries/collegeProfileQueries';
 import { useActiveSessionQuery } from '../queries/academicSessionQueries';
@@ -78,20 +81,48 @@ const drawerWidth = 240;
 
 export const AppLayout = () => {
   const { mode, toggleTheme, colorPreset, setColorPreset } = useThemeContext();
-  const { user, logout } = useAuth();
   const theme = useTheme();
+  const { user, logout } = useAuth();
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [presetAnchorEl, setPresetAnchorEl] = useState(null);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefreshData = async () => {
+    setIsRefreshing(true);
+    try {
+      await queryClient.invalidateQueries();
+      showToast('Data refreshed successfully!');
+    } catch (err) {
+      showToast('Failed to refresh data.', { severity: 'error' });
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
 
   const { data: profile } = useCollegeProfileQuery();
   const { data: activeSession } = useActiveSessionQuery();
   const { data: myProfile } = useMyProfileQuery();
 
-  const currentUser = myProfile || user;
+  // myProfile is now { user, profileMeta } — read the nested user object
+  const currentUser = myProfile?.user || user;
+
+  const getFullAvatarUrl = (relativeUrl) => {
+    if (!relativeUrl) return undefined;
+    if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://') || relativeUrl.startsWith('data:')) {
+      return relativeUrl;
+    }
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+    const rootUrl = baseUrl.replace(/\/api\/v1\/?$/, '');
+    const cleanRelative = relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`;
+    return `${rootUrl}${cleanRelative}`;
+  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -142,18 +173,17 @@ export const AppLayout = () => {
         { text: 'ID Cards Studio', icon: <BadgeIcon />, path: '/admin/id-cards', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Fee Dues Clearance', icon: <AccountBalanceWalletIcon />, path: '/admin/fee-clearance', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Notice Board', icon: <NotificationsIcon />, path: '/admin/notices', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
-        { text: 'Academic Calendar', icon: <DateRangeIcon />, path: '/admin/academic-calendar', roles: ['SUPER_ADMIN'] },
-        { text: 'Academic Sessions', icon: <DateRangeIcon />, path: '/admin/academic-sessions', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Academic Sessions', icon: <DateRangeIcon />, path: '/admin/academic-calendar', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Bulk Promotion', icon: <AutorenewIcon />, path: '/admin/bulk-promotion', roles: ['SUPER_ADMIN'] },
         { text: 'Certificates', icon: <CardMembershipIcon />, path: '/admin/certificates', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Reports Export', icon: <AssessmentIcon />, path: '/admin/reports', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'College Profile', icon: <AccountBalanceIcon />, path: '/admin/college-profile', roles: ['SUPER_ADMIN'] },
-        { text: 'Audit Logs', icon: <HistoryIcon />, path: '/admin/audit-logs', roles: ['SUPER_ADMIN'] },
+        { text: 'Audit Logs', icon: <HistoryIcon />, path: '/admin/audit-logs', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
       ]
     : userRole === 'HOD'
     ? [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/hod/overview', roles: ['HOD'] },
-        { text: 'Faculty Staff Directory', icon: <GroupsIcon />, path: '/hod/faculty', roles: ['HOD'] },
+        { text: 'Staff Directory', icon: <GroupsIcon />, path: '/hod/faculty', roles: ['HOD'] },
         { text: 'Subject Allocations', icon: <AssignmentIndIcon />, path: '/hod/faculty-assignment', roles: ['HOD'] },
         { text: 'Cross-Dept Requests', icon: <SwapHorizIcon />, path: '/hod/cross-dept-requests', roles: ['HOD'] },
         { text: 'Students', icon: <PeopleIcon />, path: '/hod/students', roles: ['HOD'] },
@@ -175,7 +205,6 @@ export const AppLayout = () => {
     : userRole === 'STUDENT'
     ? [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['STUDENT'] },
-        { text: 'Profile', icon: <PersonIcon />, path: '/student/profile', roles: ['STUDENT'] },
         { text: 'Academics', icon: <MenuBookIcon />, path: '/student/academics', roles: ['STUDENT'] },
         { text: 'Timetable', icon: <DateRangeIcon />, path: '/student/timetable', roles: ['STUDENT'] },
         { text: 'Assignments', icon: <AssignmentIcon />, path: '/student/assignments', roles: ['STUDENT'] },
@@ -216,11 +245,17 @@ export const AppLayout = () => {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
+  const [logoError, setLogoError] = useState(false);
+
   const getFullLogoUrl = (relativeUrl) => {
     if (!relativeUrl) return null;
+    if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://') || relativeUrl.startsWith('data:')) {
+      return relativeUrl;
+    }
     const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-    const rootUrl = baseUrl.replace('/api/v1', '');
-    return `${rootUrl}${relativeUrl}`;
+    const rootUrl = baseUrl.replace(/\/api\/v1\/?$/, '');
+    const cleanRelative = relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`;
+    return `${rootUrl}${cleanRelative}`;
   };
 
   const hasCustomProfile = profile && profile.name && profile.name !== 'My College';
@@ -245,23 +280,25 @@ export const AppLayout = () => {
           sx={{
             width: 40,
             height: 40,
-            borderRadius: '12px',
+            borderRadius: '50%',
+            overflow: 'hidden',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: hasCustomProfile && profile?.logoUrl
+            background: hasCustomProfile && profile?.logoUrl && !logoError
               ? 'transparent'
               : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-            boxShadow: hasCustomProfile && profile?.logoUrl ? 'none' : '0 4px 14px rgba(79, 70, 229, 0.35)',
+            boxShadow: hasCustomProfile && profile?.logoUrl && !logoError ? '0 2px 8px rgba(0,0,0,0.1)' : '0 4px 14px rgba(79, 70, 229, 0.35)',
             flexShrink: 0,
           }}
         >
-          {hasCustomProfile && profile?.logoUrl ? (
+          {hasCustomProfile && profile?.logoUrl && !logoError ? (
             <Box
               component="img"
               src={getFullLogoUrl(profile.logoUrl)}
               alt="College Logo"
-              sx={{ width: 34, height: 34, objectFit: 'contain' }}
+              onError={() => setLogoError(true)}
+              sx={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }}
             />
           ) : (
             <SchoolIcon sx={{ color: '#ffffff', fontSize: 22 }} />
@@ -449,6 +486,29 @@ export const AppLayout = () => {
               </IconButton>
             </Tooltip>
 
+            {/* Instant Data Refresh Button */}
+            <Tooltip title="Refresh Application Data">
+              <IconButton
+                onClick={handleRefreshData}
+                disabled={isRefreshing}
+                sx={{
+                  color: 'text.secondary',
+                  '&:hover': { color: theme.palette.primary.main, bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
+                }}
+              >
+                <RefreshIcon
+                  fontSize="small"
+                  sx={{
+                    animation: isRefreshing ? 'spin 0.7s linear infinite' : 'none',
+                    '@keyframes spin': {
+                      '0%': { transform: 'rotate(0deg)' },
+                      '100%': { transform: 'rotate(360deg)' },
+                    },
+                  }}
+                />
+              </IconButton>
+            </Tooltip>
+
             {/* Theme Color Palette Switcher */}
             <Tooltip title="Theme Preset Color">
               <IconButton onClick={handlePresetMenuOpen} sx={{ color: 'text.secondary' }}>
@@ -536,7 +596,7 @@ export const AppLayout = () => {
               </Box>
 
               <Avatar
-                src={currentUser?.profilePicUrl || ''}
+                src={getFullAvatarUrl(currentUser?.profilePicUrl)}
                 sx={{
                   width: 34,
                   height: 34,
@@ -582,7 +642,13 @@ export const AppLayout = () => {
                 />
               </Box>
               <Divider sx={{ my: 0.5 }} />
-              <MenuItem onClick={() => { handleProfileMenuClose(); navigate('/profile'); }} sx={{ borderRadius: 1.5 }}>
+              <MenuItem
+                onClick={() => {
+                  handleProfileMenuClose();
+                  navigate(userRole === 'STUDENT' ? '/student/profile' : '/profile');
+                }}
+                sx={{ borderRadius: 1.5 }}
+              >
                 <ListItemIcon sx={{ minWidth: 28 }}><PersonIcon fontSize="small" /></ListItemIcon>
                 My Profile
               </MenuItem>

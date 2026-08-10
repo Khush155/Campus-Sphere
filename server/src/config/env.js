@@ -7,9 +7,9 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(5000),
-  MONGODB_URI: z.string().url({ message: 'MONGODB_URI must be a valid MongoDB URL' }),
-  JWT_SECRET: z.string().min(8, { message: 'JWT_SECRET must be at least 8 characters long' }),
-  JWT_REFRESH_SECRET: z.string().min(8, { message: 'JWT_REFRESH_SECRET must be at least 8 characters long' }),
+  MONGODB_URI: z.string().min(1, { message: 'MONGODB_URI environment variable is required' }),
+  JWT_SECRET: z.string().min(32, { message: 'JWT_SECRET must be explicitly set and at least 32 characters long' }),
+  JWT_REFRESH_SECRET: z.string().min(32, { message: 'JWT_REFRESH_SECRET must be explicitly set and at least 32 characters long' }),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   ACCESS_TOKEN_EXPIRY: z.string().default('15m'),
   REFRESH_TOKEN_EXPIRY: z.string().default('7d'),

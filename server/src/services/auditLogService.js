@@ -60,7 +60,25 @@ const getAuditLogs = async ({
     .populate('actorId', 'name email role')
     .sort({ timestamp: -1 })
     .skip((page - 1) * limit)
-    .limit(limit);
+    .limit(limit)
+    .lean();
+
+  // Populate target user info for 'User' targetModel entries
+  const userLogEntries = logs.filter((l) => l.targetModel === 'User' && l.targetId);
+  if (userLogEntries.length > 0) {
+    const userIds = [...new Set(userLogEntries.map((l) => String(l.targetId)))];
+    const targetUsers = await User.find({ _id: { $in: userIds } }).select('name email role rollNumber').lean();
+    const userMap = new Map(targetUsers.map((u) => [String(u._id), u]));
+
+    logs.forEach((log) => {
+      if (log.targetModel === 'User' && log.targetId) {
+        const targetUser = userMap.get(String(log.targetId));
+        if (targetUser) {
+          log.targetUser = targetUser;
+        }
+      }
+    });
+  }
 
   const total = await AuditLog.countDocuments(filter);
 
@@ -74,7 +92,15 @@ const getDistinctActions = async () => {
   return AuditLog.distinct('action');
 };
 
+/**
+ * Gets a distinct list of target models currently present in the audit log collection.
+ */
+const getDistinctTargetModels = async () => {
+  return AuditLog.distinct('targetModel');
+};
+
 module.exports = {
   getAuditLogs,
   getDistinctActions,
+  getDistinctTargetModels,
 };

@@ -31,12 +31,12 @@ import {
 } from '@mui/icons-material';
 
 const DEFAULT_GROUPS_LIST = [
-  { name: 'A', shift: 'MORNING' },
-  { name: 'B', shift: 'MORNING' },
-  { name: 'C', shift: 'MORNING' },
-  { name: 'D', shift: 'MORNING' },
-  { name: 'G1', shift: 'EVENING' },
-  { name: 'G2', shift: 'EVENING' },
+  { name: 'G1', shift: 'MORNING' },
+  { name: 'G2', shift: 'MORNING' },
+  { name: 'G3', shift: 'MORNING' },
+  { name: 'G4', shift: 'MORNING' },
+  { name: 'G5', shift: 'EVENING' },
+  { name: 'G6', shift: 'EVENING' },
 ];
 
 export const GroupSelect = ({
@@ -56,12 +56,20 @@ export const GroupSelect = ({
   // Load groups from localStorage or default
   const [groups, setGroups] = useState(() => {
     try {
-      const saved = localStorage.getItem('campussphere_groups_v2');
+      const saved = localStorage.getItem('campussphere_groups_v3');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === 6 && parsed.some(g => g.name === 'G1')) {
+          return parsed;
+        }
       }
     } catch (e) {
       // fallback
+    }
+    try {
+      localStorage.setItem('campussphere_groups_v3', JSON.stringify(DEFAULT_GROUPS_LIST));
+    } catch (e) {
+      // Ignore localStorage write quota errors
     }
     return DEFAULT_GROUPS_LIST;
   });
@@ -207,23 +215,11 @@ export const GroupSelect = ({
           <MenuItem
             key={grp.name}
             value={grp.name}
-            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}
+            sx={{ py: 1 }}
           >
             <Typography variant="body2" sx={{ fontWeight: 700 }}>
-              Group {grp.name}
+              Group {grp.name} <span style={{ opacity: 0.7, fontWeight: 500, marginLeft: 4 }}>({grp.shift === 'MORNING' ? 'Morning Shift' : 'Evening Shift'})</span>
             </Typography>
-            <Chip
-              icon={grp.shift === 'MORNING' ? <MorningIcon sx={{ fontSize: '0.75rem !important' }} /> : <EveningIcon sx={{ fontSize: '0.75rem !important' }} />}
-              label={grp.shift === 'MORNING' ? 'Morning (9 AM)' : 'Evening (4:10 PM)'}
-              size="small"
-              sx={{
-                fontSize: '0.62rem',
-                fontWeight: 800,
-                height: 18,
-                bgcolor: grp.shift === 'MORNING' ? `${theme.palette.primary.main}15` : `${theme.palette.secondary.main}15`,
-                color: grp.shift === 'MORNING' ? theme.palette.primary.main : theme.palette.secondary.main,
-              }}
-            />
           </MenuItem>
         ))}
 

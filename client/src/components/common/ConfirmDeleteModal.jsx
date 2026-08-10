@@ -18,9 +18,10 @@ export const ConfirmDeleteModal = ({
   onConfirm,
   title,
   description,
-  actionText = 'Deactivate',
+  actionText = 'Delete',
   typedConfirmation = false,
-  confirmationWord = 'DEACTIVATE',
+  confirmationWord = 'DELETE',
+  isDeleting = false,
 }) => {
   const theme = useTheme();
   const [confirmInput, setConfirmInput] = useState('');
@@ -121,7 +122,7 @@ export const ConfirmDeleteModal = ({
         </Button>
         <Button
           onClick={handleConfirm}
-          disabled={isConfirmDisabled}
+          disabled={isConfirmDisabled || isDeleting}
           variant="contained"
           sx={{
             bgcolor: theme.palette.signal.error,
@@ -136,7 +137,7 @@ export const ConfirmDeleteModal = ({
             },
           }}
         >
-          {actionText}
+          {isDeleting ? 'Processing...' : actionText}
         </Button>
       </DialogActions>
     </Dialog>

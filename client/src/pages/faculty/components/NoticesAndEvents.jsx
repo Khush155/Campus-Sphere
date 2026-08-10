@@ -25,16 +25,16 @@ import {
   ListItemText,
   Tab,
   Tabs,
+  Button,
 } from '@mui/material';
 import {
   Campaign as NoticesIcon,
   Event as EventsIcon,
+  ArrowForward as ArrowIcon,
+  OpenInNew as OpenIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
-/**
- * Returns Chip styling based on notice priority.
- * Matches the pattern in Home.jsx notice board.
- */
 const getPriorityChipSx = (priority) => {
   if (priority === 'high') {
     return {
@@ -48,29 +48,45 @@ const getPriorityChipSx = (priority) => {
   };
 };
 
-export const NoticesAndEvents = ({ notices, events }) => {
-  // Tab state: 0 = Notices, 1 = Events
+export const NoticesAndEvents = ({ notices = [], events = [] }) => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
 
   const handleTabChange = (_event, newValue) => {
     setActiveTab(newValue);
   };
 
+  const MAX_ITEMS = 3;
+  const displayedNotices = notices.slice(0, MAX_ITEMS);
+  const displayedEvents = events.slice(0, MAX_ITEMS);
+
   return (
     <Paper sx={{ p: 3, borderRadius: '16px', border: (theme) => `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
       {/* ── Section Header ── */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-        {activeTab === 0 ? (
-          <NoticesIcon color="primary" />
-        ) : (
-          <EventsIcon color="primary" />
-        )}
-        <Typography
-          variant="h6"
-          sx={{ fontWeight: 700, color: 'text.primary' }}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {activeTab === 0 ? (
+            <NoticesIcon color="primary" />
+          ) : (
+            <EventsIcon color="primary" />
+          )}
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 800, color: 'text.primary' }}
+          >
+            {activeTab === 0 ? 'Recent Notices' : 'Upcoming Events'}
+          </Typography>
+        </Box>
+
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<OpenIcon sx={{ fontSize: 15 }} />}
+          onClick={() => navigate('/notices')}
+          sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 600, fontSize: '0.72rem' }}
         >
-          {activeTab === 0 ? 'Recent Notices' : 'Upcoming Events'}
-        </Typography>
+          Notice Board
+        </Button>
       </Box>
 
       {/* ── Tabs ── */}
@@ -83,7 +99,7 @@ export const NoticesAndEvents = ({ notices, events }) => {
           '& .MuiTab-root': {
             minHeight: 36,
             textTransform: 'none',
-            fontWeight: 600,
+            fontWeight: 700,
             fontSize: '0.8rem',
             py: 0.5,
           },
@@ -99,31 +115,45 @@ export const NoticesAndEvents = ({ notices, events }) => {
 
       <Divider />
 
-      {/* ── Tab Content ── */}
-      <Box sx={{ flex: 1, overflow: 'auto' }}>
+      {/* ── Tab Content (Fixed Height Scrollable Container) ── */}
+      <Box
+        sx={{
+          minHeight: 140,
+          height: 140,
+          overflowY: 'auto',
+          pr: 0.5,
+          display: 'flex',
+          flexDirection: 'column',
+          '&::-webkit-scrollbar': { width: '5px' },
+          '&::-webkit-scrollbar-track': { background: 'transparent' },
+          '&::-webkit-scrollbar-thumb': { background: (theme) => theme.palette.divider, borderRadius: '4px' },
+        }}
+      >
         {/* Notices Tab */}
         {activeTab === 0 && (
-          notices.length === 0 ? (
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ py: 3, textAlign: 'center' }}
-            >
-              No recent notices.
-            </Typography>
+          displayedNotices.length === 0 ? (
+            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ textAlign: 'center' }}
+              >
+                No recent notices.
+              </Typography>
+            </Box>
           ) : (
             <List disablePadding>
-              {notices.map((notice) => (
+              {displayedNotices.map((notice) => (
                 <ListItem
                   key={notice.id}
                   disableGutters
                   secondaryAction={
                     <Chip
-                      label={notice.category}
+                      label={notice.category || notice.type || 'General'}
                       size="small"
                       sx={{
                         fontSize: '0.7rem',
-                        fontWeight: 600,
+                        fontWeight: 700,
                         height: 22,
                         ...getPriorityChipSx(notice.priority),
                       }}
@@ -132,7 +162,7 @@ export const NoticesAndEvents = ({ notices, events }) => {
                   sx={{
                     borderBottom: '1px solid',
                     borderColor: 'divider',
-                    py: 1.5,
+                    py: 1.25,
                     '&:last-child': { borderBottom: 'none' },
                   }}
                 >
@@ -141,7 +171,7 @@ export const NoticesAndEvents = ({ notices, events }) => {
                     secondary={notice.date}
                     primaryTypographyProps={{
                       variant: 'body2',
-                      fontWeight: 600,
+                      fontWeight: 700,
                       color: 'text.primary',
                       sx: {
                         mb: 0.5,
@@ -154,6 +184,7 @@ export const NoticesAndEvents = ({ notices, events }) => {
                     secondaryTypographyProps={{
                       variant: 'caption',
                       color: 'text.secondary',
+                      fontWeight: 500,
                     }}
                   />
                 </ListItem>
@@ -164,17 +195,19 @@ export const NoticesAndEvents = ({ notices, events }) => {
 
         {/* Events Tab */}
         {activeTab === 1 && (
-          events.length === 0 ? (
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ py: 3, textAlign: 'center' }}
-            >
-              No upcoming events.
-            </Typography>
+          displayedEvents.length === 0 ? (
+            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ textAlign: 'center' }}
+              >
+                No upcoming events.
+              </Typography>
+            </Box>
           ) : (
             <List disablePadding>
-              {events.map((event) => (
+              {displayedEvents.map((event) => (
                 <ListItem
                   key={event.id}
                   disableGutters
@@ -184,7 +217,7 @@ export const NoticesAndEvents = ({ notices, events }) => {
                       size="small"
                       sx={{
                         fontSize: '0.7rem',
-                        fontWeight: 600,
+                        fontWeight: 700,
                         height: 22,
                         bgcolor: 'rgba(245, 158, 11, 0.1)',
                         color: '#f59e0b',
@@ -194,7 +227,7 @@ export const NoticesAndEvents = ({ notices, events }) => {
                   sx={{
                     borderBottom: '1px solid',
                     borderColor: 'divider',
-                    py: 1.5,
+                    py: 1.25,
                     '&:last-child': { borderBottom: 'none' },
                   }}
                 >
@@ -202,7 +235,7 @@ export const NoticesAndEvents = ({ notices, events }) => {
                     primary={event.title}
                     primaryTypographyProps={{
                       variant: 'body2',
-                      fontWeight: 600,
+                      fontWeight: 700,
                       color: 'text.primary',
                       sx: {
                         pr: 10,
@@ -217,6 +250,25 @@ export const NoticesAndEvents = ({ notices, events }) => {
             </List>
           )
         )}
+      </Box>
+
+      {/* Footer link to Notice Hub */}
+      <Box sx={{ mt: 2, pt: 1.5, borderTop: (theme) => `1px solid ${theme.palette.divider}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+          {activeTab === 0
+            ? (notices.length > MAX_ITEMS ? `Showing 3 of ${notices.length} notices` : `Showing all ${notices.length} notices`)
+            : (events.length > MAX_ITEMS ? `Showing 3 of ${events.length} events` : `Showing all ${events.length} events`)
+          }
+        </Typography>
+        <Button
+          size="small"
+          color="primary"
+          endIcon={<ArrowIcon fontSize="small" />}
+          onClick={() => navigate('/notices')}
+          sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.78rem' }}
+        >
+          View Full Notice Board
+        </Button>
       </Box>
     </Paper>
   );

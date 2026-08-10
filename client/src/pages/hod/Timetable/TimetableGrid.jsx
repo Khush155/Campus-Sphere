@@ -21,6 +21,7 @@ import {
 import { useDeleteSlotMutation } from '../../../queries/timetableQueries';
 import { useToast } from '../../../contexts/ToastContext';
 import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
+import { computeSubjectCode } from '../../../utils/subjectCode';
 
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
@@ -291,7 +292,7 @@ export const TimetableGrid = ({ slots = [], filters = {}, onRefresh, onCellClick
                             >
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
                                 <Typography variant="caption" fontFamily="monospace" sx={{ fontWeight: 800, color: theme.palette.primary.main }}>
-                                  {slot.subjectId?.code || 'SUB'}
+                                  {computeSubjectCode(slot.subjectId, slot.subjectId?.branchId) || 'SUB'}
                                 </Typography>
                                 <Tooltip title="Remove Slot">
                                   <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDeleteSlotId(slot._id); }} sx={{ p: 0.2, color: 'text.secondary', '&:hover': { color: 'error.main' } }}>

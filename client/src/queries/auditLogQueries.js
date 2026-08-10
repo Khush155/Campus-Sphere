@@ -27,3 +27,16 @@ export const useAuditActionsQuery = () => {
     },
   });
 };
+
+/**
+ * Hook to retrieve unique logged target models from the backend.
+ */
+export const useAuditTargetModelsQuery = () => {
+  return useQuery({
+    queryKey: ['audit-target-models'],
+    queryFn: async () => {
+      const response = await api.get('/audit-logs/targets');
+      return response.data.data;
+    },
+  });
+};

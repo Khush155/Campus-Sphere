@@ -24,40 +24,62 @@ import {
   Chip,
   Divider,
   Stack,
+  Button,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   CalendarMonth as HeaderIcon,
   Circle as DotIcon,
+  ArrowForward as ArrowIcon,
+  DateRangeOutlined as TimetableIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
-export const WeeklySchedule = ({ schedule }) => {
+export const WeeklySchedule = ({ schedule = [] }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const isDark = theme.palette.mode === 'dark';
 
-  // Compute today's day name once per render — does not change during session.
-  // useMemo with empty deps = compute on mount, reuse on re-renders.
   const todayName = useMemo(() => {
     return new Date().toLocaleDateString('en-US', { weekday: 'long' });
   }, []);
 
+  const MAX_DAYS = 4;
+  const displayedSchedule = useMemo(() => {
+    if (!Array.isArray(schedule)) return [];
+    // Prioritize today's entry and upcoming days, or first 4 days
+    return schedule.slice(0, MAX_DAYS);
+  }, [schedule]);
+
   return (
     <Paper sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
       {/* ── Section Header ── */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2.5 }}>
-        <HeaderIcon color="primary" />
-        <Typography
-          variant="h6"
-          sx={{ fontWeight: 700, color: 'text.primary' }}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <HeaderIcon color="primary" />
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 800, color: 'text.primary' }}
+          >
+            Weekly Schedule Overview
+          </Typography>
+        </Box>
+
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<TimetableIcon />}
+          onClick={() => navigate('/timetable')}
+          sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 600, fontSize: '0.72rem' }}
         >
-          Weekly Schedule
-        </Typography>
+          Full Matrix
+        </Button>
       </Box>
 
       <Divider sx={{ mb: 2 }} />
 
-      {/* ── Schedule Grid ── */}
-      {schedule.length === 0 ? (
+      {/* ── Schedule Grid (Scrollable) ── */}
+      {displayedSchedule.length === 0 ? (
         <Typography
           variant="body2"
           color="text.secondary"
@@ -66,8 +88,18 @@ export const WeeklySchedule = ({ schedule }) => {
           No schedule data available.
         </Typography>
       ) : (
-        <Stack spacing={0}>
-          {schedule.map((dayEntry) => {
+        <Box
+          sx={{
+            maxHeight: 270,
+            overflowY: 'auto',
+            pr: 0.5,
+            '&::-webkit-scrollbar': { width: '5px' },
+            '&::-webkit-scrollbar-track': { background: 'transparent' },
+            '&::-webkit-scrollbar-thumb': { background: (theme) => theme.palette.divider, borderRadius: '4px' },
+          }}
+        >
+          <Stack spacing={0}>
+          {displayedSchedule.map((dayEntry) => {
             const isToday = dayEntry.day === todayName;
 
             return (
@@ -78,10 +110,9 @@ export const WeeklySchedule = ({ schedule }) => {
                   alignItems: { xs: 'flex-start', sm: 'center' },
                   flexDirection: { xs: 'column', sm: 'row' },
                   gap: { xs: 1, sm: 2 },
-                  py: 1.5,
+                  py: 1.25,
                   px: 2,
                   borderRadius: 2,
-                  // Highlight today's row
                   bgcolor: isToday
                     ? isDark
                       ? 'rgba(99, 102, 241, 0.1)'
@@ -90,7 +121,6 @@ export const WeeklySchedule = ({ schedule }) => {
                   borderLeft: isToday ? '3px solid' : '3px solid transparent',
                   borderColor: isToday ? 'primary.main' : 'transparent',
                   transition: 'background-color 0.2s ease',
-                  // Subtle separator between days
                   '&:not(:last-child)': {
                     borderBottom: '1px solid',
                     borderBottomColor: 'divider',
@@ -115,7 +145,7 @@ export const WeeklySchedule = ({ schedule }) => {
                   <Typography
                     variant="body2"
                     sx={{
-                      fontWeight: isToday ? 700 : 600,
+                      fontWeight: isToday ? 800 : 600,
                       color: isToday ? 'primary.main' : 'text.primary',
                       minWidth: 80,
                     }}
@@ -127,7 +157,7 @@ export const WeeklySchedule = ({ schedule }) => {
                         variant="caption"
                         sx={{
                           ml: 0.75,
-                          fontWeight: 600,
+                          fontWeight: 800,
                           color: 'primary.main',
                           fontSize: '0.65rem',
                         }}
@@ -138,7 +168,7 @@ export const WeeklySchedule = ({ schedule }) => {
                   </Typography>
                 </Box>
 
-                {/* Class chips or empty indicator */}
+                {/* Class chips */}
                 <Box
                   sx={{
                     display: 'flex',
@@ -148,7 +178,7 @@ export const WeeklySchedule = ({ schedule }) => {
                     pl: { xs: 2.5, sm: 0 },
                   }}
                 >
-                  {dayEntry.classes.length > 0 ? (
+                  {dayEntry.classes && dayEntry.classes.length > 0 ? (
                     dayEntry.classes.map((className, index) => (
                       <Chip
                         key={`${dayEntry.day}-${index}`}
@@ -156,7 +186,7 @@ export const WeeklySchedule = ({ schedule }) => {
                         size="small"
                         variant="outlined"
                         sx={{
-                          fontWeight: 500,
+                          fontWeight: 600,
                           fontSize: '0.7rem',
                           height: 24,
                           borderColor: isToday
@@ -177,29 +207,29 @@ export const WeeklySchedule = ({ schedule }) => {
                         py: 0.25,
                       }}
                     >
-                      No classes
+                      No lectures scheduled
                     </Typography>
                   )}
                 </Box>
 
-                {/* Class count badge — visible on desktop */}
+                {/* Class count badge */}
                 <Chip
-                  label={dayEntry.classes.length}
+                  label={dayEntry.classes ? dayEntry.classes.length : 0}
                   size="small"
                   sx={{
                     display: { xs: 'none', sm: 'flex' },
-                    fontWeight: 700,
+                    fontWeight: 800,
                     fontSize: '0.7rem',
                     height: 22,
                     minWidth: 22,
-                    bgcolor: dayEntry.classes.length > 0
+                    bgcolor: dayEntry.classes && dayEntry.classes.length > 0
                       ? isToday
                         ? isDark
                           ? 'rgba(99, 102, 241, 0.15)'
                           : 'rgba(79, 70, 229, 0.08)'
                         : 'action.hover'
                       : 'transparent',
-                    color: dayEntry.classes.length > 0
+                    color: dayEntry.classes && dayEntry.classes.length > 0
                       ? isToday
                         ? 'primary.main'
                         : 'text.secondary'
@@ -210,7 +240,24 @@ export const WeeklySchedule = ({ schedule }) => {
             );
           })}
         </Stack>
+        </Box>
       )}
+
+      {/* Footer link to dedicated timetable page */}
+      <Box sx={{ mt: 2, pt: 1.5, borderTop: (theme) => `1px solid ${theme.palette.divider}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+          Previewing 4 of 6 weekdays
+        </Typography>
+        <Button
+          size="small"
+          color="primary"
+          endIcon={<ArrowIcon fontSize="small" />}
+          onClick={() => navigate('/timetable')}
+          sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.78rem' }}
+        >
+          Open Full Interactive Timetable Grid
+        </Button>
+      </Box>
     </Paper>
   );
 };

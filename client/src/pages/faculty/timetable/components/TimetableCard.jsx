@@ -102,7 +102,7 @@ export const TimetableCard = ({ slot }) => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <SectionIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
           <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-            Section: {slot.sectionName}
+            Section: {slot.sectionName || slot.group || 'Section A'}
           </Typography>
         </Box>
 
@@ -118,7 +118,7 @@ export const TimetableCard = ({ slot }) => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <RoomIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
           <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-            Venue: {slot.roomNumber}
+            Venue: {slot.roomNumber || slot.room || 'LH-101'}
           </Typography>
         </Box>
       </Box>

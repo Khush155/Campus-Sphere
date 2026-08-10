@@ -1,13 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 
-export const useTimetableQuery = (filters) => {
+export const useTimetableQuery = (filters = {}) => {
   return useQuery({
     queryKey: ['timetable', filters],
     queryFn: async () => {
       // Clean undefined or empty filters
       const cleanFilters = Object.fromEntries(
-        Object.entries(filters).filter(([_, v]) => v !== undefined && v !== '')
+        Object.entries(filters || {}).filter(([_, v]) => v !== undefined && v !== '')
       );
       
       const apiFilters = { ...cleanFilters };
@@ -21,10 +21,15 @@ export const useTimetableQuery = (filters) => {
       }
       
       const response = await api.get('/timetable', { params: apiFilters });
-      return response.data.data;
+      return response.data?.data || [];
     },
-    // Only run the query if we have the minimum required filters or user is Faculty
-    enabled: filters.isFaculty || (!!filters.course && !!filters.branch && !!filters.semester),
+    // Only run the query if we have no filters (fetch all/my timetable) or minimum required filters or user is Faculty/Student
+    enabled:
+      !filters ||
+      Object.keys(filters).length === 0 ||
+      Boolean(filters.isFaculty) ||
+      Boolean(filters.isStudent) ||
+      (Boolean(filters.course) && Boolean(filters.branch) && Boolean(filters.semester)),
   });
 };
 

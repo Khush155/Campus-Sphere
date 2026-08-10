@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -19,12 +19,15 @@ import {
   CircularProgress,
   MenuItem,
   useTheme,
+  Grid,
   InputAdornment,
+  Pagination,
 } from '@mui/material';
-import { EditOutlined, DeleteOutline, SearchOutlined } from '@mui/icons-material';
+import { EditOutlined, DeleteOutline, SearchOutlined, FilterListOutlined } from '@mui/icons-material';
 import {
   useBranchesQuery,
   useCoursesQuery,
+  useDepartmentsQuery,
   useSubjectsQuery,
   useCreateBranchMutation,
   useUpdateBranchMutation,
@@ -46,14 +49,18 @@ const branchFormSchema = z.object({
   courseId: z
     .string({ required_error: 'Parent course is required' })
     .regex(/^[0-9a-fA-F]{24}$/, 'Invalid course ID format'),
+  hostingDepartmentId: z.string().optional().nullable(),
 });
 
 export const BranchTab = ({ setOnAddClick }) => {
   const theme = useTheme();
   const { showToast } = useToast();
 
-  // Search state
+  // Search, Filter & Pagination state
   const [search, setSearch] = useState('');
+  const [filterDept, setFilterDept] = useState('');
+  const [page, setPage] = useState(0);
+  const rowsPerPage = 10;
 
   // Toggles
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -63,6 +70,7 @@ export const BranchTab = ({ setOnAddClick }) => {
   // Queries
   const { data: branches, isLoading: loadingBranches } = useBranchesQuery();
   const { data: courses } = useCoursesQuery();
+  const { data: depts } = useDepartmentsQuery();
   const { data: allSubjects } = useSubjectsQuery();
 
   // Mutations
@@ -77,6 +85,8 @@ export const BranchTab = ({ setOnAddClick }) => {
     handleSubmit,
     reset,
     control,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(branchFormSchema),
@@ -84,8 +94,38 @@ export const BranchTab = ({ setOnAddClick }) => {
       name: '',
       code: '',
       courseId: '',
+      hostingDepartmentId: '',
     },
   });
+
+  const watchName = watch('name');
+  const watchCode = watch('code');
+
+  // Auto-suggest hosting department in create mode based on branch name/code matching
+  useEffect(() => {
+    if (!editId && (watchName || watchCode) && depts && depts.length > 0) {
+      const nameTokens = (watchName || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter((t) => t.length > 1 && !['and', 'of', 'in', 'the', '&'].includes(t));
+
+      const codeStr = (watchCode || '').toUpperCase();
+
+      const match = depts.find((d) => {
+        if (codeStr && (d.code === codeStr || codeStr.startsWith(d.code))) {
+          return true;
+        }
+        const dTokens = d.name.toLowerCase().split(/\s+/);
+        const overlap = nameTokens.filter((t) => dTokens.includes(t)).length;
+        return overlap >= Math.min(2, nameTokens.length);
+      });
+
+      if (match) {
+        setValue('hostingDepartmentId', match._id);
+      }
+    }
+  }, [watchName, watchCode, depts, editId, setValue]);
 
   // Register the create trigger with setup hub parent container
   useEffect(() => {
@@ -106,6 +146,7 @@ export const BranchTab = ({ setOnAddClick }) => {
       name: '',
       code: '',
       courseId: '',
+      hostingDepartmentId: '',
     });
     setDrawerOpen(true);
   };
@@ -116,6 +157,7 @@ export const BranchTab = ({ setOnAddClick }) => {
       name: branch.name,
       code: branch.code,
       courseId: typeof branch.courseId === 'object' ? branch.courseId._id : branch.courseId || '',
+      hostingDepartmentId: typeof branch.hostingDepartmentId === 'object' ? branch.hostingDepartmentId._id : branch.hostingDepartmentId || '',
     });
     setDrawerOpen(true);
   };
@@ -157,16 +199,30 @@ export const BranchTab = ({ setOnAddClick }) => {
     return null;
   };
 
-  // Filter branches by search input
-  const filteredBranches = branches?.filter(
-    (b) =>
-      b.name.toLowerCase().includes(search.toLowerCase()) ||
-      b.code.toLowerCase().includes(search.toLowerCase())
-  );
+  // Filter branches by search input & department
+  const filteredBranches = useMemo(() => {
+    return (
+      branches?.filter((b) => {
+        const matchesSearch =
+          !search ||
+          b.name.toLowerCase().includes(search.toLowerCase()) ||
+          b.code.toLowerCase().includes(search.toLowerCase());
+        const deptId = typeof b.hostingDepartmentId === 'object' ? b.hostingDepartmentId?._id : b.hostingDepartmentId;
+        const matchesDept = !filterDept || String(deptId) === String(filterDept);
+        return matchesSearch && matchesDept;
+      }) || []
+    );
+  }, [branches, search, filterDept]);
+
+  const paginatedBranches = useMemo(() => {
+    return filteredBranches.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+  }, [filteredBranches, page, rowsPerPage]);
+
+  const totalPages = Math.ceil((filteredBranches.length || 0) / rowsPerPage);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-      {/* 1. Search Bar */}
+      {/* 1. Search & Filter Bar */}
       {branches && branches.length > 0 && (
         <Card
           sx={{
@@ -177,20 +233,67 @@ export const BranchTab = ({ setOnAddClick }) => {
             bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
           }}
         >
-          <TextField
-            size="small"
-            placeholder="Search branches by name or code..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            fullWidth
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchOutlined sx={{ fontSize: 20, color: theme.palette.text.secondary }} />
-                </InputAdornment>
-              ),
-            }}
-          />
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} sm={search || filterDept ? 5 : 7} md={search || filterDept ? 5 : 7}>
+              <TextField
+                size="small"
+                placeholder="Search branches by name or code..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0);
+                }}
+                fullWidth
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchOutlined sx={{ fontSize: 20, color: theme.palette.text.secondary }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={search || filterDept ? 5 : 5} md={search || filterDept ? 5 : 5}>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                value={filterDept}
+                onChange={(e) => {
+                  setFilterDept(e.target.value);
+                  setPage(0);
+                }}
+                label="Filter by Department"
+              >
+                <MenuItem value="">All Departments</MenuItem>
+                {depts?.map((d) => (
+                  <MenuItem key={d._id} value={d._id}>
+                    {d.name} ({d.code})
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            {(search || filterDept) && (
+              <Grid item xs={12} sm={2} md={2}>
+                <Button
+                  fullWidth
+                  size="small"
+                  variant="outlined"
+                  startIcon={<FilterListOutlined />}
+                  onClick={() => {
+                    setSearch('');
+                    setFilterDept('');
+                    setPage(0);
+                  }}
+                  sx={{ textTransform: 'none', fontWeight: 600, height: '40px' }}
+                >
+                  Reset
+                </Button>
+              </Grid>
+            )}
+          </Grid>
         </Card>
       )}
 
@@ -227,16 +330,22 @@ export const BranchTab = ({ setOnAddClick }) => {
                 <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   PARENT DEGREE COURSE
                 </TableCell>
+                <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
+                  HOSTING DEPT
+                </TableCell>
                 <TableCell align="right" sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>
                   ACTIONS
                 </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredBranches.map((branch, index) => {
+              {paginatedBranches.map((branch, index) => {
                 const parentCourseName = branch.courseId?.name
                   ? `${branch.courseId.name} (${branch.courseId.code})`
                   : '—';
+                const hostingDeptName = branch.hostingDepartmentId?.name
+                  ? `${branch.hostingDepartmentId.name} (${branch.hostingDepartmentId.code})`
+                  : 'Unassigned';
                 return (
                   <TableRow
                     key={branch._id}
@@ -253,6 +362,9 @@ export const BranchTab = ({ setOnAddClick }) => {
                     <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.82rem', color: theme.palette.text.primary }}>
                       {parentCourseName}
                     </TableCell>
+                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.82rem', color: branch.hostingDepartmentId ? theme.palette.text.primary : theme.palette.text.secondary, fontStyle: branch.hostingDepartmentId ? 'normal' : 'italic' }}>
+                      {hostingDeptName}
+                    </TableCell>
                     <TableCell align="right">
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                         <IconButton aria-label="edit branch" size="small" onClick={() => handleOpenEdit(branch)}>
@@ -268,6 +380,52 @@ export const BranchTab = ({ setOnAddClick }) => {
               })}
             </TableBody>
           </Table>
+
+          {totalPages > 1 && (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: 'center',
+                justify: 'space-between',
+                gap: 2,
+                px: 3,
+                py: 2,
+                borderTop: `1px solid ${theme.palette.divider}`,
+                bgcolor: theme.custom?.surface?.sunken || 'rgba(28, 46, 69, 0.02)',
+              }}
+            >
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 500, fontSize: '0.82rem' }}>
+                Showing <strong>{page * rowsPerPage + 1}–{Math.min(filteredBranches.length, (page + 1) * rowsPerPage)}</strong> of <strong>{filteredBranches.length}</strong> branches
+              </Typography>
+
+              <Pagination
+                count={totalPages}
+                page={page + 1}
+                onChange={(_e, newPage) => setPage(newPage - 1)}
+                color="primary"
+                shape="rounded"
+                size="medium"
+                showFirstButton
+                showLastButton
+                sx={{
+                  ml: { xs: 0, sm: 'auto' },
+                  '& .MuiPaginationItem-root': {
+                    fontFamily: theme.typography.body2.fontFamily,
+                    fontWeight: 600,
+                    fontSize: '0.82rem',
+                    borderRadius: '8px',
+                  },
+                  '& .MuiPaginationItem-page.Mui-selected': {
+                    background: theme.palette.primary.gradient || theme.palette.primary.main,
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    boxShadow: `0 2px 8px ${theme.palette.primary.main}40`,
+                  },
+                }}
+              />
+            </Box>
+          )}
         </TableContainer>
       )}
 
@@ -349,6 +507,34 @@ export const BranchTab = ({ setOnAddClick }) => {
                   )}
                 />
               </Box>
+
+              <Box>
+                <Typography component="label" htmlFor="hosting-dept-input" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
+                  Hosting Department (Default / Home Dept)
+                </Typography>
+                <Controller
+                  name="hostingDepartmentId"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      id="hosting-dept-input"
+                      select
+                      fullWidth
+                      error={!!errors.hostingDepartmentId}
+                      helperText={errors.hostingDepartmentId?.message || 'Auto-suggested from branch name, overridable'}
+                      size="small"
+                    >
+                      <MenuItem value="">Select Hosting Department...</MenuItem>
+                      {depts?.map((dept) => (
+                        <MenuItem key={dept._id} value={dept._id}>
+                          {dept.name} ({dept.code})
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  )}
+                />
+              </Box>
             </Box>
           </Box>
 
@@ -383,6 +569,7 @@ export const BranchTab = ({ setOnAddClick }) => {
       <ConfirmDeleteModal
         open={Boolean(deleteId)}
         title="Delete Branch"
+        actionText="Delete Branch"
         description={
           getDeleteWarningMessage() ||
           "Are you sure you want to delete this branch? This action cannot be undone if subjects or students are associated with it."

@@ -17,12 +17,16 @@ describe('GET /health', () => {
     expect(res.body.data).toHaveProperty('environment', 'test');
   });
 
-  it('should redirect from root / to /api-docs', async () => {
+  it('should return 404 for root / in non-production mode (no static client served)', async () => {
+    // In test/development mode, NODE_ENV !== 'production', so the React static build
+    // is NOT served. The root path falls through to the catch-all and returns 404.
+    // In production, express.static serves index.html and this returns 200.
     const res = await request(app)
       .get('/')
-      .expect(302); // Redirect status
+      .expect(404);
 
-    expect(res.headers.location).toBe('/api-docs');
+    expect(res.body).toHaveProperty('success', false);
+    expect(res.body).toHaveProperty('errorCode', 'NOT_FOUND');
   });
 
   it('should return 404 for non-existent routes with standard error shape', async () => {

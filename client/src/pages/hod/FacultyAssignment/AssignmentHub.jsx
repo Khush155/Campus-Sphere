@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Box,
   Button,
@@ -28,6 +28,8 @@ import {
   RefreshOutlined,
   CheckCircleOutlined,
   SchoolOutlined,
+  FilterListOutlined,
+  ClearOutlined,
 } from '@mui/icons-material';
 import AssignFacultyDrawer from './AssignFacultyDrawer';
 import RevokeAssignmentModal from './RevokeAssignmentModal';
@@ -36,7 +38,9 @@ import {
   useCreateAssignmentMutation,
   useRevokeAssignmentMutation,
 } from '../../../queries/assignmentQueries';
+import { useCoursesQuery, useBranchesQuery } from '../../../queries/collegeQueries';
 import { useToast } from '../../../contexts/ToastContext';
+import { computeSubjectCode } from '../../../utils/subjectCode';
 import EmptyState from '../../../components/common/EmptyState';
 
 export const AssignmentHub = () => {
@@ -44,6 +48,9 @@ export const AssignmentHub = () => {
   const { showToast } = useToast();
 
   const [search, setSearch] = useState('');
+  const [courseFilter, setCourseFilter] = useState('');
+  const [branchFilter, setBranchFilter] = useState('');
+  const [semesterFilter, setSemesterFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -51,28 +58,79 @@ export const AssignmentHub = () => {
   const [assignmentToRevoke, setAssignmentToRevoke] = useState(null);
 
   // Queries & Mutations
-  const { data: assignmentsRes, isLoading, refetch } = useAssignmentsQuery({ limit: 100 });
-  const assignments = assignmentsRes?.data || [];
+  const { data: assignmentsRes, isLoading, refetch } = useAssignmentsQuery({ limit: 200 });
+  const assignments = useMemo(() => assignmentsRes?.data || [], [assignmentsRes]);
+
+  const { data: coursesData } = useCoursesQuery();
+  const { data: branchesData } = useBranchesQuery();
 
   const createMutation = useCreateAssignmentMutation();
   const revokeMutation = useRevokeAssignmentMutation();
 
+  // Courses & Branches lists
+  const availableCourses = useMemo(() => {
+    if (coursesData && Array.isArray(coursesData)) return coursesData;
+    const courseMap = new Map();
+    assignments.forEach((a) => {
+      const c = a.subjectId?.branchId?.courseId;
+      if (c && (c._id || c.id)) courseMap.set(c._id || c.id, c);
+    });
+    return Array.from(courseMap.values());
+  }, [coursesData, assignments]);
+
+  const availableBranches = useMemo(() => {
+    const allBranches = Array.isArray(branchesData) ? branchesData : (branchesData?.data || []);
+    if (allBranches.length > 0) {
+      if (!courseFilter) return allBranches;
+      return allBranches.filter((b) => {
+        const cId = b.courseId?._id || b.courseId?.id || b.courseId;
+        return String(cId) === String(courseFilter);
+      });
+    }
+
+    const branchMap = new Map();
+    assignments.forEach((a) => {
+      const b = a.subjectId?.branchId;
+      if (b && (b._id || b.id)) {
+        const cId = b.courseId?._id || b.courseId?.id || b.courseId;
+        if (!courseFilter || String(cId) === String(courseFilter)) {
+          branchMap.set(String(b._id || b.id), b);
+        }
+      }
+    });
+    return Array.from(branchMap.values());
+  }, [branchesData, assignments, courseFilter]);
+
   // Filtered List
-  const filteredAssignments = assignments.filter((a) => {
-    const subjName = a.subjectId?.name || '';
-    const facName = a.facultyId?.name || '';
-    const facEmail = a.facultyId?.email || '';
+  const filteredAssignments = useMemo(() => {
+    return assignments.filter((a) => {
+      const subj = a.subjectId || {};
+      const subjName = subj.name || '';
+      const subjCode = computeSubjectCode(subj, subj.branchId).toLowerCase();
+      const facName = a.facultyId?.name || '';
+      const facEmail = a.facultyId?.email || '';
 
-    const matchesSearch =
-      search === '' ||
-      subjName.toLowerCase().includes(search.toLowerCase()) ||
-      facName.toLowerCase().includes(search.toLowerCase()) ||
-      facEmail.toLowerCase().includes(search.toLowerCase());
+      const lowerSearch = search.trim().toLowerCase();
+      const matchesSearch =
+        !lowerSearch ||
+        subjName.toLowerCase().includes(lowerSearch) ||
+        subjCode.includes(lowerSearch) ||
+        facName.toLowerCase().includes(lowerSearch) ||
+        facEmail.toLowerCase().includes(lowerSearch);
 
-    const matchesStatus = statusFilter === '' || a.status === statusFilter;
+      const cId = subj.branchId?.courseId?._id || subj.branchId?.courseId?.id || subj.branchId?.courseId;
+      const matchesCourse = !courseFilter || String(cId) === String(courseFilter);
 
-    return matchesSearch && matchesStatus;
-  });
+      const bId = subj.branchId?._id || subj.branchId?.id;
+      const matchesBranch = !branchFilter || String(bId) === String(branchFilter);
+
+      const matchesSem = !semesterFilter || String(subj.semester) === String(semesterFilter);
+
+      const matchesStatus = !statusFilter || a.status === statusFilter;
+
+      return matchesSearch && matchesCourse && matchesBranch && matchesSem && matchesStatus;
+    });
+  }, [assignments, search, courseFilter, branchFilter, semesterFilter, statusFilter]);
 
   // Metrics
   const totalAssignments = assignments.length;
@@ -110,15 +168,25 @@ export const AssignmentHub = () => {
     }
   };
 
+  const handleClearFilters = () => {
+    setSearch('');
+    setCourseFilter('');
+    setBranchFilter('');
+    setSemesterFilter('');
+    setStatusFilter('');
+  };
+
+  const hasActiveFilters = Boolean(search || courseFilter || branchFilter || semesterFilter || statusFilter);
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
       {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
       <Card
         sx={{
-          p: 3.5,
+          p: { xs: 2.5, md: 3.5 },
           borderRadius: '16px',
-          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
+          border: `1px solid ${theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}12 0%, ${theme.palette.primary.main}04 100%)`,
           boxShadow: 'none',
         }}
       >
@@ -126,33 +194,32 @@ export const AssignmentHub = () => {
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
               <Chip
-                icon={<AssignmentIndOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+                icon={<AssignmentIndOutlined sx={{ fontSize: '0.85rem !important', color: `${theme.palette.primary.main} !important` }} />}
                 label="FACULTY ALLOCATION & TEACHING WORKLOAD DESK"
                 size="small"
                 sx={{
-                  bgcolor: `${theme.palette.primary.main}15`,
+                  bgcolor: `${theme.palette.primary.main}18`,
                   color: theme.palette.primary.main,
                   fontWeight: 800,
-                  fontFamily: theme.typography.mono.fontFamily,
-                  letterSpacing: '0.05em',
-                  fontSize: '0.7rem',
+                  fontSize: '0.68rem',
+                  letterSpacing: '0.04em',
                 }}
               />
             </Box>
-            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
-              Faculty Subject Assignments
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], letterSpacing: '-0.02em' }}>
+              Faculty Subject Allocations
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
-              Assign curriculum subjects to department professors, balance teaching workloads, and manage subject coverage.
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5, maxWidth: 650 }}>
+              Assign department curriculum subjects to faculty members, manage section workloads, and balance teaching coverage.
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
             <Button
               variant="outlined"
               startIcon={<RefreshOutlined />}
               onClick={() => refetch()}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 2.5 }}
             >
               Refresh Roster
             </Button>
@@ -161,14 +228,14 @@ export const AssignmentHub = () => {
               startIcon={<AddOutlined />}
               onClick={() => setDrawerOpen(true)}
               sx={{
-                borderRadius: '8px',
+                borderRadius: '10px',
                 textTransform: 'none',
                 fontWeight: 700,
-                background: theme.palette.primary.gradient || theme.palette.primary.main,
-                color: '#ffffff',
+                px: 2.5,
+                boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
               }}
             >
-              Assign Faculty
+              Assign Faculty Member
             </Button>
           </Box>
         </Box>
@@ -177,74 +244,151 @@ export const AssignmentHub = () => {
       {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} sm={4}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.primary.main}`, boxShadow: 'none' }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               TOTAL ASSIGNMENTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : totalAssignments}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : totalAssignments}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              All recorded allocations
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              All recorded subject allocations
             </Typography>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={4}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.success.main}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               ACTIVE ALLOCATIONS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : activeCount}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.success.main, mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : activeCount}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Currently assigned & teaching
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              Currently teaching & active
             </Typography>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={4}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.error.main}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               REVOKED / INACTIVE
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : revokedCount}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.error.main, mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : revokedCount}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Relieved subject assignments
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              Relieved subject allocations
             </Typography>
           </Card>
         </Grid>
       </Grid>
 
-      {/* ── 3. Filters & Assignment Directory Table ───────────────────────── */}
-      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-        <Grid container spacing={2} sx={{ mb: 3 }} alignItems="center">
-          <Grid item xs={12} sm={6}>
+      {/* ── 3. Filter Bar (Search, Course, Branch, Semester, Status) ──────────── */}
+      <Card sx={{ p: { xs: 2, md: 2.5 }, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <FilterListOutlined sx={{ color: theme.palette.primary.main, fontSize: 18 }} /> Filter Workload Allocations
+          </Typography>
+
+          {hasActiveFilters && (
+            <Button
+              size="small"
+              onClick={handleClearFilters}
+              startIcon={<ClearOutlined />}
+              sx={{ textTransform: 'none', fontWeight: 700, color: theme.palette.text.secondary }}
+            >
+              Clear Filters
+            </Button>
+          )}
+        </Box>
+
+        <Grid container spacing={2}>
+          {/* Search */}
+          <Grid item xs={12} sm={6} md={3}>
             <TextField
               fullWidth
               size="small"
-              placeholder="Search by subject name, faculty name, or email..."
+              placeholder="Search subject or faculty..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               InputProps={{
-                startAdornment: <SearchOutlined sx={{ color: 'text.secondary', mr: 1, fontSize: 18 }} />,
+                startAdornment: <SearchOutlined fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />,
               }}
             />
           </Grid>
 
-          <Grid item xs={12} sm={6}>
+          {/* Course Filter */}
+          <Grid item xs={12} sm={6} md={2.5}>
             <TextField
               select
               fullWidth
               size="small"
-              label="Assignment Status"
+              label="Course Program"
+              value={courseFilter}
+              onChange={(e) => {
+                setCourseFilter(e.target.value);
+                setBranchFilter('');
+              }}
+            >
+              <MenuItem value="">All Courses</MenuItem>
+              {availableCourses.map((c) => (
+                <MenuItem key={c._id || c.id} value={c._id || c.id}>
+                  {c.name} ({c.code})
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+
+          {/* Branch Filter */}
+          <Grid item xs={12} sm={6} md={2.5}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Branch Specialization"
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+            >
+              <MenuItem value="">All Branches</MenuItem>
+              {availableBranches.map((b) => (
+                <MenuItem key={b._id || b.id} value={b._id || b.id}>
+                  {b.name} ({b.code})
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+
+          {/* Semester Filter */}
+          <Grid item xs={6} sm={3} md={2}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Semester"
+              value={semesterFilter}
+              onChange={(e) => setSemesterFilter(e.target.value)}
+            >
+              <MenuItem value="">All Semesters</MenuItem>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                <MenuItem key={sem} value={sem}>
+                  Semester {sem}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+
+          {/* Status Filter */}
+          <Grid item xs={6} sm={3} md={2}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              SelectProps={{ displayEmpty: true }}
-              InputLabelProps={{ shrink: true }}
             >
               <MenuItem value="">All Statuses</MenuItem>
               <MenuItem value="ACTIVE">Active Only</MenuItem>
@@ -253,104 +397,152 @@ export const AssignmentHub = () => {
           </Grid>
         </Grid>
 
-        {isLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-            <CircularProgress size={32} />
-          </Box>
-        ) : filteredAssignments.length === 0 ? (
-          <EmptyState
-            type="users"
-            title="No Faculty Assignments Found"
-            description="No faculty subject allocations match the active search or status filter."
-            actionText="Assign Faculty"
-            onAction={() => setDrawerOpen(true)}
-          />
-        ) : (
-          <TableContainer>
-            <Table size="medium">
-              <TableHead sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>CURRICULUM SUBJECT</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>ASSIGNED FACULTY</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>TARGET GROUP / SECTION</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>STATUS</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>ACTIONS</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredAssignments.map((row) => (
-                  <TableRow key={row._id} hover>
-                    <TableCell sx={{ fontWeight: 600 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Avatar sx={{ width: 32, height: 32, bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
-                          <SchoolOutlined sx={{ fontSize: 18 }} />
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
-                            {row.subjectId?.name || 'N/A'}
-                          </Typography>
-                          <Typography variant="caption" sx={{ fontFamily: theme.typography.mono.fontFamily, color: theme.palette.text.secondary }}>
-                            {row.subjectId?.code ? `Code: ${row.subjectId.code}` : 'Department Course'}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </TableCell>
-
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Avatar sx={{ width: 28, height: 28, bgcolor: `${theme.palette.brass?.[500] || '#b8863e'}18`, color: theme.palette.brass?.[500] || '#b8863e', fontSize: '0.75rem', fontWeight: 700 }}>
-                          {row.facultyId?.name?.charAt(0) || 'F'}
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.ink[900] }}>
-                            {row.facultyId?.name || 'Unassigned'}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {row.facultyId?.email || 'N/A'}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </TableCell>
-
-                    <TableCell sx={{ fontSize: '0.82rem' }}>
-                      <Chip
-                        label={row.group || 'All Groups'}
-                        size="small"
-                        variant="outlined"
-                        sx={{ fontWeight: 700, fontSize: '0.7rem' }}
-                      />
-                    </TableCell>
-
-                    <TableCell>
-                      <Chip
-                        icon={row.status === 'ACTIVE' ? <CheckCircleOutlined sx={{ fontSize: '0.8rem !important' }} /> : undefined}
-                        label={row.status || 'ACTIVE'}
-                        size="small"
-                        color={row.status === 'ACTIVE' ? 'success' : 'error'}
-                        sx={{ fontWeight: 800, fontSize: '0.65rem', height: 22 }}
-                      />
-                    </TableCell>
-
-                    <TableCell align="right">
-                      {row.status === 'ACTIVE' && (
-                        <Tooltip title="Revoke Subject Assignment">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => handleOpenRevoke(row)}
-                            disabled={revokeMutation.isPending}
-                          >
-                            <CancelOutlined fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </TableCell>
+        {/* Table Container */}
+        <Box sx={{ mt: 3 }}>
+          {isLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+              <CircularProgress size={32} />
+            </Box>
+          ) : filteredAssignments.length === 0 ? (
+            <EmptyState
+              type="users"
+              title="No Faculty Assignments Found"
+              description={hasActiveFilters ? "No faculty subject allocations match your active filters." : "No faculty subject assignments recorded yet."}
+              actionText={hasActiveFilters ? "Clear All Filters" : "Assign Faculty"}
+              onAction={hasActiveFilters ? handleClearFilters : () => setDrawerOpen(true)}
+            />
+          ) : (
+            <TableContainer sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: '14px' }}>
+              <Table size="medium">
+                <TableHead sx={{ bgcolor: `${theme.palette.primary.main}06` }}>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>CURRICULUM SUBJECT</TableCell>
+                    <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>COURSE & BRANCH</TableCell>
+                    <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>ASSIGNED FACULTY</TableCell>
+                    <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>TARGET GROUP / SECTION</TableCell>
+                    <TableCell sx={{ fontWeight: 800, fontSize: '0.75rem' }}>STATUS</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.75rem' }}>ACTIONS</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
+                </TableHead>
+                <TableBody>
+                  {filteredAssignments.map((row) => {
+                    const subj = row.subjectId || {};
+                    const courseObj = subj.branchId?.courseId;
+                    const branchObj = subj.branchId;
+                    const codeStr = computeSubjectCode(subj, branchObj);
+
+                    return (
+                      <TableRow key={row._id} hover>
+                        {/* Subject */}
+                        <TableCell sx={{ py: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Avatar sx={{ width: 34, height: 34, bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
+                              <SchoolOutlined sx={{ fontSize: 18 }} />
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.ink[900], lineHeight: 1.3 }}>
+                                {subj.name || 'N/A'}
+                              </Typography>
+                              <Chip
+                                label={codeStr}
+                                size="small"
+                                sx={{
+                                  mt: 0.3,
+                                  fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                                  fontWeight: 700,
+                                  fontSize: '0.62rem',
+                                  height: 18,
+                                  bgcolor: `${theme.palette.primary.main}12`,
+                                  color: theme.palette.primary.main,
+                                }}
+                              />
+                            </Box>
+                          </Box>
+                        </TableCell>
+
+                        {/* Course & Branch */}
+                        <TableCell sx={{ py: 2 }}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.ink?.[800] || 'text.primary' }}>
+                              {branchObj?.name || 'General Branch'}
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 0.8, alignItems: 'center' }}>
+                              <Chip
+                                label={courseObj?.name || courseObj?.code || 'Course'}
+                                size="small"
+                                variant="outlined"
+                                sx={{ fontWeight: 600, fontSize: '0.65rem', height: 18 }}
+                              />
+                              {subj.semester && (
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                                  Sem {subj.semester}
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+                        </TableCell>
+
+                        {/* Assigned Faculty */}
+                        <TableCell sx={{ py: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Avatar sx={{ width: 30, height: 30, bgcolor: `${theme.palette.primary.main}18`, color: theme.palette.primary.main, fontSize: '0.8rem', fontWeight: 700 }}>
+                              {row.facultyId?.name?.charAt(0) || 'F'}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
+                                {row.facultyId?.name || 'Unassigned'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {row.facultyId?.email || 'N/A'}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+
+                        {/* Target Group */}
+                        <TableCell sx={{ py: 2 }}>
+                          <Chip
+                            label={row.group ? `Group ${row.group}` : 'All Groups / Full Batch'}
+                            size="small"
+                            variant="outlined"
+                            sx={{ fontWeight: 700, fontSize: '0.68rem', height: 22 }}
+                          />
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell sx={{ py: 2 }}>
+                          <Chip
+                            icon={row.status === 'ACTIVE' ? <CheckCircleOutlined sx={{ fontSize: '0.8rem !important' }} /> : undefined}
+                            label={row.status || 'ACTIVE'}
+                            size="small"
+                            color={row.status === 'ACTIVE' ? 'success' : 'error'}
+                            sx={{ fontWeight: 800, fontSize: '0.65rem', height: 22 }}
+                          />
+                        </TableCell>
+
+                        {/* Action */}
+                        <TableCell align="right" sx={{ py: 2 }}>
+                          {row.status === 'ACTIVE' && (
+                            <Tooltip title="Revoke Subject Assignment">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleOpenRevoke(row)}
+                                disabled={revokeMutation.isPending}
+                              >
+                                <CancelOutlined fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </Box>
       </Card>
 
       {/* ── 4. Assign Drawer & Revoke Modal ───────────────────────────────── */}

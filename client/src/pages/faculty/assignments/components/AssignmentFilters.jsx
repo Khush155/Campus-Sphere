@@ -112,7 +112,7 @@ export const AssignmentFilters = ({
             sx={{
               width: { xs: '100%', sm: 260 },
               '& .MuiOutlinedInput-root': {
-                borderRadius: 2,
+                borderRadius: '10px',
                 fontSize: '0.85rem',
               },
             }}

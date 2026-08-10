@@ -14,30 +14,69 @@ const buildBonafideText = (user, purpose) => {
   const branchText = user.branchId?.name ? ` in the specialization branch of ${user.branchId.name}` : '';
   const courseText = user.courseId?.name ? ` enrolled in the ${user.courseId.name} program` : ' enrolled at this institution';
   const semesterText = user.semester ? `, currently studying in Semester ${user.semester}` : '';
+  const purposeClause = purpose?.trim() ? ` This certificate is officially issued at their request for the purpose of: "${purpose.trim()}".` : ' This certificate is officially issued at their request for general academic purposes.';
 
-  return `This is to certify that Mr./Ms. ${user.name}${rollText} is a bonafide student of this institution${courseText}${branchText}${semesterText}. To the best of our knowledge, their conduct has been exemplary during their tenure here. This certificate is officially issued at their request for the purpose of: ${purpose || 'General Academic Purposes'}.`;
+  return `This is to certify that Mr./Ms. ${user.name}${rollText} is a bonafide student of this institution${courseText}${branchText}${semesterText}. To the best of our knowledge, their conduct has been exemplary during their tenure here.${purposeClause}`;
 };
 
 /**
  * Builds transfer certificate text block dynamically.
  */
-const buildTransferText = (user) => {
+const buildTransferText = (user, purpose) => {
   const rollText = user.rollNumber ? ` (Roll No: ${user.rollNumber})` : ` (${user.email})`;
   const branchText = user.branchId?.name ? ` in ${user.branchId.name}` : '';
   const courseText = user.courseId?.name ? ` the ${user.courseId.name} program` : ' their program';
+  const purposeClause = purpose?.trim() ? ` Stated Reason / Details: "${purpose.trim()}".` : '';
 
-  return `This is to certify that Mr./Ms. ${user.name}${rollText} was a student of this institution studying${courseText}${branchText}. They have cleared all institutional dues, library returns, and laboratory balances. There is no objection from this institution to their seeking admission at any other accredited university or institution. We wish them success in their future academic pursuits.`;
+  return `This is to certify that Mr./Ms. ${user.name}${rollText} was a student of this institution studying${courseText}${branchText}. They have cleared all institutional dues, library returns, and laboratory balances. There is no objection from this institution to their seeking admission at any other accredited university or institution.${purposeClause} We wish them success in their future academic pursuits.`;
 };
 
 /**
  * Builds character certificate text block dynamically.
  */
-const buildCharacterText = (user) => {
+const buildCharacterText = (user, purpose) => {
   const rollText = user.rollNumber ? ` (Roll No: ${user.rollNumber})` : ` (${user.email})`;
   const branchText = user.branchId?.name ? ` in ${user.branchId.name}` : '';
   const courseText = user.courseId?.name ? ` the ${user.courseId.name} program` : ' their program';
+  const purposeClause = purpose?.trim() ? ` Additional Remarks: "${purpose.trim()}".` : '';
 
-  return `This is to certify that Mr./Ms. ${user.name}${rollText} is/was a student of this institution, completing${courseText}${branchText}. During their tenure at CampusSphere, they have shown great diligence, high moral character, and cooperative behavior. Their character and conduct have been found to be Good.`;
+  return `This is to certify that Mr./Ms. ${user.name}${rollText} is/was a student of this institution, completing${courseText}${branchText}. During their tenure at CampusSphere, they have shown great diligence, high moral character, and cooperative behavior. Their character and conduct have been found to be Good.${purposeClause}`;
+};
+
+/**
+ * Builds NOC text block dynamically.
+ */
+const buildNocText = (user, purpose) => {
+  const rollText = user.rollNumber ? ` (Roll No: ${user.rollNumber})` : ` (${user.email})`;
+  const branchText = user.branchId?.name ? ` in ${user.branchId.name}` : '';
+  const courseText = user.courseId?.name ? ` the ${user.courseId.name} program` : ' their program';
+  const purposeText = purpose?.trim() ? `"${purpose.trim()}"` : 'External Internship / Academic Training';
+
+  return `This is to certify that this institution has No Objection to Mr./Ms. ${user.name}${rollText}, a bonafide student pursuing${courseText}${branchText}, undertaking/applying for: ${purposeText}. The institution permits the student to participate provided it does not conflict with scheduled mandatory examinations.`;
+};
+
+/**
+ * Builds Provisional Degree text block dynamically.
+ */
+const buildProvisionalText = (user, purpose) => {
+  const rollText = user.rollNumber ? ` (Roll No: ${user.rollNumber})` : ` (${user.email})`;
+  const branchText = user.branchId?.name ? ` in ${user.branchId.name}` : '';
+  const courseText = user.courseId?.name ? ` ${user.courseId.name}` : ' their program';
+  const purposeClause = purpose?.trim() ? ` Additional Remarks: "${purpose.trim()}".` : '';
+
+  return `This is to certify that Mr./Ms. ${user.name}${rollText} has successfully completed all academic requirements for the award of the Degree of${courseText}${branchText}. Having fulfilled all prescribed coursework, examinations, and project evaluations, this Provisional Certificate is issued pending the conferment of the Final Degree Diploma at the upcoming Convocation.${purposeClause}`;
+};
+
+/**
+ * Builds Merit Certificate text block dynamically.
+ */
+const buildMeritText = (user, purpose) => {
+  const rollText = user.rollNumber ? ` (Roll No: ${user.rollNumber})` : ` (${user.email})`;
+  const branchText = user.branchId?.name ? ` in ${user.branchId.name}` : '';
+  const courseText = user.courseId?.name ? ` ${user.courseId.name}` : ' their program';
+  const purposeClause = purpose?.trim() ? ` in recognition of: "${purpose.trim()}"` : ' in recognition of outstanding academic performance, leadership, and exemplary dedication to scholarly pursuits';
+
+  return `This Certificate of Academic Excellence & Merit is proudly awarded to Mr./Ms. ${user.name}${rollText} of${courseText}${branchText} ${purposeClause}.`;
 };
 
 /**
@@ -178,11 +217,23 @@ const generateCertificateStream = async ({ studentId, type, purpose }, actorId, 
       break;
     case 'TRANSFER':
       titleText = 'TRANSFER CERTIFICATE';
-      bodyText = buildTransferText(student);
+      bodyText = buildTransferText(student, purpose);
       break;
     case 'CHARACTER':
       titleText = 'CHARACTER CERTIFICATE';
-      bodyText = buildCharacterText(student);
+      bodyText = buildCharacterText(student, purpose);
+      break;
+    case 'NOC':
+      titleText = 'NO OBJECTION CERTIFICATE (NOC)';
+      bodyText = buildNocText(student, purpose);
+      break;
+    case 'PROVISIONAL':
+      titleText = 'PROVISIONAL DEGREE CERTIFICATE';
+      bodyText = buildProvisionalText(student, purpose);
+      break;
+    case 'MERIT':
+      titleText = 'CERTIFICATE OF MERIT & EXCELLENCE';
+      bodyText = buildMeritText(student, purpose);
       break;
     default:
       throw new AppError('Invalid certificate type specified.', 400, ERROR_CODES.VALIDATION_ERROR);
@@ -192,49 +243,99 @@ const generateCertificateStream = async ({ studentId, type, purpose }, actorId, 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="certificate-${student._id}.pdf"`);
 
-  const doc = new PDFDocument({ size: 'LETTER', margin: 50 });
+  const doc = new PDFDocument({ size: 'LETTER', margin: 40 });
   doc.pipe(res);
 
-  // Render branding header
+  // 1. Draw Formal Institutional Page Frame Borders
+  const width = doc.page.width;
+  const height = doc.page.height;
+
+  // Outer Gold Frame
+  doc.rect(20, 20, width - 40, height - 40)
+    .lineWidth(2.5)
+    .strokeColor('#b8863e')
+    .stroke();
+
+  // Inner Navy Frame
+  doc.rect(25, 25, width - 50, height - 50)
+    .lineWidth(1)
+    .strokeColor('#1c2e45')
+    .stroke();
+
+  // 2. Render branding letterhead header
   await drawLetterhead(doc);
 
-  // Certificate Document Title
-  doc.fontSize(18)
-    .font('Helvetica-Bold')
-    .fillColor('#1c2e45')
-    .text(titleText, 50, 160, { align: 'center', underline: true });
-
-  // Body content paragraph
-  doc.fontSize(11)
-    .font('Helvetica')
-    .fillColor('#374151')
-    .text(bodyText, 50, 240, {
-      align: 'justify',
-      lineGap: 6,
-      width: 512,
-    });
-
-  // Footer / Signatures mapping
+  // 3. Serial Reference Number & Date Header Line
+  const refNo = `Ref: CS/CERT/${new Date().getFullYear()}/${Math.floor(100000 + Math.random() * 900000)}`;
   const dateString = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
 
-  doc.fontSize(10)
+  doc.fontSize(9)
     .font('Helvetica-Bold')
-    .fillColor('#4b5563')
-    .text(`Date of Issue: ${dateString}`, 50, 520);
+    .fillColor('#6b7280')
+    .text(refNo, 50, 128);
 
+  doc.fontSize(9)
+    .font('Helvetica-Bold')
+    .fillColor('#6b7280')
+    .text(`Date of Issue: ${dateString}`, 380, 128, { align: 'right' });
+
+  // 4. Certificate Document Title
+  doc.fontSize(18)
+    .font('Helvetica-Bold')
+    .fillColor('#1c2e45')
+    .text(titleText, 50, 165, { align: 'center' });
+
+  // Title Gold Accent Underline
+  doc.moveTo(180, 190)
+    .lineTo(width - 180, 190)
+    .strokeColor('#b8863e')
+    .lineWidth(1.5)
+    .stroke();
+
+  // 5. Body Content Paragraph
+  doc.fontSize(11)
+    .font('Helvetica')
+    .fillColor('#374151')
+    .text(bodyText, 55, 230, {
+      align: 'justify',
+      lineGap: 7,
+      width: width - 110,
+    });
+
+  // 6. Dual Signature Blocks
+  const sigY = 560;
+
+  // Left Signature: Controller of Examinations
   doc.fontSize(10)
     .font('Helvetica-Bold')
-    .fillColor('#4b5563')
-    .text('Authorized Signatory', 400, 520, { align: 'right' });
+    .fillColor('#1c2e45')
+    .text('Controller of Examinations', 55, sigY);
 
   doc.fontSize(8)
     .font('Helvetica')
+    .fillColor('#6b7280')
+    .text('Academic Evaluation Division', 55, sigY + 15);
+
+  // Right Signature: Registrar / Principal
+  doc.fontSize(10)
+    .font('Helvetica-Bold')
+    .fillColor('#1c2e45')
+    .text('Registrar & Institutional Seal', 380, sigY, { align: 'right' });
+
+  doc.fontSize(8)
+    .font('Helvetica')
+    .fillColor('#6b7280')
+    .text('CampusSphere Office Administration', 380, sigY + 15, { align: 'right' });
+
+  // Bottom Security Verification Line
+  doc.fontSize(7)
+    .font('Helvetica')
     .fillColor('#9ca3af')
-    .text('CampusSphere Office Administration', 400, 535, { align: 'right' });
+    .text('This is an official computer-generated document issued by CampusSphere Academic ERP System.', 50, height - 40, { align: 'center' });
 
   doc.end();
 

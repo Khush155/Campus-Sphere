@@ -58,6 +58,16 @@ import { IdCardsHub } from '../pages/admin/IdCards/IdCardsHub';
 import { AdmissionsHub } from '../pages/admin/Admissions/AdmissionsHub';
 import { FeeClearanceHub } from '../pages/admin/FeeClearance/FeeClearanceHub';
 
+import StudentDashboard from '../pages/student/StudentDashboard';
+import StudentAttendancePage from '../pages/student/StudentAttendancePage';
+import StudentTimetablePage from '../pages/student/StudentTimetablePage';
+import StudentAssignmentsPage from '../pages/student/StudentAssignmentsPage';
+import StudentExaminationsPage from '../pages/student/StudentExaminationsPage';
+import StudentProfilePage from '../pages/student/StudentProfilePage';
+import StudentLeavePage from '../pages/student/StudentLeavePage';
+import StudentFeesPage from '../pages/student/StudentFeesPage';
+import StudentAcademicsPage from '../pages/student/StudentAcademicsPage';
+
 // Newly added Expanded Faculty pages
 import MaterialsPage from '../pages/faculty/materials/MaterialsPage';
 import AnalyticsPage from '../pages/faculty/analytics/AnalyticsPage';
@@ -149,7 +159,7 @@ const HomeRedirect = () => {
     return <Navigate to="/faculty" replace />;
   }
   if (user?.role === 'STUDENT') {
-    return <PlaceholderView title="Student Dashboard" />;
+    return <StudentDashboard />;
   }
   return <Home />;
 };
@@ -291,7 +301,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/academic-calendar"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <AcademicCalendar />
               </AdminSetupGuard>
@@ -313,7 +323,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/audit-logs"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <AuditLogViewer />
               </AdminSetupGuard>
@@ -359,7 +369,7 @@ export const AppRoutes = () => {
           element={
             <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
-                <AcademicSessionsPage />
+                <AcademicCalendar />
               </AdminSetupGuard>
             </RoleRoute>
           }
@@ -379,7 +389,26 @@ export const AppRoutes = () => {
         <Route path="complaints" element={<RoleRoute allowedRoles={['FACULTY']}><FacultyComplaintHub /></RoleRoute>} />
         <Route path="profile" element={<UserProfilePage />} />
         <Route path="settings" element={<AccountSettingsPage />} />
-        <Route path="fees" element={<PlaceholderView title="Fees" />} />
+        <Route path="fees" element={<RoleRoute allowedRoles={['STUDENT', 'SUPER_ADMIN', 'COLLEGE_ADMIN']}><StudentFeesPage /></RoleRoute>} />
+
+        {/* Student Workspace Routes */}
+        <Route path="student/dashboard" element={<RoleRoute allowedRoles={['STUDENT']}><StudentDashboard /></RoleRoute>} />
+        <Route path="student/profile" element={<RoleRoute allowedRoles={['STUDENT']}><StudentProfilePage /></RoleRoute>} />
+        <Route path="student/academics" element={<RoleRoute allowedRoles={['STUDENT']}><StudentAcademicsPage /></RoleRoute>} />
+        <Route path="student/timetable" element={<RoleRoute allowedRoles={['STUDENT']}><StudentTimetablePage /></RoleRoute>} />
+        <Route path="student/assignments" element={<RoleRoute allowedRoles={['STUDENT']}><StudentAssignmentsPage /></RoleRoute>} />
+        <Route path="student/attendance" element={<RoleRoute allowedRoles={['STUDENT']}><StudentAttendancePage /></RoleRoute>} />
+        <Route path="student/examinations" element={<RoleRoute allowedRoles={['STUDENT']}><StudentExaminationsPage /></RoleRoute>} />
+        <Route path="student/leave" element={<RoleRoute allowedRoles={['STUDENT']}><StudentLeavePage /></RoleRoute>} />
+        <Route path="student/fees" element={<RoleRoute allowedRoles={['STUDENT']}><StudentFeesPage /></RoleRoute>} />
+        <Route path="student/notices" element={<RoleRoute allowedRoles={['STUDENT']}><FacultyNoticeHub /></RoleRoute>} />
+        <Route path="student/projects" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Student Projects" /></RoleRoute>} />
+        <Route path="student/placements" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Student Placements" /></RoleRoute>} />
+        <Route path="student/library" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Student Library" /></RoleRoute>} />
+        <Route path="student/portfolio" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Student Portfolio" /></RoleRoute>} />
+        <Route path="student/documents" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Student Documents" /></RoleRoute>} />
+        <Route path="student/complaints" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Student Complaints" /></RoleRoute>} />
+        <Route path="student/notifications" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Notifications" /></RoleRoute>} />
       </Route>
 
       {/* Wildcard Fallback */}

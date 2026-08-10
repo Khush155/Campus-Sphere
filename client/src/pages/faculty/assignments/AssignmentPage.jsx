@@ -254,6 +254,7 @@ export const AssignmentPage = () => {
     id: sub.id,
     name: sub.name,
     code: sub.code,
+    credits: sub.credits,
   }));
 
   return (
@@ -312,16 +313,35 @@ export const AssignmentPage = () => {
         </Box>
       </Card>
 
-      {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
+      {/* ── 2. KPI Summary Grid (Faculty Roster Style) ────────────────────── */}
       <Grid container spacing={2.5}>
+        {/* 1. Total Assignments Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
                   TOTAL ASSIGNMENTS
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.ink ? theme.palette.ink[900] : 'text.primary',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.total}
                 </Typography>
               </Box>
@@ -332,54 +352,138 @@ export const AssignmentPage = () => {
           </Card>
         </Grid>
 
+        {/* 2. Active Published Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.success || '#10b981'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.success || '#10b981' }}
+                >
                   ACTIVE PUBLISHED
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.signal?.success || '#10b981',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.published}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.signal.success}15`, color: theme.palette.signal.success }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.signal?.success || '#10b981'}15`,
+                  color: theme.palette.signal?.success || '#10b981',
+                }}
+              >
                 <CheckCircleOutlined />
               </Avatar>
             </Box>
           </Card>
         </Grid>
 
+        {/* 3. Drafts In Progress Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.info?.main || '#3b82f6'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info.main }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info?.main || '#3b82f6' }}
+                >
                   DRAFTS IN PROGRESS
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.info?.main || '#3b82f6',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.drafts}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.info.main}15`, color: theme.palette.info.main }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.info?.main || '#3b82f6'}15`,
+                  color: theme.palette.info?.main || '#3b82f6',
+                }}
+              >
                 <DraftsOutlined />
               </Avatar>
             </Box>
           </Card>
         </Grid>
 
+        {/* 4. Closed / Expired Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.error || '#ef4444'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.error || '#ef4444' }}
+                >
                   CLOSED / EXPIRED
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.signal?.error || '#ef4444',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.closed}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.warning.main}15`, color: theme.palette.warning.main }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.signal?.error || '#ef4444'}15`,
+                  color: theme.palette.signal?.error || '#ef4444',
+                }}
+              >
                 <TimerOffOutlined />
               </Avatar>
             </Box>

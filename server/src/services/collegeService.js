@@ -185,7 +185,7 @@ const deleteCourse = async (id) => {
 // ==========================================
 
 const createBranch = async (branchData) => {
-  const { name, code, courseId } = branchData;
+  const { name, code, courseId, hostingDepartmentId } = branchData;
 
   // 1. Verify parent Course exists
   const parentCourse = await Course.findById(courseId);
@@ -199,7 +199,7 @@ const createBranch = async (branchData) => {
     throw new AppError('Branch code already exists under this course.', 400, ERROR_CODES.DUPLICATE_ENTRY);
   }
 
-  const branch = await Branch.create({ name, code, courseId });
+  const branch = await Branch.create({ name, code, courseId, hostingDepartmentId: hostingDepartmentId || null });
   logger.info(`[Branch Created] ID: ${branch._id} - Code: ${branch.code} under Course: ${courseId}`);
   return branch;
 };
@@ -209,6 +209,9 @@ const getAllBranches = async (queryOptions = {}) => {
   if (queryOptions.courseId) {
     filter.courseId = queryOptions.courseId;
   }
+  if (queryOptions.hostingDepartmentId || queryOptions.departmentId) {
+    filter.hostingDepartmentId = queryOptions.hostingDepartmentId || queryOptions.departmentId;
+  }
   if (queryOptions.search) {
     filter.$or = [
       { name: { $regex: queryOptions.search, $options: 'i' } },
@@ -217,12 +220,12 @@ const getAllBranches = async (queryOptions = {}) => {
   }
   return await paginate(Branch, filter, {
     ...queryOptions,
-    populate: 'courseId',
+    populate: ['courseId', 'hostingDepartmentId'],
   });
 };
 
 const getBranchById = async (id) => {
-  const branch = await Branch.findById(id).populate('courseId');
+  const branch = await Branch.findById(id).populate(['courseId', 'hostingDepartmentId']);
   if (!branch) {
     throw new AppError('Branch not found.', 404, ERROR_CODES.NOT_FOUND);
   }
@@ -307,7 +310,7 @@ const assertSubjectSemestersValid = async (branchId, semester) => {
 };
 
 const createSubject = async (subjectData) => {
-  const { name, code, credits, type, branchId, departmentId, semester } = subjectData;
+  const { name, sequenceNo, credits, type, branchId, departmentId, semester } = subjectData;
 
   // 1. Verify parent Department exists
   const parentDept = await Department.findById(departmentId);
@@ -318,22 +321,22 @@ const createSubject = async (subjectData) => {
   // 2. Verify parent Branch exists and semester is within limits (user suggestion check!)
   await assertSubjectSemestersValid(branchId, semester);
 
-  // 3. Verify compound unique constraints (branchId + code)
-  const duplicate = await Subject.findOne({ branchId, code: code.toUpperCase() });
+  // 3. Verify compound unique constraints (branchId + semester + sequenceNo)
+  const duplicate = await Subject.findOne({ branchId, semester, sequenceNo });
   if (duplicate) {
-    throw new AppError('Subject code already registered under this branch.', 400, ERROR_CODES.DUPLICATE_ENTRY);
+    throw new AppError('Subject sequence number already exists under this branch & semester.', 400, ERROR_CODES.DUPLICATE_ENTRY);
   }
 
   const subject = await Subject.create({
     name,
-    code,
+    sequenceNo,
     credits,
     type,
     branchId,
     departmentId,
     semester,
   });
-  logger.info(`[Subject Created] ID: ${subject._id} - Code: ${subject.code} under Branch: ${branchId}`);
+  logger.info(`[Subject Created] ID: ${subject._id} - Seq: ${subject.sequenceNo} under Branch: ${branchId}`);
   return subject;
 };
 
@@ -349,13 +352,13 @@ const getAllSubjects = async (queryOptions = {}) => {
     filter.semester = queryOptions.semester;
   }
   if (queryOptions.search) {
-    filter.$or = [
-      { name: { $regex: queryOptions.search, $options: 'i' } },
-      { code: { $regex: queryOptions.search, $options: 'i' } },
-    ];
+    filter.name = { $regex: queryOptions.search, $options: 'i' };
   }
+  // Default sort for curriculum subjects: semester ASC → sequenceNo ASC
+  const sort = queryOptions.sort || { semester: 1, sequenceNo: 1 };
   return await paginate(Subject, filter, {
     ...queryOptions,
+    sort,
     populate: [
       {
         path: 'branchId',
@@ -364,12 +367,13 @@ const getAllSubjects = async (queryOptions = {}) => {
         },
       },
       'departmentId',
+      'facultyId',
     ],
   });
 };
 
 const getSubjectById = async (id) => {
-  const subject = await Subject.findById(id).populate(['branchId', 'departmentId']);
+  const subject = await Subject.findById(id).populate(['branchId', 'departmentId', 'facultyId']);
   if (!subject) {
     throw new AppError('Subject not found.', 404, ERROR_CODES.NOT_FOUND);
   }

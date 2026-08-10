@@ -1,29 +1,4 @@
 // client/src/pages/faculty/attendance/components/SectionSelector.jsx
-//
-// Dropdown for selecting which section to mark attendance for.
-// This is Step 2 of the attendance flow:
-//   Subject → Section → Date → Students → Mark → Submit
-//
-// The selected section determines WHICH students are loaded into
-// the StudentAttendanceTable. A faculty may teach the same subject
-// to multiple sections (e.g., CSE-A and CSE-B).
-//
-// This is a CONTROLLED component:
-//   - Parent owns selectedSectionId and passes it down.
-//   - When the user picks a section, onSectionChange fires.
-//   - Changing the subject in SubjectSelector resets the section.
-//
-// Props:
-//   sections          — array of section objects:
-//                        [{ id, name, strength }]
-//                        name: display name (e.g. "CSE-A")
-//                        strength: number of students in section
-//   selectedSectionId — currently selected section's ID (string or '')
-//   onSectionChange   — callback: (sectionId: string) => void
-//   disabled          — optional boolean, disables during submission
-//
-// Future: sections will come from the faculty's subject-section
-//         mapping via GET /api/v1/faculty/:id?populate=sections
 
 import React from 'react';
 import {
@@ -37,7 +12,7 @@ import {
 import { Groups as SectionIcon } from '@mui/icons-material';
 
 export const SectionSelector = ({
-  sections,
+  sections = [],
   selectedSectionId,
   onSectionChange,
   disabled = false,
@@ -48,7 +23,6 @@ export const SectionSelector = ({
     onSectionChange(event.target.value);
   };
 
-  // Derive helper text based on available sections
   const getHelperText = () => {
     if (sections.length === 0) {
       return 'Select a subject first';
@@ -80,6 +54,9 @@ export const SectionSelector = ({
         ),
       }}
       sx={{
+        '& .MuiOutlinedInput-root': {
+          borderRadius: '10px',
+        },
         '& .MuiSelect-select': {
           display: 'flex',
           alignItems: 'center',
@@ -87,14 +64,12 @@ export const SectionSelector = ({
         },
       }}
     >
-      {/* Placeholder option */}
       <MenuItem value="" disabled>
         <Typography variant="body2" color="text.secondary">
           — Select a section —
         </Typography>
       </MenuItem>
 
-      {/* Section options */}
       {sections.map((section) => (
         <MenuItem key={section.id} value={section.id}>
           <Box
@@ -106,20 +81,15 @@ export const SectionSelector = ({
               gap: 1.5,
             }}
           >
-            {/* Section name */}
-            <Typography
-              variant="body2"
-              sx={{ fontWeight: 600 }}
-            >
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
               {section.name}
             </Typography>
 
-            {/* Student count badge */}
             <Chip
               label={`${section.strength} students`}
               size="small"
               sx={{
-                fontWeight: 600,
+                fontWeight: 700,
                 fontSize: '0.7rem',
                 height: 22,
                 bgcolor: 'rgba(16, 185, 129, 0.08)',
@@ -134,3 +104,4 @@ export const SectionSelector = ({
 };
 
 export default SectionSelector;
+

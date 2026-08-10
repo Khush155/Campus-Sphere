@@ -8,6 +8,20 @@ const collegeProfileSchema = new mongoose.Schema(
       trim: true,
       maxlength: [150, 'College name cannot exceed 150 characters'],
     },
+    institutionCode: {
+      type: String,
+      trim: true,
+      default: 'CS-ERP-101',
+    },
+    establishmentYear: {
+      type: Number,
+      default: 1998,
+    },
+    accreditation: {
+      type: String,
+      trim: true,
+      default: 'NAAC Grade A+ | NBA Accredited',
+    },
     affiliation: {
       type: String,
       trim: true,
@@ -26,6 +40,11 @@ const collegeProfileSchema = new mongoose.Schema(
     contactPhone: {
       type: String,
       trim: true,
+    },
+    website: {
+      type: String,
+      trim: true,
+      default: 'https://campussphere.edu',
     },
     logoUrl: {
       type: String,

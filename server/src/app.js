@@ -26,13 +26,26 @@ app.use(
 app.use(
   cors({
     origin: (origin, callback) => {
-      // In production, we'd whitelist specific client domains.
-      // For development/local tests, reflect the request origin or allow localhost.
-      if (!origin || origin.startsWith('http://localhost') || env.NODE_ENV !== 'production') {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
+      // Allow requests with no origin (curl, server-to-server, health checks)
+      if (!origin) {
+        return callback(null, true);
       }
+      // Allow all localhost origins (development)
+      if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+        return callback(null, true);
+      }
+      // In production, allow the Azure Container Apps domain (same-origin deployment)
+      if (
+        env.NODE_ENV === 'production' &&
+        (origin.includes('azurecontainerapps.io') || origin.includes('azure.com'))
+      ) {
+        return callback(null, true);
+      }
+      // Allow all origins in non-production environments (test, development)
+      if (env.NODE_ENV !== 'production') {
+        return callback(null, true);
+      }
+      callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
   })
@@ -109,11 +122,6 @@ app.get('/health', (req, res) => {
   return successResponse(res, 200, 'Server health check passed', healthData);
 });
 
-// Root route redirect to docs
-app.get('/', (req, res) => {
-  res.redirect('/api-docs');
-});
-
 // Import and register routing files
 app.use('/api/v1/auth', require('./routes/authRoutes'));
 app.use('/api/v1/college', require('./routes/collegeRoutes'));
@@ -147,7 +155,19 @@ app.use('/api/v1/notifications', require('./routes/notificationRoutes'));
 app.use('/api/v1/faculty-assignments', require('./routes/facultyAssignmentRoutes'));
 app.use('/api/v1/academics', require('./routes/academicRoutes'));
 
-// Catch-all for unhandled routes
+// Serve static client build in production
+if (env.NODE_ENV === 'production') {
+  const publicPath = path.join(__dirname, '../public');
+  app.use(express.static(publicPath));
+  app.get('*', (req, res, next) => {
+    if (req.originalUrl.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(publicPath, 'index.html'));
+  });
+}
+
+// Catch-all for unhandled API routes
 app.all('*', (req, res, next) => {
   const AppError = require('./utils/AppError');
   const ERROR_CODES = require('./constants/errorCodes');

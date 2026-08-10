@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -21,6 +21,7 @@ import {
   useTheme,
   Grid,
   InputAdornment,
+  Pagination,
 } from '@mui/material';
 import { EditOutlined, DeleteOutline, SearchOutlined } from '@mui/icons-material';
 import {
@@ -56,8 +57,10 @@ export const CourseTab = ({ setOnAddClick }) => {
   const theme = useTheme();
   const { showToast } = useToast();
 
-  // Search state
+  // Search & Pagination state
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const rowsPerPage = 10;
 
   // Toggles
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -174,11 +177,19 @@ export const CourseTab = ({ setOnAddClick }) => {
   };
 
   // Filter courses by search input
-  const filteredCourses = courses?.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.code.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredCourses = useMemo(() => {
+    return courses?.filter(
+      (c) =>
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.code.toLowerCase().includes(search.toLowerCase())
+    ) || [];
+  }, [courses, search]);
+
+  const paginatedCourses = useMemo(() => {
+    return filteredCourses.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+  }, [filteredCourses, page, rowsPerPage]);
+
+  const totalPages = Math.ceil((filteredCourses.length || 0) / rowsPerPage);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
@@ -197,7 +208,10 @@ export const CourseTab = ({ setOnAddClick }) => {
             size="small"
             placeholder="Search degree courses by name or code..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(0);
+            }}
             fullWidth
             InputProps={{
               startAdornment: (
@@ -252,7 +266,7 @@ export const CourseTab = ({ setOnAddClick }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredCourses.map((course, index) => (
+              {paginatedCourses.map((course, index) => (
                 <TableRow
                   key={course._id}
                   className="staggered-row"
@@ -285,6 +299,52 @@ export const CourseTab = ({ setOnAddClick }) => {
               ))}
             </TableBody>
           </Table>
+
+          {totalPages > 1 && (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: 'center',
+                justify: 'space-between',
+                gap: 2,
+                px: 3,
+                py: 2,
+                borderTop: `1px solid ${theme.palette.divider}`,
+                bgcolor: theme.custom?.surface?.sunken || 'rgba(28, 46, 69, 0.02)',
+              }}
+            >
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 500, fontSize: '0.82rem' }}>
+                Showing <strong>{page * rowsPerPage + 1}–{Math.min(filteredCourses.length, (page + 1) * rowsPerPage)}</strong> of <strong>{filteredCourses.length}</strong> degree courses
+              </Typography>
+
+              <Pagination
+                count={totalPages}
+                page={page + 1}
+                onChange={(_e, newPage) => setPage(newPage - 1)}
+                color="primary"
+                shape="rounded"
+                size="medium"
+                showFirstButton
+                showLastButton
+                sx={{
+                  ml: { xs: 0, sm: 'auto' },
+                  '& .MuiPaginationItem-root': {
+                    fontFamily: theme.typography.body2.fontFamily,
+                    fontWeight: 600,
+                    fontSize: '0.82rem',
+                    borderRadius: '8px',
+                  },
+                  '& .MuiPaginationItem-page.Mui-selected': {
+                    background: theme.palette.primary.gradient || theme.palette.primary.main,
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    boxShadow: `0 2px 8px ${theme.palette.primary.main}40`,
+                  },
+                }}
+              />
+            </Box>
+          )}
         </TableContainer>
       )}
 
@@ -411,6 +471,7 @@ export const CourseTab = ({ setOnAddClick }) => {
       <ConfirmDeleteModal
         open={Boolean(deleteId)}
         title="Delete Degree Course"
+        actionText="Delete Course"
         description={
           getDeleteWarningMessage() ||
           "Are you sure you want to delete this degree course? This action cannot be undone if branches or students are associated with it."

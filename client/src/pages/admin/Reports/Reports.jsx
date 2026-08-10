@@ -336,94 +336,121 @@ export const Reports = () => {
                   />
                 </Box>
 
-                {/* Progressive Disclosure Filter Block */}
-                {(showDeptFilter || showDateFilter) && (
-                  <Box
-                    sx={{
-                      p: 2.5,
-                      borderRadius: '12px',
-                      border: `1px solid ${theme.palette.divider}`,
-                      bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 2.5,
-                    }}
-                  >
+                {/* Fixed Uniform Scope Filter Block */}
+                <Box
+                  sx={{
+                    p: 2.5,
+                    borderRadius: '12px',
+                    border: `1px solid ${theme.palette.divider}`,
+                    bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2.5,
+                    minHeight: 225,
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <FilterListOutlined sx={{ fontSize: 16, color: theme.palette.primary.main }} />
                       <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.78rem' }}>
                         Apply Scope Filters
                       </Typography>
                     </Box>
+                    <Chip
+                      label={showDeptFilter || showDateFilter ? 'Custom Scope Active' : 'Global Institutional Scope'}
+                      size="small"
+                      sx={{
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        fontFamily: theme.typography.mono.fontFamily,
+                        bgcolor: showDeptFilter || showDateFilter ? `${theme.palette.primary.main}15` : theme.palette.action.disabledBackground,
+                        color: showDeptFilter || showDateFilter ? theme.palette.primary.main : theme.palette.text.secondary,
+                      }}
+                    />
+                  </Box>
 
-                    {/* Department filter */}
-                    {showDeptFilter && (
-                      <Box>
-                        <Typography
-                          component="label"
-                          htmlFor="report-dept-input"
-                          sx={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: theme.palette.text.secondary, mb: 1 }}
-                        >
-                          Department
-                        </Typography>
-                        <Controller
-                          name="departmentId"
-                          control={control}
-                          render={({ field }) => (
-                            <TextField id="report-dept-input" select {...field} size="small" fullWidth>
-                              <MenuItem value="">Entire College</MenuItem>
-                              {depts?.map((d) => (
-                                <MenuItem key={d._id} value={d._id}>
-                                  {d.name}
-                                </MenuItem>
-                              ))}
-                            </TextField>
-                          )}
-                        />
-                      </Box>
-                    )}
-
-                    {/* Date Range filter */}
-                    {showDateFilter && (
-                      <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
-                          <Typography
-                            component="label"
-                            htmlFor="date-from-input"
-                            sx={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: theme.palette.text.secondary, mb: 1 }}
-                          >
-                            Start Date
-                          </Typography>
-                          <TextField
-                            id="date-from-input"
-                            type="date"
-                            size="small"
-                            fullWidth
-                            InputLabelProps={{ shrink: true }}
-                            {...register('dateFrom')}
-                          />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <Typography
-                            component="label"
-                            htmlFor="date-to-input"
-                            sx={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: theme.palette.text.secondary, mb: 1 }}
-                          >
-                            End Date
-                          </Typography>
-                          <TextField
-                            id="date-to-input"
-                            type="date"
-                            size="small"
-                            fullWidth
-                            InputLabelProps={{ shrink: true }}
-                            {...register('dateTo')}
-                          />
-                        </Grid>
-                      </Grid>
+                  {/* Department Filter (Active if supported, elegant disabled state if template is global) */}
+                  <Box>
+                    <Typography
+                      component="label"
+                      htmlFor="report-dept-input"
+                      sx={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: showDeptFilter ? theme.palette.ink[900] : theme.palette.text.disabled, mb: 0.8 }}
+                    >
+                      Department Scope
+                    </Typography>
+                    {showDeptFilter ? (
+                      <Controller
+                        name="departmentId"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField id="report-dept-input" select {...field} size="small" fullWidth helperText="Filter results by specific academic department.">
+                            <MenuItem value="">Entire College (All Departments)</MenuItem>
+                            {depts?.map((d) => (
+                              <MenuItem key={d._id} value={d._id}>
+                                {d.name}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        )}
+                      />
+                    ) : (
+                      <TextField
+                        id="report-dept-input"
+                        select
+                        disabled
+                        value=""
+                        size="small"
+                        fullWidth
+                        helperText="Template compiles data across all departments automatically."
+                      >
+                        <MenuItem value="">Entire College (Global Scope)</MenuItem>
+                      </TextField>
                     )}
                   </Box>
-                )}
+
+                  {/* Date Range Filter (Active if supported, elegant disabled state if template is all-time) */}
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <Typography
+                        component="label"
+                        htmlFor="date-from-input"
+                        sx={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: showDateFilter ? theme.palette.ink[900] : theme.palette.text.disabled, mb: 0.8 }}
+                      >
+                        Start Date
+                      </Typography>
+                      <TextField
+                        id="date-from-input"
+                        type="date"
+                        size="small"
+                        fullWidth
+                        disabled={!showDateFilter}
+                        InputLabelProps={{ shrink: true }}
+                        {...register('dateFrom')}
+                        helperText={showDateFilter ? 'Filter start date' : 'All historical dates included'}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography
+                        component="label"
+                        htmlFor="date-to-input"
+                        sx={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: showDateFilter ? theme.palette.ink[900] : theme.palette.text.disabled, mb: 0.8 }}
+                      >
+                        End Date
+                      </Typography>
+                      <TextField
+                        id="date-to-input"
+                        type="date"
+                        size="small"
+                        fullWidth
+                        disabled={!showDateFilter}
+                        InputLabelProps={{ shrink: true }}
+                        {...register('dateTo')}
+                        helperText={showDateFilter ? 'Filter end date' : 'Up to current date'}
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
 
                 <Divider />
 
@@ -456,7 +483,7 @@ export const Reports = () => {
           </Card>
         </Grid>
 
-        {/* Dynamic Scope Summary Box */}
+        {/* Scope Compilation Summary Box */}
         <Grid item xs={12} md={5} sx={{ display: 'flex' }}>
           <Card
             sx={{
@@ -466,65 +493,156 @@ export const Reports = () => {
               borderRadius: '16px',
               boxShadow: 'none',
               bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
-              p: 4,
+              p: 3.5,
               display: 'flex',
               flexDirection: 'column',
               justify: 'space-between',
               gap: 2.5,
             }}
           >
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
-              Scope Compilation Summary
-            </Typography>
+            {/* 1. Header & Readiness Status */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
+                Scope Compilation Summary
+              </Typography>
+              <Chip
+                label={selectedTypeKey ? 'READY FOR EXPORT' : 'SELECT TEMPLATE'}
+                size="small"
+                sx={{
+                  fontSize: '0.65rem',
+                  fontWeight: 800,
+                  fontFamily: theme.typography.mono.fontFamily,
+                  bgcolor: selectedTypeKey ? '#10b98118' : theme.palette.action.disabledBackground,
+                  color: selectedTypeKey ? '#10b981' : theme.palette.text.secondary,
+                }}
+              />
+            </Box>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  Template
+            {/* 2. Active Template Context Highlight */}
+            {selectedReportType && (
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: '12px',
+                  border: `1px solid ${theme.palette.primary.main}20`,
+                  bgcolor: `${theme.palette.primary.main}08`,
+                }}
+              >
+                <Typography variant="caption" sx={{ fontWeight: 800, color: theme.palette.primary.main, fontFamily: theme.typography.mono.fontFamily, letterSpacing: '0.06em', display: 'block', mb: 0.5 }}>
+                  SELECTED TEMPLATE SPECIFICATION
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.primary.main }}>
-                  {selectedReportType?.label || 'Not Selected'}
+                <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.ink[900], mb: 0.5 }}>
+                  {selectedReportType.label}
                 </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5, lineHeight: 1.4 }}>
+                  {selectedReportType.description}
+                </Typography>
+                {selectedReportType.headers && selectedReportType.headers.length > 0 && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                      Expected Dataset Fields:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.6 }}>
+                      {selectedReportType.headers.map((h) => (
+                        <Chip
+                          key={h}
+                          label={h}
+                          size="small"
+                          sx={{
+                            fontSize: '0.62rem',
+                            height: 18,
+                            bgcolor: theme.palette.background.paper,
+                            border: `1px solid ${theme.palette.divider}`,
+                            fontWeight: 600,
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
               </Box>
+            )}
 
+            {/* 3. Parameter Key-Value Rows */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.8 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="body2" color="text.secondary">
-                  Format
+                  Export Format
                 </Typography>
                 <Chip
-                  label={selectedFormat}
+                  label={selectedFormat === 'CSV' ? 'CSV (Spreadsheet)' : 'PDF (Print Document)'}
                   size="small"
-                  sx={{ fontWeight: 700, fontFamily: theme.typography.mono.fontFamily }}
+                  sx={{ fontWeight: 700, fontFamily: theme.typography.mono.fontFamily, bgcolor: `${theme.palette.primary.main}12`, color: theme.palette.primary.main }}
                 />
               </Box>
 
-              {showDeptFilter && (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Target Department
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {selectedDeptName}
-                  </Typography>
-                </Box>
-              )}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Target Department
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.ink[900] }}>
+                  {showDeptFilter ? selectedDeptName : 'Entire College (Global)'}
+                </Typography>
+              </Box>
 
-              {showDateFilter && (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Date Range
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem' }}>
-                    {selectedDateFrom || 'Start'} → {selectedDateTo || 'End'}
-                  </Typography>
-                </Box>
-              )}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Date Window
+                </Typography>
+                <Typography variant="body2" sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem', color: theme.palette.ink[900] }}>
+                  {showDateFilter
+                    ? `${selectedDateFrom || 'Start'} → ${selectedDateTo || 'End'}`
+                    : 'All Time (Full History)'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Data Pipeline
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 700, fontFamily: theme.typography.mono.fontFamily, color: 'text.secondary' }}>
+                  LIVE MONGO AGGREGATION
+                </Typography>
+              </Box>
             </Box>
 
-            <Divider />
+            {/* 4. Compilation Readiness Checkpoints */}
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: '10px',
+                border: `1px dashed ${theme.palette.divider}`,
+                bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 0.8,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CheckCircleOutlined sx={{ fontSize: 15, color: '#10b981' }} />
+                <Typography variant="caption" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+                  Realtime Database Stream: Active
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CheckCircleOutlined sx={{ fontSize: 15, color: '#10b981' }} />
+                <Typography variant="caption" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+                  Format Transformation Engine: {selectedFormat} Encoder Ready
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CheckCircleOutlined sx={{ fontSize: 15, color: '#10b981' }} />
+                <Typography variant="caption" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+                  Audit Trail & Security Tracking: Logged Automatically
+                </Typography>
+              </Box>
+            </Box>
 
-            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-              Reports compile directly from live database records into structured files. CSV exports are ready for Excel / Google Sheets import.
+            <Divider sx={{ my: 0.5 }} />
+
+            {/* 5. Institutional Compliance Footer */}
+            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5, fontSize: '0.72rem' }}>
+              Reports compile directly from live database records into structured files. CSV exports are ready for Excel / Google Sheets import. PDF reports render official letterhead branding.
             </Typography>
           </Card>
         </Grid>

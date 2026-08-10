@@ -269,37 +269,43 @@ const markAttendance = async (attendanceData, actor, req) => {
 };
 
 const getAttendance = async (queryOptions, actor) => {
-  const { studentId, subjectId, date, sessionType, status } = queryOptions;
+  const { studentId, subjectId, date, sessionType, status, courseId, branchId, semester, group } = queryOptions;
   const filters = {};
-  if (studentId) {
-    filters.studentId = studentId;
-  }
-  if (subjectId) {
-    filters.subjectId = subjectId;
-  }
-  if (date) {
-    filters.date = new Date(date);
-  }
-  if (sessionType) {
-    filters.sessionType = sessionType;
-  }
-  if (status) {
-    filters.status = status;
-  }
+
+  if (date) {filters.date = new Date(date);}
+  if (sessionType) {filters.sessionType = sessionType;}
+  if (status) {filters.status = status;}
 
   // Enforce HOD or Faculty/Student boundaries
   if (actor.role === ROLES.HOD || actor.role === ROLES.FACULTY || actor.role === ROLES.STUDENT) {
-    // If student, force filter by studentId
     if (actor.role === ROLES.STUDENT) {
       filters.studentId = actor.id;
     } else {
-      // For HOD/Faculty, filter subjects belonging to their department
+      // Build student cohort filter
+      const studentFilter = { role: 'STUDENT' };
       const userDeptId = actor.departmentId?._id || actor.departmentId;
-      const deptsSubject = await Subject.find({ departmentId: userDeptId }).select('_id');
-      const subjectIds = deptsSubject.map(s => s._id);
-      filters.subjectId = { $in: subjectIds };
-      if (subjectId && subjectIds.some(id => id.toString() === subjectId.toString())) {
+      if (userDeptId) {studentFilter.departmentId = userDeptId;}
+      if (courseId) {studentFilter.courseId = courseId;}
+      if (branchId) {studentFilter.branchId = branchId;}
+      if (semester) {studentFilter.semester = Number(semester);}
+      if (group) {studentFilter.group = group;}
+
+      if (studentId) {
+        filters.studentId = studentId;
+      } else {
+        const cohortStudents = await User.find(studentFilter).select('_id');
+        filters.studentId = { $in: cohortStudents.map(s => s._id) };
+      }
+
+      // Subject filter scoped to branch/semester/department
+      if (subjectId) {
         filters.subjectId = subjectId;
+      } else {
+        const subjectFilter = { departmentId: userDeptId };
+        if (branchId) {subjectFilter.branchId = branchId;}
+        if (semester) {subjectFilter.semester = Number(semester);}
+        const deptsSubject = await Subject.find(subjectFilter).select('_id');
+        filters.subjectId = { $in: deptsSubject.map(s => s._id) };
       }
     }
   }
@@ -309,14 +315,19 @@ const getAttendance = async (queryOptions, actor) => {
     populate: [
       { path: 'subjectId', select: 'name code' },
       { path: 'facultyId', select: 'name' },
-      { path: 'studentId', select: 'name email' }
+      { path: 'studentId', select: 'name email group semester branchId' }
     ],
     sort: { date: -1 }
   });
 };
 
-const getAttendanceSummary = async (subjectId, actor) => {
-  const matchFilter = {};
+const getAttendanceSummary = async (subjectId, actor, cohortFilters = {}) => {
+  const { courseId, branchId, semester, group } = cohortFilters;
+
+  const userDeptId = actor.departmentId?._id || actor.departmentId;
+
+  // 1) Resolve subject IDs to match in Attendance collection
+  let subjectObjectIds;
   if (subjectId) {
     const subject = await Subject.findById(subjectId);
     if (!subject) {
@@ -325,15 +336,31 @@ const getAttendanceSummary = async (subjectId, actor) => {
     if (actor.role === ROLES.HOD) {
       assertHODDeptBound(actor, subject.departmentId);
     }
-    matchFilter.subjectId = new mongoose.Types.ObjectId(subjectId);
+    subjectObjectIds = [new mongoose.Types.ObjectId(subjectId)];
   } else {
-    const userDeptId = actor.departmentId?._id || actor.departmentId;
-    if (userDeptId) {
-      const deptsSubject = await Subject.find({ departmentId: userDeptId }).select('_id');
-      const subjectIds = deptsSubject.map(s => s._id);
-      matchFilter.subjectId = { $in: subjectIds };
-    }
+    const subjectFilter = {};
+    if (userDeptId) {subjectFilter.departmentId = userDeptId;}
+    if (branchId) {subjectFilter.branchId = branchId;}
+    if (semester) {subjectFilter.semester = Number(semester);}
+    const deptsSubject = await Subject.find(subjectFilter).select('_id');
+    subjectObjectIds = deptsSubject.map(s => s._id);
   }
+
+  // 2) Resolve cohort student IDs
+  const studentFilter = { role: 'STUDENT' };
+  if (userDeptId) {studentFilter.departmentId = userDeptId;}
+  if (courseId) {studentFilter.courseId = courseId;}
+  if (branchId) {studentFilter.branchId = branchId;}
+  if (semester) {studentFilter.semester = Number(semester);}
+  if (group) {studentFilter.group = group;}
+  const cohortStudents = await User.find(studentFilter).select('_id');
+  const cohortStudentIds = cohortStudents.map(s => s._id);
+
+  // 3) Build match filter for aggregation
+  const matchFilter = {
+    subjectId: { $in: subjectObjectIds },
+    studentId: { $in: cohortStudentIds },
+  };
 
   const summary = await Attendance.aggregate([
     { $match: matchFilter },
@@ -361,20 +388,22 @@ const getAttendanceSummary = async (subjectId, actor) => {
         studentId: '$_id',
         name: '$student.name',
         email: '$student.email',
+        group: '$student.group',
+        semester: '$student.semester',
         present: 1,
         absent: 1,
         excused: 1,
         medicalLeave: 1,
         total: 1,
-        effectiveTotal: { $subtract: ['$total', { $cond: [{ $eq: ['$student.medicalApproved', true] }, '$medicalLeave', 0] }] },
+        effectiveTotal: {
+          $subtract: [
+            '$total',
+            { $cond: [{ $eq: ['$student.isMedicalApproved', true] }, '$medicalLeave', 0] },
+          ],
+        },
         percentage: {
           $round: [
-            {
-              $multiply: [
-                { $divide: ['$present', { $max: ['$total', 1] }] },
-                100,
-              ],
-            },
+            { $multiply: [{ $divide: ['$present', { $max: ['$total', 1] }] }, 100] },
             2,
           ],
         },

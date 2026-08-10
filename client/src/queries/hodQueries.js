@@ -10,11 +10,14 @@ export const useAttendanceQuery = (params = {}) => useQuery({
   }
 });
 
-export const useAttendanceSummaryQuery = (subjectId) => useQuery({
-  queryKey: ['attendance-summary', subjectId],
+export const useAttendanceSummaryQuery = (params = {}) => useQuery({
+  queryKey: ['attendance-summary', params],
   queryFn: async () => {
-    const params = subjectId ? { subjectId } : {};
-    const response = await api.get('/attendance/summary', { params });
+    // Strip undefined/empty params
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== '' && v !== null)
+    );
+    const response = await api.get('/attendance/summary', { params: cleanParams });
     return response.data.data || { summary: [], stats: {} };
   },
   enabled: true,

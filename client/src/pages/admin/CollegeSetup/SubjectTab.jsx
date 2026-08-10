@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -25,6 +25,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Pagination,
 } from '@mui/material';
 import {
   EditOutlined,
@@ -35,6 +36,7 @@ import {
 } from '@mui/icons-material';
 import {
   useSubjectsQuery,
+  useSubjectsPaginatedQuery,
   useBranchesQuery,
   useDepartmentsQuery,
   useCreateSubjectMutation,
@@ -44,22 +46,21 @@ import {
 import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
 import EmptyState from '../../../components/common/EmptyState';
 import { useToast } from '../../../contexts/ToastContext';
+import { computeSubjectCode } from '../../../utils/subjectCode';
 
 // Schema for Subject Validation
 const subjectFormSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters long').max(100, 'Name cannot exceed 100 characters').trim(),
-  code: z
-    .string()
-    .min(2, 'Code must be at least 2 characters')
-    .max(10, 'Code cannot exceed 10 characters')
-    .trim()
-    .toUpperCase(),
+  sequenceNo: z
+    .number({ required_error: 'Sequence number is required' })
+    .min(1, 'Sequence number must be at least 1')
+    .max(99, 'Sequence number cannot exceed 99'),
   credits: z
     .number({ required_error: 'Credits count is required' })
     .min(1, 'Credits must be at least 1')
     .max(10, 'Credits cannot exceed 10'),
-  type: z.enum(['CORE', 'ELECTIVE'], {
-    errorMap: () => ({ message: 'Type must be CORE or ELECTIVE' }),
+  type: z.enum(['THEORY', 'PRACTICAL', 'SESSIONAL'], {
+    errorMap: () => ({ message: 'Type must be THEORY, PRACTICAL, or SESSIONAL' }),
   }),
   branchId: z
     .string({ required_error: 'Parent branch is required' })
@@ -71,6 +72,62 @@ const subjectFormSchema = z.object({
     .number({ required_error: 'Semester mapping is required' })
     .min(1, 'Semester must be at least 1'),
 });
+
+const NormalTablePagination = ({ page, totalPages, onPageChange, totalItems, itemsPerPage = 15 }) => {
+  const theme = useTheme();
+
+  if (totalPages <= 1) return null;
+
+  const startItem = page * itemsPerPage + 1;
+  const endItem = Math.min(totalItems, (page + 1) * itemsPerPage);
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: 'center',
+        justify: 'space-between',
+        gap: 2,
+        px: 3,
+        py: 2,
+        borderTop: `1px solid ${theme.palette.divider}`,
+        bgcolor: theme.custom?.surface?.sunken || 'rgba(28, 46, 69, 0.02)',
+        borderRadius: '0 0 12px 12px',
+      }}
+    >
+      <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 500, fontSize: '0.82rem' }}>
+        Showing <strong>{startItem}–{endItem}</strong> of <strong>{totalItems}</strong> subjects
+      </Typography>
+
+      <Pagination
+        count={totalPages}
+        page={page + 1}
+        onChange={(_e, newPage) => onPageChange(newPage - 1)}
+        color="primary"
+        shape="rounded"
+        size="medium"
+        showFirstButton
+        showLastButton
+        sx={{
+          ml: { xs: 0, sm: 'auto' },
+          '& .MuiPaginationItem-root': {
+            fontFamily: theme.typography.body2.fontFamily,
+            fontWeight: 600,
+            fontSize: '0.82rem',
+            borderRadius: '8px',
+          },
+          '& .MuiPaginationItem-page.Mui-selected': {
+            background: theme.palette.primary.gradient || theme.palette.primary.main,
+            color: '#ffffff',
+            fontWeight: 700,
+            boxShadow: `0 2px 8px ${theme.palette.primary.main}40`,
+          },
+        }}
+      />
+    </Box>
+  );
+};
 
 export const SubjectTab = ({ setOnAddClick }) => {
   const theme = useTheme();
@@ -87,15 +144,44 @@ export const SubjectTab = ({ setOnAddClick }) => {
   const [parsedRows, setParsedRows] = useState([]);
   const [isImporting, setIsImporting] = useState(false);
 
-  // Table Filters State
+  // Table Filters & Pagination State
   const [filterBranch, setFilterBranch] = useState('');
+  const [filterDept, setFilterDept] = useState('');
   const [filterSemester, setFilterSemester] = useState('');
+  const [page, setPage] = useState(0);          // 0-indexed
+  const rowsPerPage = 15;                       // Fixed 15 subjects per page
 
-  // Queries
-  const { data: subjects, isLoading: loadingSubjects } = useSubjectsQuery({
+  // Server-side paginated query
+  const { data: subjectsPage, isLoading: loadingSubjects } = useSubjectsPaginatedQuery({
     branchId: filterBranch || undefined,
+    departmentId: filterDept || undefined,
     semester: filterSemester || undefined,
+    page: page + 1,          // API is 1-indexed
+    limit: rowsPerPage,
   });
+
+  const subjectsTotalCount = subjectsPage?.meta?.total ?? 0;
+
+  // Client-side sort within the current page:
+  // course name → branch name → semester → sequenceNo
+  const subjects = useMemo(() => {
+    const raw = subjectsPage?.data ?? [];
+    return [...raw].sort((a, b) => {
+      const aCourse = a.branchId?.courseId?.name || '';
+      const bCourse = b.branchId?.courseId?.name || '';
+      if (aCourse !== bCourse) return aCourse.localeCompare(bCourse);
+      const aBranch = a.branchId?.name || '';
+      const bBranch = b.branchId?.name || '';
+      if (aBranch !== bBranch) return aBranch.localeCompare(bBranch);
+      const semDiff = (a.semester || 0) - (b.semester || 0);
+      if (semDiff !== 0) return semDiff;
+      return (a.sequenceNo || 0) - (b.sequenceNo || 0);
+    });
+  }, [subjectsPage]);
+
+  // Need full list for sequence-number auto-suggestion (small cost, stays flat)
+  const { data: allSubjectsFlat } = useSubjectsQuery({ limit: 2000 });
+
   const { data: branches } = useBranchesQuery();
   const { data: depts } = useDepartmentsQuery();
 
@@ -118,9 +204,9 @@ export const SubjectTab = ({ setOnAddClick }) => {
     resolver: zodResolver(subjectFormSchema),
     defaultValues: {
       name: '',
-      code: '',
+      sequenceNo: 1,
       credits: 4,
-      type: 'CORE',
+      type: 'THEORY',
       branchId: '',
       departmentId: '',
       semester: 1,
@@ -128,7 +214,19 @@ export const SubjectTab = ({ setOnAddClick }) => {
   });
 
   const watchBranchId = watch('branchId');
+  const watchSemester = watch('semester');
   const [maxSemesters, setMaxSemesters] = useState(8);
+
+  // Auto-suggest next sequence number when branch or semester changes
+  useEffect(() => {
+    if (watchBranchId && watchSemester && !editId) {
+      const semSubjects = allSubjectsFlat?.filter(
+        (s) => String(s.branchId?._id || s.branchId) === String(watchBranchId) && Number(s.semester) === Number(watchSemester)
+      );
+      const maxExisting = semSubjects?.reduce((max, s) => Math.max(max, s.sequenceNo || 0), 0) || 0;
+      setValue('sequenceNo', maxExisting + 1);
+    }
+  }, [watchBranchId, watchSemester, allSubjectsFlat, editId, setValue]);
 
   // Dynamic bounds for semester dropdown based on parent course duration
   useEffect(() => {
@@ -144,6 +242,19 @@ export const SubjectTab = ({ setOnAddClick }) => {
       }
     }
   }, [watchBranchId, branches, setValue, watch]);
+
+  // Default Hosting Department from selected Branch's home department
+  useEffect(() => {
+    if (watchBranchId && branches && !editId) {
+      const selectedBranch = branches.find((b) => String(b._id) === String(watchBranchId));
+      const homeDeptId = selectedBranch?.hostingDepartmentId?._id || selectedBranch?.hostingDepartmentId;
+      if (homeDeptId) {
+        setValue('departmentId', String(homeDeptId));
+      } else {
+        setValue('departmentId', '');
+      }
+    }
+  }, [watchBranchId, branches, editId, setValue]);
 
   // Register the create trigger with setup hub parent container
   useEffect(() => {
@@ -162,9 +273,9 @@ export const SubjectTab = ({ setOnAddClick }) => {
     setEditId(null);
     reset({
       name: '',
-      code: '',
+      sequenceNo: 1,
       credits: 4,
-      type: 'CORE',
+      type: 'THEORY',
       branchId: '',
       departmentId: '',
       semester: 1,
@@ -176,9 +287,9 @@ export const SubjectTab = ({ setOnAddClick }) => {
     setEditId(subject._id);
     reset({
       name: subject.name,
-      code: subject.code,
+      sequenceNo: subject.sequenceNo || 1,
       credits: subject.credits || 4,
-      type: subject.type || 'CORE',
+      type: subject.type || 'THEORY',
       branchId: typeof subject.branchId === 'object' ? subject.branchId._id : subject.branchId || '',
       departmentId: typeof subject.departmentId === 'object' ? subject.departmentId._id : subject.departmentId || '',
       semester: subject.semester || 1,
@@ -331,13 +442,13 @@ export const SubjectTab = ({ setOnAddClick }) => {
         }}
       >
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={4} md={4}>
+          <Grid item xs={12} sm={6} md={filterBranch || filterDept || filterSemester ? 3.5 : 4}>
             <TextField
               select
               fullWidth
               size="small"
               value={filterBranch}
-              onChange={(e) => setFilterBranch(e.target.value)}
+              onChange={(e) => { setFilterBranch(e.target.value); setPage(0); }}
               label="Filter by Branch"
             >
               <MenuItem value="">All Branches</MenuItem>
@@ -349,13 +460,31 @@ export const SubjectTab = ({ setOnAddClick }) => {
             </TextField>
           </Grid>
 
-          <Grid item xs={12} sm={3} md={3}>
+          <Grid item xs={12} sm={6} md={filterBranch || filterDept || filterSemester ? 3.5 : 4}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              value={filterDept}
+              onChange={(e) => { setFilterDept(e.target.value); setPage(0); }}
+              label="Filter by Department"
+            >
+              <MenuItem value="">All Departments</MenuItem>
+              {depts?.map((d) => (
+                <MenuItem key={d._id} value={d._id}>
+                  {d.name} ({d.code})
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+
+          <Grid item xs={12} sm={4} md={2}>
             <TextField
               select
               fullWidth
               size="small"
               value={filterSemester}
-              onChange={(e) => setFilterSemester(e.target.value)}
+              onChange={(e) => { setFilterSemester(e.target.value); setPage(0); }}
               label="Filter by Semester"
             >
               <MenuItem value="">All Semesters</MenuItem>
@@ -367,36 +496,45 @@ export const SubjectTab = ({ setOnAddClick }) => {
             </TextField>
           </Grid>
 
-          <Grid item xs={12} sm={5} md={5} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-            {(filterBranch || filterSemester) && (
+          <Grid item xs={12} sm={8} md={filterBranch || filterDept || filterSemester ? 3 : 2}>
+            <Box sx={{ display: 'flex', gap: 1, width: '100%' }}>
+              {(filterBranch || filterDept || filterSemester) && (
+                <Button
+                  fullWidth
+                  size="small"
+                  variant="outlined"
+                  startIcon={<FilterListOutlined />}
+                  onClick={() => {
+                    setFilterBranch('');
+                    setFilterDept('');
+                    setFilterSemester('');
+                    setPage(0);
+                  }}
+                  sx={{ textTransform: 'none', fontWeight: 600, height: '40px', flex: 1 }}
+                >
+                  Reset
+                </Button>
+              )}
+
               <Button
+                fullWidth
                 size="small"
                 variant="outlined"
-                startIcon={<FilterListOutlined />}
-                onClick={() => {
-                  setFilterBranch('');
-                  setFilterSemester('');
+                startIcon={<CloudUploadOutlined />}
+                onClick={() => setCsvDialogOpen(true)}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  height: '40px',
+                  borderColor: theme.palette.primary.main,
+                  color: theme.palette.primary.main,
+                  flex: 1,
+                  whiteSpace: 'nowrap',
                 }}
-                sx={{ textTransform: 'none', fontWeight: 600 }}
               >
-                Reset
+                Bulk CSV Import
               </Button>
-            )}
-
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<CloudUploadOutlined />}
-              onClick={() => setCsvDialogOpen(true)}
-              sx={{
-                textTransform: 'none',
-                fontWeight: 600,
-                borderColor: theme.palette.primary.main,
-                color: theme.palette.primary.main,
-              }}
-            >
-              Bulk CSV Import
-            </Button>
+            </Box>
           </Grid>
         </Grid>
       </Card>
@@ -441,7 +579,9 @@ export const SubjectTab = ({ setOnAddClick }) => {
             </TableHead>
             <TableBody>
               {subjects.map((sub, index) => {
-                const branchCode = sub.branchId?.code || '—';
+                const branchObj = typeof sub.branchId === 'object' ? sub.branchId : branches?.find((b) => String(b._id) === String(sub.branchId));
+                const computedCode = computeSubjectCode(sub, branchObj, null);
+                const branchCode = branchObj?.code || '—';
                 return (
                   <TableRow
                     key={sub._id}
@@ -450,7 +590,7 @@ export const SubjectTab = ({ setOnAddClick }) => {
                     sx={{ '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' } }}
                   >
                     <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem', fontWeight: 600 }}>
-                      {sub.code}
+                      {computedCode}
                     </TableCell>
                     <TableCell sx={{ fontFamily: theme.typography.body1.fontFamily, fontSize: '0.88rem', fontWeight: 600 }}>
                       {sub.name}
@@ -466,14 +606,14 @@ export const SubjectTab = ({ setOnAddClick }) => {
                           fontFamily: theme.typography.mono.fontFamily,
                           fontSize: '0.68rem',
                           fontWeight: 700,
-                          bgcolor: sub.type === 'CORE' ? `${theme.palette.primary.main}15` : `${theme.palette.brass?.[500] || '#b8863e'}15`,
-                          color: sub.type === 'CORE' ? theme.palette.primary.main : theme.palette.brass?.[500] || '#b8863e',
+                          bgcolor: sub.type === 'THEORY' ? `${theme.palette.primary.main}15` : sub.type === 'PRACTICAL' ? `${theme.palette.secondary?.main || '#9c27b0'}15` : `${theme.palette.brass?.[500] || '#b8863e'}15`,
+                          color: sub.type === 'THEORY' ? theme.palette.primary.main : sub.type === 'PRACTICAL' ? theme.palette.secondary?.main || '#9c27b0' : theme.palette.brass?.[500] || '#b8863e',
                           borderRadius: '4px',
                         }}
                       />
                     </TableCell>
                     <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.82rem' }}>
-                      {branchCode} · Sem {sub.semester}
+                      {branchCode} · Sem {sub.semester} (Seq #{sub.sequenceNo || 1})
                     </TableCell>
                     <TableCell align="right">
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
@@ -490,10 +630,17 @@ export const SubjectTab = ({ setOnAddClick }) => {
               })}
             </TableBody>
           </Table>
+          <NormalTablePagination
+            page={page}
+            totalPages={Math.ceil(subjectsTotalCount / rowsPerPage)}
+            onPageChange={(newPage) => setPage(newPage)}
+            totalItems={subjectsTotalCount}
+            itemsPerPage={rowsPerPage}
+          />
         </TableContainer>
       )}
 
-      {/* Slide Drawer Form Container */}
+      {/* Slide-over Drawer for Add/Edit Subject */}
       <Drawer
         anchor="right"
         open={drawerOpen}
@@ -519,7 +666,7 @@ export const SubjectTab = ({ setOnAddClick }) => {
                 <TextField
                   id="sub-name-input"
                   fullWidth
-                  placeholder="e.g. Operating Systems"
+                  placeholder="e.g. Deep Learning"
                   {...register('name')}
                   error={!!errors.name}
                   helperText={errors.name?.message}
@@ -527,21 +674,21 @@ export const SubjectTab = ({ setOnAddClick }) => {
                 />
               </Box>
 
+
               <Grid container spacing={2}>
                 <Grid item xs={6}>
-                  <Typography component="label" htmlFor="sub-code-input" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 0.75 }}>
-                    Subject Code
+                  <Typography component="label" htmlFor="sub-seq-input" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 0.75 }}>
+                    Sequence Number
                   </Typography>
                   <TextField
-                    id="sub-code-input"
+                    id="sub-seq-input"
+                    type="number"
                     fullWidth
-                    placeholder="e.g. CS501"
-                    disabled={!!editId}
-                    {...register('code')}
-                    error={!!errors.code}
-                    helperText={errors.code?.message}
+                    placeholder="e.g. 1, 2, 3..."
+                    {...register('sequenceNo', { valueAsNumber: true })}
+                    error={!!errors.sequenceNo}
+                    helperText={errors.sequenceNo?.message || 'Auto-suggested position'}
                     size="small"
-                    inputProps={{ style: { textTransform: 'uppercase' } }}
                   />
                 </Grid>
                 <Grid item xs={6}>
@@ -577,8 +724,9 @@ export const SubjectTab = ({ setOnAddClick }) => {
                       helperText={errors.type?.message}
                       size="small"
                     >
-                      <MenuItem value="CORE">CORE</MenuItem>
-                      <MenuItem value="ELECTIVE">ELECTIVE</MenuItem>
+                      <MenuItem value="THEORY">THEORY</MenuItem>
+                      <MenuItem value="PRACTICAL">PRACTICAL</MenuItem>
+                      <MenuItem value="SESSIONAL">SESSIONAL</MenuItem>
                     </TextField>
                   )}
                 />
@@ -815,6 +963,7 @@ export const SubjectTab = ({ setOnAddClick }) => {
       <ConfirmDeleteModal
         open={Boolean(deleteId)}
         title="Delete Subject"
+        actionText="Delete Subject"
         description="Are you sure you want to delete this curriculum subject? This action cannot be undone."
         onClose={() => setDeleteId(null)}
         onConfirm={handleDeleteConfirm}

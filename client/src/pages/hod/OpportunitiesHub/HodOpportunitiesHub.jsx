@@ -41,6 +41,45 @@ const OPPORTUNITY_TYPES = [
   { value: 'PLACEMENT', label: 'Job Placement Drive' },
 ];
 
+const KpiCard = ({ title, value, subtitle, accentColor, icon }) => {
+  const theme = useTheme();
+  return (
+    <Card
+      sx={{
+        p: 2.5,
+        borderRadius: '14px',
+        border: `1px solid ${theme.palette.divider}`,
+        borderTop: `4px solid ${accentColor}`,
+        boxShadow: 'none',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: '0 6px 20px rgba(0,0,0,0.04)',
+        },
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.06em', color: accentColor, textTransform: 'uppercase', fontSize: '0.65rem' }}>
+          {title}
+        </Typography>
+        {icon && <Box sx={{ color: accentColor, opacity: 0.8 }}>{icon}</Box>}
+      </Box>
+      <Typography variant="h3" sx={{ fontWeight: 900, color: accentColor, mt: 1, fontFamily: 'monospace', lineHeight: 1.1 }}>
+        {value}
+      </Typography>
+      {subtitle && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          {subtitle}
+        </Typography>
+      )}
+    </Card>
+  );
+};
+
 export const HodOpportunitiesHub = () => {
   const theme = useTheme();
   const { showToast } = useToast();
@@ -228,59 +267,43 @@ export const HodOpportunitiesHub = () => {
       {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
-              TOTAL OPPORTUNITIES
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.total}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Aggregated tech listings
-            </Typography>
-          </Card>
+          <KpiCard
+            title="TOTAL OPPORTUNITIES"
+            value={isLoading ? <CircularProgress size={24} /> : stats.total}
+            subtitle="Aggregated tech listings"
+            accentColor={theme.palette.ink[900]}
+            icon={<EmojiEventsOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.secondary?.main || '#ab47bc' }}>
-              FEATURED HACKATHONS
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.secondary?.main || '#ab47bc', mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.hackathons}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              National hackathons & sprints
-            </Typography>
-          </Card>
+          <KpiCard
+            title="FEATURED HACKATHONS"
+            value={isLoading ? <CircularProgress size={24} /> : stats.hackathons}
+            subtitle="National hackathons & sprints"
+            accentColor={theme.palette.secondary?.main || '#ab47bc'}
+            icon={<IntegrationInstructionsOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info?.main || '#0288d1' }}>
-              ACTIVE INTERNSHIPS
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info?.main || '#0288d1', mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.internships}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Industry tech internships
-            </Typography>
-          </Card>
+          <KpiCard
+            title="ACTIVE INTERNSHIPS"
+            value={isLoading ? <CircularProgress size={24} /> : stats.internships}
+            subtitle="Industry tech internships"
+            accentColor={theme.palette.info?.main || '#0288d1'}
+            icon={<WorkOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
-              JOB PLACEMENTS
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.placements}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Graduate career drives
-            </Typography>
-          </Card>
+          <KpiCard
+            title="JOB PLACEMENTS"
+            value={isLoading ? <CircularProgress size={24} /> : stats.placements}
+            subtitle="Graduate career drives"
+            accentColor={theme.palette.signal.success}
+            icon={<BusinessCenterOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
       </Grid>
 

@@ -62,6 +62,11 @@ const createBranchSchema = z.object({
   courseId: z
     .string({ required_error: 'Course reference ID is required' })
     .regex(objectIdRegex, 'Invalid course ID format'),
+  hostingDepartmentId: z
+    .string()
+    .regex(objectIdRegex, 'Invalid department ID format')
+    .optional()
+    .nullable(),
 });
 
 const updateBranchSchema = createBranchSchema.partial();
@@ -72,12 +77,11 @@ const createSubjectSchema = z.object({
     .min(2, 'Subject name must be at least 2 characters long')
     .max(100, 'Subject name cannot exceed 100 characters')
     .trim(),
-  code: z
-    .string({ required_error: 'Subject code is required' })
-    .min(2, 'Subject code must be at least 2 characters long')
-    .max(15, 'Subject code cannot exceed 15 characters')
-    .trim()
-    .toUpperCase(),
+  sequenceNo: z.coerce
+    .number({ required_error: 'Sequence number is required' })
+    .int('Sequence number must be a whole number')
+    .min(1, 'Sequence number must be at least 1')
+    .max(99, 'Sequence number cannot exceed 99'),
   credits: z.coerce
     .number({ required_error: 'Subject credits are required' })
     .int('Credits must be a whole number')

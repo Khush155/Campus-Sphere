@@ -60,8 +60,10 @@ const updateUserSchema = z.object({
     .optional(),
   reason: z
     .string()
-    .min(3, 'A reasoning of at least 3 characters is required for updating student branches or semesters')
-    .optional(),
+    .trim()
+    .optional()
+    .or(z.literal(''))
+    .or(z.null()),
   shift: z.enum(['GENERAL', 'MORNING', 'EVENING']).optional().or(z.literal('')).or(z.null()).optional(),
   feeStatus: z.enum(['CLEARED', 'PENDING', 'OVERDUE']).optional(),
   feeDues: z.object({

@@ -35,6 +35,45 @@ import DataTable from '../../../components/common/DataTable';
 import EmptyState from '../../../components/common/EmptyState';
 import { useFeedbackQuery, useFeedbackAnalyticsQuery } from '../../../queries/hodQueries';
 
+const KpiCard = ({ title, value, subtitle, accentColor, icon }) => {
+  const theme = useTheme();
+  return (
+    <Card
+      sx={{
+        p: 2.5,
+        borderRadius: '14px',
+        border: `1px solid ${theme.palette.divider}`,
+        borderTop: `4px solid ${accentColor}`,
+        boxShadow: 'none',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: '0 6px 20px rgba(0,0,0,0.04)',
+        },
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.06em', color: accentColor, textTransform: 'uppercase', fontSize: '0.65rem' }}>
+          {title}
+        </Typography>
+        {icon && <Box sx={{ color: accentColor, opacity: 0.8 }}>{icon}</Box>}
+      </Box>
+      <Typography variant="h3" sx={{ fontWeight: 900, color: accentColor, mt: 1, fontFamily: 'monospace', lineHeight: 1.1 }}>
+        {value}
+      </Typography>
+      {subtitle && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          {subtitle}
+        </Typography>
+      )}
+    </Card>
+  );
+};
+
 export const HodFeedbackHub = () => {
   const theme = useTheme();
   const [viewMode, setViewMode] = useState('analytics'); // 'analytics' | 'stream'
@@ -238,62 +277,43 @@ export const HodFeedbackHub = () => {
       {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
-              TOTAL EVALUATIONS
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.total}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Student feedback submissions
-            </Typography>
-          </Card>
+          <KpiCard
+            title="TOTAL EVALUATIONS"
+            value={isLoading ? <CircularProgress size={24} /> : stats.total}
+            subtitle="Student feedback submissions"
+            accentColor={theme.palette.ink[900]}
+            icon={<RateReviewOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.primary.main }}>
-              AVG DEPARTMENT RATING
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mt: 1 }}>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.primary.main, fontFamily: theme.typography.mono.fontFamily }}>
-                {isLoading ? <CircularProgress size={24} /> : stats.avg}
-              </Typography>
-              <Typography variant="subtitle2" color="text.secondary">/ 5.0 ⭐</Typography>
-            </Box>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Overall teaching score
-            </Typography>
-          </Card>
+          <KpiCard
+            title="AVG DEPARTMENT RATING"
+            value={isLoading ? <CircularProgress size={24} /> : `${stats.avg} ⭐`}
+            subtitle="Overall teaching score / 5.0"
+            accentColor={theme.palette.primary.main}
+            icon={<StarOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
-              SATISFACTION RATE (≥4⭐)
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : `${stats.positivePct}%`}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Positive student reviews
-            </Typography>
-          </Card>
+          <KpiCard
+            title="SATISFACTION RATE (≥4⭐)"
+            value={isLoading ? <CircularProgress size={24} /> : `${stats.positivePct}%`}
+            subtitle="Positive student reviews"
+            accentColor={theme.palette.signal.success}
+            icon={<ThumbUpOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
-              IMPROVEMENT REVIEWS (≤2⭐)
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.negativeCount}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Low rating submissions
-            </Typography>
-          </Card>
+          <KpiCard
+            title="IMPROVEMENT REVIEWS (≤2⭐)"
+            value={isLoading ? <CircularProgress size={24} /> : stats.negativeCount}
+            subtitle="Low rating submissions"
+            accentColor={theme.palette.warning.main}
+            icon={<ThumbDownOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
       </Grid>
 

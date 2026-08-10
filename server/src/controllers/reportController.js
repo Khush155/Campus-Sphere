@@ -67,21 +67,8 @@ const generateReport = asyncHandler(async (req, res) => {
  * @access  Private/HOD/CollegeAdmin/SuperAdmin
  */
 const getHodReports = asyncHandler(async (req, res) => {
-  const workloadDistribution = [
-    { subject: 'Computer Networks', hours: 15 },
-    { subject: 'Operating Systems', hours: 12 },
-    { subject: 'Data Structures', hours: 18 },
-  ];
-  
-  const vacantSubjects = [
-    { name: 'Machine Learning', code: 'CS501', requiredFaculty: 2 },
-    { name: 'Cloud Computing', code: 'CS502', requiredFaculty: 1 },
-  ];
-
-  return successResponse(res, 200, 'HOD reports retrieved successfully.', {
-    workloadDistribution,
-    vacantSubjects,
-  });
+  const reportsData = await reportService.getHodReports(req.user);
+  return successResponse(res, 200, 'HOD reports retrieved successfully.', reportsData);
 });
 
 module.exports = {

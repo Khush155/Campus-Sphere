@@ -30,18 +30,19 @@ import VacantSubjects from './VacantSubjects';
 
 const KpiCard = ({ icon, title, value, subtitle, color = 'primary', children }) => {
   const theme = useTheme();
+  const accentColor = theme.palette[color]?.main || theme.palette.primary.main;
   return (
     <Card
       sx={{
         p: 3,
         borderRadius: '16px',
         border: `1px solid ${theme.palette.divider}`,
-        borderLeft: `4px solid ${theme.palette[color]?.main || theme.palette.primary.main}`,
+        borderTop: `4px solid ${accentColor}`,
         boxShadow: 'none',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        justify: 'space-between',
+        justifyContent: 'space-between',
         transition: 'transform 0.2s, box-shadow 0.2s',
         '&:hover': {
           transform: 'translateY(-2px)',
@@ -54,8 +55,8 @@ const KpiCard = ({ icon, title, value, subtitle, color = 'primary', children }) 
           sx={{
             width: 44,
             height: 44,
-            bgcolor: `${color === 'primary' ? theme.palette.primary.main : theme.palette[color]?.main}15`,
-            color: `${color === 'primary' ? theme.palette.primary.main : theme.palette[color]?.main}`,
+            bgcolor: `${accentColor}15`,
+            color: accentColor,
           }}
         >
           {icon}

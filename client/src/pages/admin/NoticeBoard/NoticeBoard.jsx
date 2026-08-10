@@ -23,6 +23,9 @@ import {
   Skeleton,
   Autocomplete,
   Divider,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
 } from '@mui/material';
 import {
   MoreVertOutlined,
@@ -35,6 +38,8 @@ import {
   PublishOutlined,
   DraftsOutlined,
   DeleteOutline,
+  ViewListOutlined,
+  GridViewOutlined,
 } from '@mui/icons-material';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
@@ -81,6 +86,7 @@ export const NoticeBoard = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [viewMode, setViewMode] = useState('list');
 
   // Drawer / Action State
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -372,50 +378,77 @@ export const NoticeBoard = () => {
 
       {/* ── 2. Filters & Searches ─────────────────────────────────────────── */}
       <Card sx={{ p: 2.5, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={4}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1, flexWrap: 'wrap' }}>
             <TextField
-              fullWidth
               size="small"
               placeholder="Search notices by title..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              sx={{ minWidth: 240, flexGrow: 1 }}
             />
-          </Grid>
-          <Grid item xs={12} sm={4}>
             <TextField
-              fullWidth
               select
               size="small"
               label="Status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
+              sx={{ minWidth: 140 }}
             >
               <MenuItem value="">All Statuses</MenuItem>
               <MenuItem value="DRAFT">DRAFT</MenuItem>
               <MenuItem value="PUBLISHED">PUBLISHED</MenuItem>
               <MenuItem value="ARCHIVED">ARCHIVED</MenuItem>
             </TextField>
-          </Grid>
-          <Grid item xs={12} sm={4}>
             <TextField
-              fullWidth
               select
               size="small"
               label="Priority"
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
+              sx={{ minWidth: 140 }}
             >
               <MenuItem value="">All Priorities</MenuItem>
               <MenuItem value="NORMAL">NORMAL</MenuItem>
               <MenuItem value="IMPORTANT">IMPORTANT</MenuItem>
               <MenuItem value="URGENT">URGENT</MenuItem>
             </TextField>
-          </Grid>
-        </Grid>
+          </Box>
+
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(e, nextMode) => {
+              if (nextMode) setViewMode(nextMode);
+            }}
+            size="small"
+            sx={{ ml: 'auto' }}
+          >
+            <ToggleButton value="list" aria-label="list view">
+              <Tooltip title="List View">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <ViewListOutlined fontSize="small" />
+                  <Typography variant="caption" sx={{ fontWeight: 700, display: { xs: 'none', md: 'inline' } }}>
+                    List
+                  </Typography>
+                </Box>
+              </Tooltip>
+            </ToggleButton>
+            <ToggleButton value="block" aria-label="block view">
+              <Tooltip title="Block / Card View">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <GridViewOutlined fontSize="small" />
+                  <Typography variant="caption" sx={{ fontWeight: 700, display: { xs: 'none', md: 'inline' } }}>
+                    Block
+                  </Typography>
+                </Box>
+              </Tooltip>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
       </Card>
 
-      {/* ── 3. Main Data Table ────────────────────────────────────────────── */}
+      {/* ── 3. Main Data View (List or Block) ─────────────────────────────────── */}
       {isLoading ? (
         <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
           <Table>
@@ -454,77 +487,223 @@ export const NoticeBoard = () => {
         />
       ) : (
         <>
-          <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
-            <Table aria-label="Notices configuration table" size="small">
-              <TableHead sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(28, 46, 69, 0.02)' }}>
-                <TableRow>
-                  <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>TITLE</TableCell>
-                  <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>PRIORITY</TableCell>
-                  <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>STATUS</TableCell>
-                  <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>TARGETED TO</TableCell>
-                  <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>PUBLISHED DATE</TableCell>
-                  <TableCell align="right" sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>ACTIONS</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {noticesData.data.map((notice) => (
-                  <TableRow
-                    key={notice._id}
+          {viewMode === 'list' ? (
+            <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
+              <Table aria-label="Notices configuration table" size="small">
+                <TableHead sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(28, 46, 69, 0.02)' }}>
+                  <TableRow>
+                    <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>TITLE</TableCell>
+                    <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>PRIORITY</TableCell>
+                    <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>STATUS</TableCell>
+                    <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>TARGETED TO</TableCell>
+                    <TableCell sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>PUBLISHED DATE</TableCell>
+                    <TableCell align="right" sx={{ py: 1.5, fontWeight: 700, fontSize: '0.8rem', color: theme.palette.ink[900] }}>ACTIONS</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {noticesData.data.map((notice) => (
+                    <TableRow
+                      key={notice._id}
+                      sx={{
+                        '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' },
+                      }}
+                    >
+                      <TableCell
+                        onClick={() => setViewNotice(notice)}
+                        sx={{
+                          py: 1.5,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          '&:hover': { color: theme.palette.primary.main, textDecoration: 'underline' },
+                        }}
+                      >
+                        {notice.title}
+                      </TableCell>
+                      <TableCell sx={{ py: 1.5 }}>
+                        <Chip
+                          label={notice.priority}
+                          size="small"
+                          sx={{
+                            ...getPriorityLabelStyle(notice.priority),
+                            fontFamily: theme.typography.mono.fontFamily,
+                            fontWeight: 700,
+                            fontSize: '0.68rem',
+                            borderRadius: '6px',
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ py: 1.5 }}>
+                        <Chip
+                          label={notice.status}
+                          size="small"
+                          sx={{
+                            ...getStatusLabelStyle(notice.status),
+                            fontFamily: theme.typography.mono.fontFamily,
+                            fontWeight: 700,
+                            fontSize: '0.68rem',
+                            borderRadius: '6px',
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ py: 1.5, fontSize: '0.82rem' }}>{getAudienceSummary(notice)}</TableCell>
+                      <TableCell sx={{ py: 1.5, fontSize: '0.82rem', color: theme.palette.text.secondary }}>
+                        {notice.publishedAt ? new Date(notice.publishedAt).toLocaleDateString() : '—'}
+                      </TableCell>
+                      <TableCell align="right" sx={{ py: 1.5 }}>
+                        <IconButton aria-label="notice actions menu" size="small" onClick={(e) => handleMenuOpen(e, notice)}>
+                          <MoreVertOutlined fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            /* ── BLOCK / GRID CARDS VIEW ──────────────────────────────────── */
+            <Grid container spacing={2.5}>
+              {noticesData.data.map((notice) => (
+                <Grid item xs={12} sm={6} md={4} key={notice._id}>
+                  <Card
                     sx={{
-                      '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' },
+                      p: 3,
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      borderRadius: '14px',
+                      border: `1px solid ${theme.palette.divider}`,
+                      boxShadow: 'none',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: `0 8px 24px ${theme.palette.primary.main}15`,
+                        borderColor: theme.palette.primary.main,
+                      },
                     }}
                   >
-                    <TableCell
+                    {/* Top Priority Bar Accent */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: 4,
+                        bgcolor:
+                          notice.priority === 'URGENT'
+                            ? theme.palette.signal.error
+                            : notice.priority === 'IMPORTANT'
+                            ? 'rgb(217, 119, 6)'
+                            : theme.palette.primary.main,
+                      }}
+                    />
+
+                    {/* Header Chips & Menu */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, mt: 0.5 }}>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Chip
+                          label={notice.priority}
+                          size="small"
+                          sx={{
+                            ...getPriorityLabelStyle(notice.priority),
+                            fontFamily: theme.typography.mono.fontFamily,
+                            fontWeight: 800,
+                            fontSize: '0.68rem',
+                            borderRadius: '6px',
+                          }}
+                        />
+                        <Chip
+                          label={notice.status}
+                          size="small"
+                          sx={{
+                            ...getStatusLabelStyle(notice.status),
+                            fontFamily: theme.typography.mono.fontFamily,
+                            fontWeight: 800,
+                            fontSize: '0.68rem',
+                            borderRadius: '6px',
+                          }}
+                        />
+                      </Box>
+                      <IconButton size="small" onClick={(e) => handleMenuOpen(e, notice)}>
+                        <MoreVertOutlined fontSize="small" />
+                      </IconButton>
+                    </Box>
+
+                    {/* Title */}
+                    <Typography
+                      variant="h6"
                       onClick={() => setViewNotice(notice)}
                       sx={{
-                        py: 1.5,
-                        fontWeight: 600,
+                        fontSize: '1rem',
+                        fontWeight: 700,
+                        fontFamily: theme.typography.h1.fontFamily,
+                        color: theme.palette.ink[900],
                         cursor: 'pointer',
-                        '&:hover': { color: theme.palette.primary.main, textDecoration: 'underline' },
+                        lineHeight: 1.35,
+                        mb: 1.25,
+                        '&:hover': { color: theme.palette.primary.main },
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
                       }}
                     >
                       {notice.title}
-                    </TableCell>
-                    <TableCell sx={{ py: 1.5 }}>
-                      <Chip
-                        label={notice.priority}
+                    </Typography>
+
+                    {/* Content Snippet */}
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        fontSize: '0.84rem',
+                        lineHeight: 1.5,
+                        mb: 2,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        flexGrow: 1,
+                      }}
+                    >
+                      {notice.content}
+                    </Typography>
+
+                    <Divider sx={{ my: 1.5 }} />
+
+                    {/* Footer Meta & Actions */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box>
+                        <Typography variant="caption" sx={{ display: 'block', fontWeight: 600, color: theme.palette.text.secondary, fontSize: '0.72rem' }}>
+                          Target: {getAudienceSummary(notice)}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.68rem', fontFamily: theme.typography.mono.fontFamily }}>
+                          {notice.publishedAt ? new Date(notice.publishedAt).toLocaleDateString() : 'Draft'}
+                        </Typography>
+                      </Box>
+
+                      <Button
                         size="small"
+                        variant="outlined"
+                        startIcon={<VisibilityOutlined fontSize="small" />}
+                        onClick={() => setViewNotice(notice)}
                         sx={{
-                          ...getPriorityLabelStyle(notice.priority),
-                          fontFamily: theme.typography.mono.fontFamily,
+                          textTransform: 'none',
                           fontWeight: 700,
-                          fontSize: '0.68rem',
-                          borderRadius: '6px',
+                          fontSize: '0.74rem',
+                          borderRadius: '8px',
                         }}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ py: 1.5 }}>
-                      <Chip
-                        label={notice.status}
-                        size="small"
-                        sx={{
-                          ...getStatusLabelStyle(notice.status),
-                          fontFamily: theme.typography.mono.fontFamily,
-                          fontWeight: 700,
-                          fontSize: '0.68rem',
-                          borderRadius: '6px',
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ py: 1.5, fontSize: '0.82rem' }}>{getAudienceSummary(notice)}</TableCell>
-                    <TableCell sx={{ py: 1.5, fontSize: '0.82rem', color: theme.palette.text.secondary }}>
-                      {notice.publishedAt ? new Date(notice.publishedAt).toLocaleDateString() : '—'}
-                    </TableCell>
-                    <TableCell align="right" sx={{ py: 1.5 }}>
-                      <IconButton aria-label="notice actions menu" size="small" onClick={(e) => handleMenuOpen(e, notice)}>
-                        <MoreVertOutlined fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                      >
+                        Read
+                      </Button>
+                    </Box>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          )}
 
           {/* Pagination */}
           <Box sx={{ mt: 3 }}>
@@ -597,13 +776,24 @@ export const NoticeBoard = () => {
               </Typography>
             </Box>
 
-            <Box sx={{ mt: 'auto', display: 'flex', gap: 2 }}>
-              <Button variant="outlined" fullWidth onClick={() => setViewNotice(null)}>
+            <Box sx={{ mt: 'auto', display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+              <Button variant="outlined" onClick={() => setViewNotice(null)} sx={{ flex: 1 }}>
                 Close
               </Button>
               <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteOutline />}
+                onClick={() => {
+                  handleOpenArchive(viewNotice);
+                  setViewNotice(null);
+                }}
+                sx={{ fontWeight: 700, flex: 1, textTransform: 'none' }}
+              >
+                Delete Notice
+              </Button>
+              <Button
                 variant="contained"
-                fullWidth
                 onClick={() => {
                   setActiveNoticeId(viewNotice._id);
                   setViewNotice(null);
@@ -613,6 +803,7 @@ export const NoticeBoard = () => {
                   background: theme.palette.primary.gradient || theme.palette.primary.main,
                   color: '#ffffff',
                   fontWeight: 700,
+                  flex: 1,
                 }}
               >
                 Edit Notice

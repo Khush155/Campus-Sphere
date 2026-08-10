@@ -236,16 +236,35 @@ export const FacultyComplaintHub = () => {
         </Box>
       </Card>
 
-      {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
+      {/* ── 2. KPI Summary Grid (Faculty Roster Card Style) ───────────────── */}
       <Grid container spacing={2.5}>
+        {/* 1. Total Reported Tickets Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
                   TOTAL REPORTED TICKETS
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.ink ? theme.palette.ink[900] : 'text.primary',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.total}
                 </Typography>
               </Box>
@@ -256,54 +275,138 @@ export const FacultyComplaintHub = () => {
           </Card>
         </Grid>
 
+        {/* 2. Pending Inspection Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.warning?.main || '#f59e0b'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning?.main || '#f59e0b' }}
+                >
                   PENDING INSPECTION
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.warning?.main || '#f59e0b',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.pending}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.warning.main}15`, color: theme.palette.warning.main }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.warning?.main || '#f59e0b'}15`,
+                  color: theme.palette.warning?.main || '#f59e0b',
+                }}
+              >
                 <PendingActionsOutlined />
               </Avatar>
             </Box>
           </Card>
         </Grid>
 
+        {/* 3. Technician Repairing Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.info?.main || '#3b82f6'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info.main }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info?.main || '#3b82f6' }}
+                >
                   TECHNICIAN REPAIRING
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.info?.main || '#3b82f6',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.inProgress}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.info.main}15`, color: theme.palette.info.main }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.info?.main || '#3b82f6'}15`,
+                  color: theme.palette.info?.main || '#3b82f6',
+                }}
+              >
                 <BuildOutlined />
               </Avatar>
             </Box>
           </Card>
         </Grid>
 
+        {/* 4. Resolved Tickets Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.success || '#10b981'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.success || '#10b981' }}
+                >
                   RESOLVED TICKETS
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.signal?.success || '#10b981',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
                   {stats.resolved}
                 </Typography>
               </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.signal.success}15`, color: theme.palette.signal.success }}>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.signal?.success || '#10b981'}15`,
+                  color: theme.palette.signal?.success || '#10b981',
+                }}
+              >
                 <CheckCircleOutlined />
               </Avatar>
             </Box>
@@ -319,7 +422,10 @@ export const FacultyComplaintHub = () => {
             placeholder="Search ticket title or description..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            sx={{ minWidth: 260 }}
+            sx={{
+              minWidth: 260,
+              '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+            }}
           />
 
           <TextField
@@ -328,7 +434,10 @@ export const FacultyComplaintHub = () => {
             label="Resolution Status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            sx={{ minWidth: 180 }}
+            sx={{
+              minWidth: 180,
+              '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+            }}
           >
             <MenuItem value="">All Ticket Statuses</MenuItem>
             <MenuItem value="PENDING">Pending Inspection</MenuItem>

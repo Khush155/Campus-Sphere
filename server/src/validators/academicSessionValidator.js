@@ -8,7 +8,7 @@ const academicSessionSchema = z.object({
   semesterType: z.enum(['ODD', 'EVEN'], { required_error: 'Semester type must be ODD or EVEN' }),
   termStartDate: z.coerce.date({ required_error: 'Term start date is required' }),
   termEndDate: z.coerce.date({ required_error: 'Term end date is required' }),
-  status: z.enum(['ACTIVE', 'ARCHIVED']).optional().default('ACTIVE'),
+  status: z.enum(['ACTIVE', 'UPCOMING', 'ARCHIVED']).optional().default('UPCOMING'),
 }).refine(
   (data) => data.termEndDate > data.termStartDate,
   {

@@ -26,7 +26,16 @@ const getDistinctActions = async (req, res, _next) => {
   return successResponse(res, 200, 'Distinct actions retrieved successfully.', actions);
 };
 
+/**
+ * Controller to fetch all distinct target models currently present in the collection.
+ */
+const getDistinctTargetModels = async (req, res, _next) => {
+  const targetModels = await auditLogService.getDistinctTargetModels();
+  return successResponse(res, 200, 'Distinct target models retrieved successfully.', targetModels);
+};
+
 module.exports = {
   getAuditLogs,
   getDistinctActions,
+  getDistinctTargetModels,
 };

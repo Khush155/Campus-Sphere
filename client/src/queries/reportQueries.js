@@ -41,6 +41,8 @@ export const useHodReportsQuery = () => {
       const response = await api.get('/reports/hod');
       return response.data.data;
     },
-    refetchInterval: 60000, // Refresh every minute
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 60000,
   });
 };

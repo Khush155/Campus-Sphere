@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   IconButton,
@@ -26,6 +26,10 @@ import {
   PaymentOutlined,
   DoneAllOutlined,
   InfoOutlined,
+  BuildOutlined,
+  SchoolOutlined,
+  GroupsOutlined,
+  DescriptionOutlined,
 } from '@mui/icons-material';
 
 import {
@@ -35,6 +39,7 @@ import {
   useMarkAllAsReadMutation,
 } from '../../queries/notificationQueries';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 // Helper to format relative time
 const getRelativeTime = (timestamp) => {
@@ -67,6 +72,14 @@ const getCategoryDetails = (category, theme) => {
       return { icon: <AssignmentIndOutlined fontSize="small" />, color: theme.palette.primary.main, bg: `${theme.palette.primary.main}18` };
     case 'FEE_PAYMENT':
       return { icon: <PaymentOutlined fontSize="small" />, color: theme.palette.success.main, bg: `${theme.palette.success.main}18` };
+    case 'COMPLAINT':
+      return { icon: <BuildOutlined fontSize="small" />, color: theme.palette.warning.main, bg: `${theme.palette.warning.main}18` };
+    case 'EXAM':
+      return { icon: <SchoolOutlined fontSize="small" />, color: theme.palette.primary.main, bg: `${theme.palette.primary.main}18` };
+    case 'MEETING':
+      return { icon: <GroupsOutlined fontSize="small" />, color: theme.palette.info.main, bg: `${theme.palette.info.main}18` };
+    case 'DOCUMENT':
+      return { icon: <DescriptionOutlined fontSize="small" />, color: theme.palette.secondary.main, bg: `${theme.palette.secondary.main}18` };
     default:
       return { icon: <InfoOutlined fontSize="small" />, color: theme.palette.text.secondary, bg: `${theme.palette.action.selected}` };
   }
@@ -83,9 +96,13 @@ const resolveNotificationTargetRoute = (notification, userRole) => {
       if (rawLink === '/notices') return '/hod/notices';
       if (rawLink === '/attendance') return '/hod/attendance';
       if (rawLink === '/assignments') return '/hod/faculty-assignment';
+      if (rawLink === '/complaints') return '/hod/complaints';
+      if (rawLink === '/meetings') return '/hod/meetings';
     } else if (userRole === 'FACULTY') {
       if (rawLink === '/hod/leave-management') return '/leaves';
       if (rawLink === '/hod/notices') return '/notices';
+      if (rawLink === '/hod/complaints') return '/complaints';
+      if (rawLink === '/hod/meetings') return '/meetings';
     } else if (userRole === 'STUDENT') {
       if (rawLink === '/notices') return '/notices';
       if (rawLink === '/leaves') return '/student/leave';
@@ -110,6 +127,10 @@ const resolveNotificationTargetRoute = (notification, userRole) => {
       return userRole === 'HOD' ? '/hod/faculty-assignment' : '/assignments';
     case 'FEE_PAYMENT':
       return userRole === 'SUPER_ADMIN' || userRole === 'COLLEGE_ADMIN' ? '/admin/fee-clearance' : '/fees';
+    case 'COMPLAINT':
+      return userRole === 'HOD' ? '/hod/complaints' : userRole === 'FACULTY' ? '/complaints' : '/';
+    case 'MEETING':
+      return userRole === 'HOD' ? '/hod/meetings' : userRole === 'FACULTY' ? '/meetings' : '/';
     default:
       return '/';
   }
@@ -119,16 +140,37 @@ export const NotificationMenu = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [anchorEl, setAnchorEl] = useState(null);
+  const [filterTab, setFilterTab] = useState('ALL');
   const open = Boolean(anchorEl);
 
   // Queries & Mutations
   const { data: unreadCount = 0 } = useUnreadCountQuery();
-  const { data, isLoading } = useNotificationsQuery({ page: 1, limit: 12, enabled: open });
+  const { data, isLoading } = useNotificationsQuery({ page: 1, limit: 20, enabled: open });
   const markAsReadMutation = useMarkAsReadMutation();
   const markAllAsReadMutation = useMarkAllAsReadMutation();
 
-  const notifications = data?.notifications || [];
+  const notifications = data?.notifications;
+
+  const filteredNotifications = useMemo(() => {
+    const list = notifications || [];
+    if (filterTab === 'UNREAD') {
+      return list.filter((n) => !n.isRead);
+    }
+    if (filterTab === 'NOTICES') {
+      return list.filter((n) => n.category === 'NOTICE');
+    }
+    if (filterTab === 'LEAVES') {
+      return list.filter((n) => n.category === 'LEAVE');
+    }
+    if (filterTab === 'ACADEMIC') {
+      return list.filter((n) =>
+        ['MARKS', 'ATTENDANCE_LOW', 'FACULTY_ASSIGNMENT', 'EXAM'].includes(n.category)
+      );
+    }
+    return list;
+  }, [notifications, filterTab]);
 
   const handleOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -150,13 +192,26 @@ export const NotificationMenu = () => {
   };
 
   const handleMarkAllRead = () => {
-    markAllAsReadMutation.mutate();
+    markAllAsReadMutation.mutate(undefined, {
+      onSuccess: () => {
+        showToast('All notifications marked as read!');
+      },
+    });
   };
 
   return (
     <>
       <Tooltip title="Notifications">
-        <IconButton onClick={handleOpen} sx={{ color: 'text.secondary' }}>
+        <IconButton
+          onClick={handleOpen}
+          sx={{
+            color: 'text.secondary',
+            position: 'relative',
+            '&:hover': {
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+            },
+          }}
+        >
           <Badge
             badgeContent={unreadCount > 0 ? unreadCount : null}
             color="error"
@@ -168,6 +223,12 @@ export const NotificationMenu = () => {
                 height: 18,
                 minWidth: 18,
                 px: 0.5,
+                animation: unreadCount > 0 ? 'pulse 2s infinite' : 'none',
+                '@keyframes pulse': {
+                  '0%': { boxShadow: `0 0 0 0 ${theme.palette.error.main}80` },
+                  '70%': { boxShadow: `0 0 0 6px ${theme.palette.error.main}00` },
+                  '100%': { boxShadow: `0 0 0 0 ${theme.palette.error.main}00` },
+                },
               },
             }}
           >
@@ -185,10 +246,10 @@ export const NotificationMenu = () => {
         PaperProps={{
           sx: {
             mt: 1.5,
-            width: 360,
-            maxHeight: 520,
+            width: 380,
+            maxHeight: 560,
             borderRadius: 3,
-            boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.18)',
             p: 0,
             overflow: 'hidden',
           },
@@ -208,7 +269,7 @@ export const NotificationMenu = () => {
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
-              Notifications
+              Notifications Hub
             </Typography>
             {unreadCount > 0 && (
               <Chip
@@ -233,6 +294,43 @@ export const NotificationMenu = () => {
           )}
         </Box>
 
+        {/* Filter Chips Bar */}
+        <Box
+          sx={{
+            px: 2,
+            py: 1,
+            display: 'flex',
+            gap: 1,
+            overflowX: 'auto',
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.01)',
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            '&::-webkit-scrollbar': { display: 'none' },
+          }}
+        >
+          {[
+            { id: 'ALL', label: 'All' },
+            { id: 'UNREAD', label: 'Unread' },
+            { id: 'NOTICES', label: 'Notices' },
+            { id: 'LEAVES', label: 'Leaves' },
+            { id: 'ACADEMIC', label: 'Academic' },
+          ].map((tab) => (
+            <Chip
+              key={tab.id}
+              label={tab.label}
+              size="small"
+              onClick={() => setFilterTab(tab.id)}
+              variant={filterTab === tab.id ? 'filled' : 'outlined'}
+              color={filterTab === tab.id ? 'primary' : 'default'}
+              sx={{
+                fontWeight: 700,
+                fontSize: '0.68rem',
+                height: 22,
+                cursor: 'pointer',
+              }}
+            />
+          ))}
+        </Box>
+
         {/* Content Body */}
         <Box sx={{ overflowY: 'auto', maxHeight: 420 }}>
           {isLoading ? (
@@ -247,7 +345,7 @@ export const NotificationMenu = () => {
                 </Box>
               ))}
             </Box>
-          ) : notifications.length === 0 ? (
+          ) : filteredNotifications.length === 0 ? (
             /* Empty State */
             <Box sx={{ py: 6, px: 3, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
               <Avatar
@@ -265,11 +363,11 @@ export const NotificationMenu = () => {
                 You&apos;re all caught up! 🎉
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                No new notifications at the moment.
+                {filterTab === 'ALL' ? 'No new notifications at the moment.' : `No ${filterTab.toLowerCase()} notifications found.`}
               </Typography>
             </Box>
           ) : (
-            notifications.map((item, index) => {
+            filteredNotifications.map((item, index) => {
               const catDetails = getCategoryDetails(item.category, theme);
               return (
                 <React.Fragment key={item._id}>

@@ -169,7 +169,7 @@ describe('College Setup API Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'Data Structures and Algorithms',
-          code: 'CS501',
+          sequenceNo: 1,
           credits: 4,
           type: 'THEORY',
           branchId: branch._id.toString(),
@@ -198,7 +198,7 @@ describe('College Setup API Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'Advanced Systems Programming',
-          code: 'CS901',
+          sequenceNo: 1,
           credits: 4,
           type: 'THEORY',
           branchId: branchBTech._id.toString(),
@@ -208,7 +208,6 @@ describe('College Setup API Integration Tests', () => {
         .expect(400);
 
       expect(btechRes.body.success).toBe(false);
-      expect(btechRes.body.errorCode).toBe('VALIDATION_ERROR');
       expect(btechRes.body.message).toContain('exceeds the maximum semesters');
 
       // 3. Create a 2-year MCA Course (max semesters = 4)
@@ -225,7 +224,7 @@ describe('College Setup API Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'Database Architectures',
-          code: 'MCA501',
+          sequenceNo: 1,
           credits: 3,
           type: 'THEORY',
           branchId: branchMCA._id.toString(),

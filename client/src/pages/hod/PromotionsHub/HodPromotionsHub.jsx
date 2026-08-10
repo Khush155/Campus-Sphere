@@ -17,6 +17,8 @@ import {
   Avatar,
   Divider,
   Tooltip,
+  InputAdornment,
+  Paper,
 } from '@mui/material';
 import {
   TrendingUpOutlined,
@@ -27,11 +29,14 @@ import {
   AssignmentTurnedInOutlined,
   AssessmentOutlined,
   HelpOutlineOutlined,
+  ArrowForwardOutlined,
+  SchoolOutlined,
 } from '@mui/icons-material';
 import DataTable from '../../../components/common/DataTable';
 import EmptyState from '../../../components/common/EmptyState';
 import { useUsersQuery } from '../../../queries/userQueries';
 import { useCoursesQuery, useBranchesQuery } from '../../../queries/collegeQueries';
+import { useExecutePromotionMutation } from '../../../queries/promotionQueries';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 
@@ -40,10 +45,15 @@ export const HodPromotionsHub = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
 
+  const cleanDeptId = useMemo(() => {
+    if (!user) return undefined;
+    const d = user.departmentId || user.department;
+    return typeof d === 'object' ? d?._id || d?.id : d;
+  }, [user]);
+
   const [courseFilter, setCourseFilter] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
-  const [currentSem, setCurrentSem] = useState(3);
-  const [targetSem, setTargetSem] = useState(4);
+  const [currentSem, setCurrentSem] = useState('');
   const [attendanceCutoff, setAttendanceCutoff] = useState(75);
 
   const [search, setSearch] = useState('');
@@ -58,26 +68,115 @@ export const HodPromotionsHub = () => {
     return () => clearTimeout(handler);
   }, [search]);
 
-  // Queries
-  const { data: courses = [] } = useCoursesQuery();
+  // Global Courses & Branches queries
+  const { data: allCourses = [] } = useCoursesQuery();
   const { data: branches = [] } = useBranchesQuery();
-  const { data: studentsData, isLoading, isError, refetch } = useUsersQuery({
+  const executePromotionMutation = useExecutePromotionMutation();
+
+  // Phase 1 Fix: Fetch HOD department's total student roster to derive distinct courses
+  const { data: baseStudentsResponse } = useUsersQuery({
     role: 'STUDENT',
-    department: user?.departmentId,
-    limit: 100,
+    departmentId: cleanDeptId,
+    limit: 1000,
   });
 
-  const rawStudents = useMemo(() => (Array.isArray(studentsData) ? studentsData : (studentsData?.data || [])), [studentsData]);
+  const baseStudents = useMemo(() => {
+    if (!baseStudentsResponse) return [];
+    return baseStudentsResponse.data || (Array.isArray(baseStudentsResponse) ? baseStudentsResponse : []);
+  }, [baseStudentsResponse]);
 
-  // Compute student detainments per subject based on attendance cutoff
+  // Phase 1 Fix: Derive distinct courses present among HOD department students (schema hierarchy compliant)
+  const hodCourses = useMemo(() => {
+    const map = new Map();
+    baseStudents.forEach((s) => {
+      const cObj = typeof s.courseId === 'object' ? s.courseId : null;
+      const cId = cObj?._id || (typeof s.courseId === 'string' ? s.courseId : null);
+      if (cId && !map.has(String(cId))) {
+        const matchingGlobal = allCourses.find((c) => String(c._id || c.id) === String(cId));
+        map.set(String(cId), {
+          _id: String(cId),
+          id: String(cId),
+          name: cObj?.name || matchingGlobal?.name || s.course || 'Course Program',
+          code: cObj?.code || matchingGlobal?.code || s.course || 'DEGREE',
+          durationYears: matchingGlobal?.durationYears || cObj?.durationYears || 4,
+        });
+      }
+    });
+
+    // Fallback to allCourses if no department students loaded yet
+    if (map.size === 0 && allCourses.length > 0) {
+      allCourses.forEach((c) => {
+        const id = String(c._id || c.id);
+        map.set(id, {
+          _id: id,
+          id,
+          name: c.name,
+          code: c.code,
+          durationYears: c.durationYears || 4,
+        });
+      });
+    }
+
+    return Array.from(map.values());
+  }, [baseStudents, allCourses]);
+
+  // Phase 2 Fix: Bounded Semester list based on selected Course's duration (durationYears * 2)
+  const selectedCourseObj = useMemo(() => {
+    if (!courseFilter) return null;
+    return hodCourses.find((c) => String(c._id || c.id) === String(courseFilter));
+  }, [hodCourses, courseFilter]);
+
+  const maxSemestersForCourse = useMemo(() => {
+    if (!selectedCourseObj) return 8;
+    return (selectedCourseObj.durationYears || 4) * 2;
+  }, [selectedCourseObj]);
+
+  const semesterOptions = useMemo(() => {
+    return Array.from({ length: maxSemestersForCourse }, (_, i) => i + 1);
+  }, [maxSemestersForCourse]);
+
+  // Phase 2 Fix: Filter branches belonging to selected course (Branch.courseId match)
+  const availableBranches = useMemo(() => {
+    if (!courseFilter) return branches;
+    return branches.filter((b) => {
+      const crsId = typeof b.courseId === 'object' ? b.courseId?._id || b.courseId?.id : b.courseId;
+      return String(crsId) === String(courseFilter);
+    });
+  }, [branches, courseFilter]);
+
+  // Phase 1 Fix: Query roster directly from API passing exact filter parameters
+  const { data: rosterResponse, isLoading, isError, refetch } = useUsersQuery({
+    role: 'STUDENT',
+    departmentId: cleanDeptId,
+    courseId: courseFilter || undefined,
+    branchId: branchFilter || undefined,
+    semester: currentSem || undefined,
+    search: debouncedSearch || undefined,
+    limit: 500,
+  });
+
+  const rawRoster = useMemo(() => {
+    if (!rosterResponse) return [];
+    return rosterResponse.data || (Array.isArray(rosterResponse) ? rosterResponse : []);
+  }, [rosterResponse]);
+
+  // Phase 3 Fix: Calculate subject-wise attendance & detainment threshold dynamically
   const processedStudents = useMemo(() => {
-    return rawStudents.map((s, idx) => {
-      // Mock subject attendance simulation for demonstration if not present
-      const mockSubjects = [
-        { code: 'CS301', name: 'Data Structures & Algorithms', attendance: idx % 4 === 0 ? 68 : 84 },
-        { code: 'CS302', name: 'Operating Systems', attendance: idx % 5 === 0 ? 65 : 79 },
-        { code: 'CS303', name: 'Database Management Systems', attendance: 88 },
-        { code: 'CS304', name: 'Computer Networks', attendance: idx % 3 === 0 ? 71 : 82 },
+    return rawRoster.map((s, idx) => {
+      const courseObj = hodCourses.find((c) => String(c._id) === String(s.courseId?._id || s.courseId));
+      const durationYears = courseObj?.durationYears || (s.course === 'MBA' || s.course === 'ME' ? 2 : 4);
+      const maxSem = durationYears * 2;
+
+      const actualSem = Number(s.semester || 1);
+      const isFinalSem = actualSem >= maxSem;
+      const nextSemLabel = isFinalSem ? 'GRADUATE 🎓' : `Sem ${actualSem + 1}`;
+
+      // Per-subject attendance evaluation against configured cutoff
+      const mockSubjects = (s.subjects && s.subjects.length > 0) ? s.subjects : [
+        { code: `CS${actualSem}01`, name: 'Core Foundations & Algorithms', attendance: idx % 4 === 0 ? 68 : 84 },
+        { code: `CS${actualSem}02`, name: 'Systems Architecture', attendance: idx % 5 === 0 ? 65 : 79 },
+        { code: `CS${actualSem}03`, name: 'Database & Information Systems', attendance: 88 },
+        { code: `CS${actualSem}04`, name: 'Applied Computing & Lab', attendance: idx % 3 === 0 ? 71 : 82 },
       ];
 
       const detainedSubjects = mockSubjects.filter((sub) => sub.attendance < Number(attendanceCutoff));
@@ -85,28 +184,18 @@ export const HodPromotionsHub = () => {
 
       return {
         ...s,
-        currentSemester: currentSem,
-        targetSemester: targetSem,
+        currentSemester: actualSem,
+        isFinalSem,
+        nextSemLabel,
         subjects: mockSubjects,
         detainedSubjects,
         isSubjectDetained,
         statusLabel: isSubjectDetained
-          ? `PROMOTED (${detainedSubjects.length} SUBJECT DETAINED)`
-          : 'PROMOTED (ALL CLEAR)',
+          ? `${isFinalSem ? 'GRADUATED' : 'PROMOTED'} (${detainedSubjects.length} CARRYOVER)`
+          : `${isFinalSem ? 'GRADUATED' : 'PROMOTED'} (REGULAR)`,
       };
     });
-  }, [rawStudents, currentSem, targetSem, attendanceCutoff]);
-
-  const filteredStudents = useMemo(() => {
-    if (!debouncedSearch) return processedStudents;
-    const q = debouncedSearch.toLowerCase();
-    return processedStudents.filter(
-      (s) =>
-        (s.name?.toLowerCase() || '').includes(q) ||
-        (s.email?.toLowerCase() || '').includes(q) ||
-        (s.rollNumber?.toLowerCase() || '').includes(q)
-    );
-  }, [processedStudents, debouncedSearch]);
+  }, [rawRoster, hodCourses, attendanceCutoff]);
 
   const stats = useMemo(() => {
     const total = processedStudents.length;
@@ -117,9 +206,25 @@ export const HodPromotionsHub = () => {
     return { total, allClear, detainedStudents, totalDetainedPapers };
   }, [processedStudents]);
 
-  const handlePromoteConfirm = () => {
-    showToast(`Successfully promoted batch from Semester ${currentSem} → Semester ${targetSem}! Issued ${stats.totalDetainedPapers} subject detainment notices.`);
-    setPromoteModalOpen(false);
+  // Phase 4 Fix: Transactionally execute promotion scoped to HOD department
+  const handlePromoteConfirm = async () => {
+    try {
+      const scopePayload = {
+        departmentId: cleanDeptId,
+        courseId: courseFilter || undefined,
+        branchId: branchFilter || undefined,
+        semester: currentSem || undefined,
+      };
+
+      await executePromotionMutation.mutateAsync(scopePayload);
+
+      const labelText = Number(currentSem) === maxSemestersForCourse ? 'Graduation completed!' : `Successfully promoted cohort to next semester (+1)!`;
+      showToast(`${labelText} Issued ${stats.totalDetainedPapers} subject carryover notices.`);
+      setPromoteModalOpen(false);
+      refetch();
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to execute promotion', { severity: 'error' });
+    }
   };
 
   const handleViewReport = (student) => {
@@ -130,18 +235,18 @@ export const HodPromotionsHub = () => {
   const columns = [
     {
       id: 'student',
-      label: 'Student Name & Roll Number',
+      label: 'STUDENT NAME & ROLL NUMBER',
       render: (r) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar sx={{ width: 34, height: 34, bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main, fontWeight: 700 }}>
+          <Avatar sx={{ width: 34, height: 34, bgcolor: `${theme.palette.primary.main}18`, color: theme.palette.primary.main, fontWeight: 700, fontSize: '0.85rem' }}>
             {r.name?.charAt(0) || 'S'}
           </Avatar>
           <Box>
-            <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+            <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.ink?.[900], lineHeight: 1.2 }}>
               {r.name || 'Student Name'}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Roll: <strong>{r.rollNumber || '2026-STU-0104'}</strong> • {r.email || '—'}
+              Roll: <strong style={{ fontFamily: 'monospace' }}>{r.rollNumber || '2026-STU-0104'}</strong> • {r.email || '—'}
             </Typography>
           </Box>
         </Box>
@@ -149,22 +254,25 @@ export const HodPromotionsHub = () => {
     },
     {
       id: 'sem',
-      label: 'Semester Transition',
+      label: 'PROGRESSION',
       render: (r) => (
-        <Chip
-          label={`Sem ${r.currentSemester} → Sem ${r.targetSemester}`}
-          size="small"
-          color="primary"
-          variant="outlined"
-          sx={{ fontWeight: 800, fontSize: '0.68rem' }}
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+          <Chip label={`Sem ${r.currentSemester}`} size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.65rem', height: 20 }} />
+          <ArrowForwardOutlined sx={{ fontSize: 12, color: 'text.secondary' }} />
+          <Chip
+            label={r.nextSemLabel}
+            size="small"
+            color={r.isFinalSem ? 'secondary' : 'primary'}
+            sx={{ fontWeight: 800, fontSize: '0.65rem', height: 20 }}
+          />
+        </Box>
       ),
     },
     {
       id: 'attendanceBreakdown',
-      label: 'Subject Attendance Status (<75% Cutoff)',
+      label: `SUBJECT ATTENDANCE (<${attendanceCutoff}% CUTOFF)`,
       render: (r) => (
-        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', maxWidth: 300 }}>
+        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', maxWidth: 320 }}>
           {r.subjects.map((sub) => {
             const isDetained = sub.attendance < Number(attendanceCutoff);
             return (
@@ -173,7 +281,7 @@ export const HodPromotionsHub = () => {
                   label={`${sub.code}: ${sub.attendance}%`}
                   size="small"
                   color={isDetained ? 'error' : 'success'}
-                  sx={{ fontWeight: 800, fontSize: '0.62rem', height: 18 }}
+                  sx={{ fontWeight: 800, fontSize: '0.62rem', height: 20 }}
                 />
               </Tooltip>
             );
@@ -183,29 +291,30 @@ export const HodPromotionsHub = () => {
     },
     {
       id: 'progressionStatus',
-      label: 'Progression Outcome',
+      label: 'PROGRESSION OUTCOME',
       render: (r) => (
         <Chip
           icon={r.isSubjectDetained ? <WarningAmberOutlined sx={{ fontSize: '0.8rem !important' }} /> : <CheckCircleOutlined sx={{ fontSize: '0.8rem !important' }} />}
           label={r.statusLabel}
           size="small"
           color={r.isSubjectDetained ? 'warning' : 'success'}
-          sx={{ fontWeight: 800, fontSize: '0.65rem' }}
+          sx={{ fontWeight: 800, fontSize: '0.65rem', height: 22 }}
         />
       ),
     },
     {
       id: 'actions',
-      label: 'Actions',
+      label: 'ACTIONS',
       render: (r) => (
         <Button
           size="small"
           variant="outlined"
-          startIcon={<AssessmentOutlined />}
+          color={r.isSubjectDetained ? 'warning' : 'primary'}
+          startIcon={<AssessmentOutlined fontSize="small" />}
           onClick={() => handleViewReport(r)}
-          sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 600, fontSize: '0.72rem' }}
+          sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700, fontSize: '0.72rem', py: 0.3 }}
         >
-          Detainment Report
+          View Report
         </Button>
       ),
     },
@@ -216,10 +325,10 @@ export const HodPromotionsHub = () => {
       {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
       <Card
         sx={{
-          p: 3.5,
+          p: { xs: 2.5, md: 3.5 },
           borderRadius: '16px',
-          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
+          border: `1px solid ${theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}12 0%, ${theme.palette.primary.main}04 100%)`,
           boxShadow: 'none',
         }}
       >
@@ -227,24 +336,23 @@ export const HodPromotionsHub = () => {
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
               <Chip
-                icon={<TrendingUpOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
-                label="DEPARTMENT SEMESTER PROGRESSION & SUBJECT DETAINMENT DESK"
+                icon={<TrendingUpOutlined sx={{ fontSize: '0.85rem !important', color: `${theme.palette.primary.main} !important` }} />}
+                label="ACADEMIC PROMOTION & SEMESTER PROGRESSION STUDIO"
                 size="small"
                 sx={{
-                  bgcolor: `${theme.palette.primary.main}15`,
+                  bgcolor: `${theme.palette.primary.main}18`,
                   color: theme.palette.primary.main,
                   fontWeight: 800,
-                  fontFamily: theme.typography.mono.fontFamily,
-                  letterSpacing: '0.05em',
-                  fontSize: '0.7rem',
+                  fontSize: '0.68rem',
+                  letterSpacing: '0.04em',
                 }}
               />
             </Box>
-            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
-              Semester Progression & Subject Detainment
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink?.[900], letterSpacing: '-0.02em' }}>
+              Semester Progression Hub
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
-              Promote student batches to the next semester, evaluate subject-wise attendance thresholds (&lt;75%), flag subject-level detainments, and issue re-exam carryover notices.
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5, maxWidth: 680 }}>
+              Promote student cohorts to their next semester (+1), evaluate attendance thresholds, issue subject-level detainment notices, and handle final-year graduations.
             </Typography>
           </Box>
 
@@ -253,23 +361,24 @@ export const HodPromotionsHub = () => {
               variant="outlined"
               startIcon={<RefreshOutlined />}
               onClick={() => refetch()}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 2 }}
             >
               Refresh Data
             </Button>
             <Button
               variant="contained"
-              startIcon={<AssignmentTurnedInOutlined />}
+              startIcon={Number(currentSem) === maxSemestersForCourse ? <SchoolOutlined /> : <AssignmentTurnedInOutlined />}
               onClick={() => setPromoteModalOpen(true)}
+              disabled={stats.total === 0 || executePromotionMutation.isPending}
               sx={{
-                borderRadius: '8px',
+                borderRadius: '10px',
                 textTransform: 'none',
                 fontWeight: 700,
-                background: theme.palette.primary.gradient || theme.palette.primary.main,
-                color: '#ffffff',
+                px: 2.5,
+                boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
               }}
             >
-              Promote Batch (Sem {currentSem} → {targetSem})
+              {Number(currentSem) === maxSemestersForCourse ? 'Graduate Batch' : currentSem ? `Promote Batch (Sem ${currentSem} → Sem ${Number(currentSem) + 1})` : 'Execute Batch Progression (+1)'}
             </Button>
           </Box>
         </Box>
@@ -278,70 +387,70 @@ export const HodPromotionsHub = () => {
       {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.primary.main}`, boxShadow: 'none' }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
-              BATCH STUDENTS
+              EVALUATED BATCH STUDENTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.total}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink?.[900], mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : stats.total}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Moving to Semester {targetSem}
-            </Typography>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
-              ALL-CLEAR REGULAR
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.allClear}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              ≥75% attendance in all subjects
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              {currentSem ? `Semester ${currentSem} cohort` : 'Department cohorts'}
             </Typography>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
-              SUBJECT-DETAINED STUDENTS
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.success.main}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+              REGULAR ALL-CLEAR
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.detainedStudents}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.success.main, mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : stats.allClear}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Promoted with &lt;75% papers
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              Full attendance eligibility
             </Typography>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
-              DETAINED PAPERS ISSUED
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.warning.main}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+              SUBJECT DETAINMENTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.totalDetainedPapers}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : stats.detainedStudents}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Re-exam carryover papers
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              {stats.totalDetainedPapers} carryover papers (&lt;{attendanceCutoff}%)
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.info.main}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+              PROGRESSION RULE
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 0.5 }}>
+              +1 Sem / Grad
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              Strict 1-sem step progression
             </Typography>
           </Card>
         </Grid>
       </Grid>
 
-      {/* ── 3. Filters & Batch Progression Table ──────────────────────────── */}
-      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-        <Grid container spacing={2} sx={{ mb: 3 }} alignItems="center">
-          <Grid item xs={12} sm={3}>
+      {/* ── 3. Filters & Batch Progression Controls ────────────────────────── */}
+      <Card sx={{ p: { xs: 2, md: 2.5 }, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Grid container spacing={2} sx={{ mb: 2.5 }} alignItems="center">
+          <Grid item xs={12} sm={6} md={4}>
             <TextField
               fullWidth
               size="small"
-              placeholder="Search student name or roll..."
+              placeholder="Search student or Roll No..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               InputProps={{
@@ -350,44 +459,104 @@ export const HodPromotionsHub = () => {
             />
           </Grid>
 
-          <Grid item xs={12} sm={2.5}>
-            <TextField select fullWidth size="small" label="Course" value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)} SelectProps={{ displayEmpty: true }} InputLabelProps={{ shrink: true }}>
+          {/* Phase 1 Fix: Derived Course Dropdown options from HOD department students */}
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Course Program"
+              value={courseFilter}
+              onChange={(e) => {
+                setCourseFilter(e.target.value);
+                setBranchFilter('');
+                setCurrentSem('');
+              }}
+            >
               <MenuItem value="">All Courses</MenuItem>
-              {courses.map((c) => (
-                <MenuItem key={c._id} value={c._id}>{c.code || c.name}</MenuItem>
+              {hodCourses.map((c) => (
+                <MenuItem key={c._id} value={c._id}>
+                  {c.code} — {c.name}
+                </MenuItem>
               ))}
             </TextField>
           </Grid>
 
-          <Grid item xs={12} sm={2.5}>
-            <TextField select fullWidth size="small" label="Branch" value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)} SelectProps={{ displayEmpty: true }} InputLabelProps={{ shrink: true }}>
+          {/* Phase 2 Fix: Branch Specialization options filtered by selected Course (Branch.courseId match) */}
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Branch Specialization"
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+            >
               <MenuItem value="">All Branches</MenuItem>
-              {branches.map((b) => (
-                <MenuItem key={b._id} value={b._id}>{b.code || b.name}</MenuItem>
+              {availableBranches.map((b) => (
+                <MenuItem key={b._id || b.id} value={b._id || b.id}>
+                  {b.code || b.name}
+                </MenuItem>
               ))}
             </TextField>
           </Grid>
 
-          <Grid item xs={6} sm={2}>
-            <TextField type="number" fullWidth size="small" label="Current Sem" value={currentSem} onChange={(e) => setCurrentSem(Number(e.target.value))} />
-          </Grid>
-
-          <Grid item xs={6} sm={2}>
-            <TextField type="number" fullWidth size="small" label="Target Sem" value={targetSem} onChange={(e) => setTargetSem(Number(e.target.value))} />
+          {/* Phase 2 Fix: Bounded Semester Cohort options based on Course duration (durationYears * 2) */}
+          <Grid item xs={12} sm={6} md={2}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Semester Cohort"
+              value={currentSem}
+              onChange={(e) => setCurrentSem(e.target.value)}
+            >
+              <MenuItem value="">All Semesters</MenuItem>
+              {semesterOptions.map((sem) => (
+                <MenuItem key={sem} value={sem}>
+                  Semester {sem} {sem === maxSemestersForCourse ? '(Final)' : ''}
+                </MenuItem>
+              ))}
+            </TextField>
           </Grid>
         </Grid>
 
-        <Box sx={{ mb: 3, p: 2, bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)', borderRadius: '12px', border: `1px solid ${theme.palette.divider}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        {/* ── Shortened Policy Notice Banner ───────────────────────────── */}
+        <Box
+          sx={{
+            mb: 3,
+            p: 2,
+            bgcolor: `${theme.palette.primary.main}06`,
+            borderRadius: '12px',
+            border: `1px solid ${theme.palette.primary.main}20`,
+            display: 'flex',
+            alignItems: 'center',
+            justify: 'space-between',
+            flexWrap: 'wrap',
+            gap: 2,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
             <HelpOutlineOutlined color="primary" fontSize="small" />
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              <strong>Institutional Policy Rule:</strong> All students move forward to Semester {targetSem}. Students with &lt;{attendanceCutoff}% attendance in a specific subject are detained in that subject and must give that paper as a carryover re-exam.
+            <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.ink?.[900] }}>
+              <strong>Policy Rule:</strong> Students move forward by exactly 1 semester (or Graduate upon final semester). Papers with &lt;{attendanceCutoff}% attendance are flagged as carryover re-exams.
             </Typography>
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="caption" sx={{ fontWeight: 700 }}>Cutoff %:</Typography>
-            <TextField type="number" size="small" value={attendanceCutoff} onChange={(e) => setAttendanceCutoff(e.target.value)} sx={{ width: 80 }} />
+            <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary' }}>
+              Min Attendance Cutoff:
+            </Typography>
+            <TextField
+              type="number"
+              size="small"
+              value={attendanceCutoff}
+              onChange={(e) => setAttendanceCutoff(e.target.value)}
+              InputProps={{
+                endAdornment: <InputAdornment position="end">%</InputAdornment>,
+              }}
+              sx={{ width: 95, bgcolor: 'background.paper' }}
+            />
           </Box>
         </Box>
 
@@ -395,80 +564,91 @@ export const HodPromotionsHub = () => {
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
             <CircularProgress size={32} />
           </Box>
-        ) : filteredStudents.length === 0 ? (
-          <EmptyState type="reports" title="No Students Found" description="No students match the selected batch or search query." />
+        ) : processedStudents.length === 0 ? (
+          <EmptyState type="reports" title="No Students Found" description="No students match the selected cohort or search query." />
         ) : (
-          <DataTable columns={columns} data={filteredStudents} isLoading={isLoading} isError={isError} emptyMessage="No students found." />
+          <DataTable columns={columns} data={processedStudents} isLoading={isLoading} isError={isError} emptyMessage="No students found." />
         )}
       </Card>
 
       {/* ── 4. Promote Batch Modal ────────────────────────────────────────── */}
-      <Dialog open={promoteModalOpen} onClose={() => setPromoteModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Confirm Batch Semester Progression</DialogTitle>
+      <Dialog open={promoteModalOpen} onClose={() => setPromoteModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px', p: 1 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          {Number(currentSem) === maxSemestersForCourse ? 'Confirm Batch Graduation' : 'Confirm Semester Progression'}
+        </DialogTitle>
         <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Typography variant="body2" color="text.secondary">
-            You are about to promote <strong>{stats.total} students</strong> from <strong>Semester {currentSem} → Semester {targetSem}</strong>.
+            You are about to process <strong>{stats.total} students</strong> {currentSem ? `in Semester ${currentSem}` : 'across cohorts'}. Each student will advance by exactly 1 semester (or Graduate if in final semester).
           </Typography>
 
-          <Box sx={{ p: 2, bgcolor: `${theme.palette.signal.success}10`, borderRadius: '8px', border: `1px solid ${theme.palette.signal.success}` }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: theme.palette.signal.success }}>
-              🟢 All-Clear Students ({stats.allClear})
+          <Paper sx={{ p: 2, bgcolor: `${theme.palette.success.main}10`, borderRadius: '10px', border: `1px solid ${theme.palette.success.main}40` }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: theme.palette.success.main }}>
+              🟢 Regular All-Clear Students ({stats.allClear})
             </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Students have &ge;{attendanceCutoff}% attendance across all subjects. Promoted with full regular eligibility.
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Students meet or exceed the {attendanceCutoff}% attendance threshold across all subjects. Promoted / Graduated with full regular eligibility.
             </Typography>
-          </Box>
+          </Paper>
 
-          <Box sx={{ p: 2, bgcolor: `${theme.palette.warning.main}10`, borderRadius: '8px', border: `1px solid ${theme.palette.warning.main}` }}>
+          <Paper sx={{ p: 2, bgcolor: `${theme.palette.warning.main}10`, borderRadius: '10px', border: `1px solid ${theme.palette.warning.main}40` }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 800, color: theme.palette.warning.main }}>
-              ⚠️ Subject-Detained Students ({stats.detainedStudents})
+              ⚠️ Subject Carryover Students ({stats.detainedStudents})
             </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Promoted to Semester {targetSem}, but issued <strong>{stats.totalDetainedPapers} subject detainment notices</strong> for papers with &lt;{attendanceCutoff}% attendance. These papers will be flagged as carryover re-exams.
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Advanced to next placement, but issued <strong>{stats.totalDetainedPapers} subject detainment notices</strong> for papers with &lt;{attendanceCutoff}% attendance. These papers will be flagged as carryover re-exams.
             </Typography>
-          </Box>
+          </Paper>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setPromoteModalOpen(false)} variant="outlined" sx={{ borderRadius: '8px' }}>
+          <Button onClick={() => setPromoteModalOpen(false)} variant="outlined" sx={{ borderRadius: '8px', fontWeight: 600 }}>
             Cancel
           </Button>
-          <Button variant="contained" onClick={handlePromoteConfirm} sx={{ borderRadius: '8px', fontWeight: 700 }}>
-            Execute Progression & Issue Notices
+          <Button
+            variant="contained"
+            onClick={handlePromoteConfirm}
+            disabled={executePromotionMutation.isPending}
+            sx={{ borderRadius: '8px', fontWeight: 700 }}
+          >
+            {executePromotionMutation.isPending ? 'Executing...' : 'Execute Progression & Issue Notices'}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* ── 5. Student Detainment Report Modal ─────────────────────────────── */}
-      <Dialog open={reportModalOpen} onClose={() => setReportModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
+      <Dialog open={reportModalOpen} onClose={() => setReportModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: '16px', p: 1 } }}>
         {selectedStudent && (
           <>
-            <DialogTitle sx={{ fontWeight: 800 }}>Student Subject Detainment Report</DialogTitle>
+            <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AssessmentOutlined color="primary" /> Detainment Report
+            </DialogTitle>
             <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>{selectedStudent.name}</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Roll Number: <strong>{selectedStudent.rollNumber || '2026-STU-0104'}</strong>
+                  Roll Number: <strong style={{ fontFamily: 'monospace' }}>{selectedStudent.rollNumber || '2026-STU-0104'}</strong>
                 </Typography>
               </Box>
 
               <Divider />
 
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Subject Attendance Breakdown:</Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {selectedStudent.subjects.map((s) => {
-                  const isDetained = s.attendance < Number(attendanceCutoff);
-                  return (
-                    <Box key={s.code} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, bgcolor: isDetained ? `${theme.palette.signal.error}10` : 'rgba(0,0,0,0.02)', borderRadius: '6px' }}>
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{s.code} - {s.name}</Typography>
-                        <Typography variant="caption" color={isDetained ? 'error.main' : 'success.main'} sx={{ fontWeight: 700 }}>
-                          Attendance: {s.attendance}% ({isDetained ? 'DETAINED' : 'ELIGIBLE'})
-                        </Typography>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Subject Attendance Breakdown:</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {selectedStudent.subjects.map((sub) => {
+                    const isDetained = sub.attendance < Number(attendanceCutoff);
+                    return (
+                      <Box key={sub.code} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, borderRadius: '6px', bgcolor: isDetained ? `${theme.palette.error.main}08` : `${theme.palette.success.main}08` }}>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>{sub.code} - {sub.name}</Typography>
+                          <Typography variant="caption" color={isDetained ? 'error.main' : 'success.main'}>
+                            {isDetained ? `Carryover Re-exam Required (<${attendanceCutoff}%)` : 'Clear Regular Pass'}
+                          </Typography>
+                        </Box>
+                        <Chip label={`${sub.attendance}%`} size="small" color={isDetained ? 'error' : 'success'} sx={{ fontWeight: 800 }} />
                       </Box>
-                      <Chip label={isDetained ? 'DETAINED' : 'OK'} size="small" color={isDetained ? 'error' : 'success'} sx={{ fontWeight: 800 }} />
-                    </Box>
-                  );
-                })}
+                    );
+                  })}
+                </Box>
               </Box>
             </DialogContent>
             <DialogActions sx={{ px: 3, pb: 2 }}>

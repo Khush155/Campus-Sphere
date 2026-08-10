@@ -91,6 +91,19 @@ const deleteUser = async (req, res, _next) => {
 };
 
 /**
+ * Controller to permanently and irreversibly delete a user from the database.
+ * Only SUPER_ADMIN can call this route.
+ */
+const hardDeleteUser = async (req, res, _next) => {
+  const { id } = req.params;
+  const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
+
+  await userService.permanentlyDeleteUser(id, req.user.id, meta, req.user.role);
+
+  return successResponse(res, 200, 'User permanently deleted successfully');
+};
+
+/**
  * Controller to fetch the last 8 audit log events.
  */
 const getAuditLogs = async (req, res, _next) => {
@@ -151,6 +164,7 @@ module.exports = {
   getUser,
   updateUser,
   deleteUser,
+  hardDeleteUser,
   getAuditLogs,
   getInsights,
   importStudents,

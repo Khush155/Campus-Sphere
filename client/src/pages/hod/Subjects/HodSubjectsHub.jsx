@@ -14,6 +14,8 @@ import {
   useTheme,
   Card,
   CircularProgress,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   AddOutlined,
@@ -21,6 +23,9 @@ import {
   RefreshOutlined,
   MenuBookOutlined,
   LibraryAddOutlined,
+  EditOutlined,
+  DeleteOutline,
+  ClearOutlined,
 } from '@mui/icons-material';
 import DataTable from '../../../components/common/DataTable';
 import EmptyState from '../../../components/common/EmptyState';
@@ -34,28 +39,33 @@ import {
   useCoursesQuery,
   useBranchesQuery,
 } from '../../../queries/collegeQueries';
+import { useUsersQuery } from '../../../queries/userQueries';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
+import { computeSubjectCode } from '../../../utils/subjectCode';
 
 export const HodSubjectsHub = () => {
   const theme = useTheme();
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  const deptId = user?.departmentId?._id || user?.departmentId || user?.department?.id || user?.department;
+  const cleanDeptId = useMemo(() => {
+    if (!user) return undefined;
+    const d = user.departmentId || user.department;
+    return typeof d === 'object' ? d?._id || d?.id : d;
+  }, [user]);
 
   // Search & Filter States
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedSemester, setSelectedSemester] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('');
+  const [selectedSemester, setSelectedSemester] = useState('');
   const [selectedType, setSelectedType] = useState('');
 
   // Debounce search input
   React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 400);
+    const handler = setTimeout(() => setDebouncedSearch(search), 400);
     return () => clearTimeout(handler);
   }, [search]);
 
@@ -88,26 +98,106 @@ export const HodSubjectsHub = () => {
   });
 
   // Queries & Mutations
+  const { data: allCourses = [] } = useCoursesQuery();
+  const { data: branches = [] } = useBranchesQuery();
+
+  // Fetch department students to derive HOD's distinct courses
+  const { data: baseStudentsResponse } = useUsersQuery({
+    role: 'STUDENT',
+    departmentId: cleanDeptId,
+    limit: 1000,
+  });
+
+  const baseStudents = useMemo(() => {
+    if (!baseStudentsResponse) return [];
+    return baseStudentsResponse.data || (Array.isArray(baseStudentsResponse) ? baseStudentsResponse : []);
+  }, [baseStudentsResponse]);
+
+  // Derived HOD Courses
+  const hodCourses = useMemo(() => {
+    const map = new Map();
+    baseStudents.forEach((s) => {
+      const cObj = typeof s.courseId === 'object' ? s.courseId : null;
+      const cId = cObj?._id || (typeof s.courseId === 'string' ? s.courseId : null);
+      if (cId && !map.has(String(cId))) {
+        const matchingGlobal = allCourses.find((c) => String(c._id || c.id) === String(cId));
+        map.set(String(cId), {
+          _id: String(cId),
+          id: String(cId),
+          name: cObj?.name || matchingGlobal?.name || s.course || 'Course Program',
+          code: cObj?.code || matchingGlobal?.code || s.course || 'DEGREE',
+          durationYears: matchingGlobal?.durationYears || cObj?.durationYears || 4,
+        });
+      }
+    });
+
+    if (map.size === 0 && allCourses.length > 0) {
+      allCourses.forEach((c) => {
+        const id = String(c._id || c.id);
+        map.set(id, {
+          _id: id,
+          id,
+          name: c.name,
+          code: c.code,
+          durationYears: c.durationYears || 4,
+        });
+      });
+    }
+
+    return Array.from(map.values());
+  }, [baseStudents, allCourses]);
+
+  // Bounded semester options for main filter
+  const selectedCourseObj = useMemo(() => {
+    if (!selectedCourse) return null;
+    return hodCourses.find((c) => String(c._id || c.id) === String(selectedCourse));
+  }, [hodCourses, selectedCourse]);
+
+  const maxSemestersForFilter = useMemo(() => {
+    if (!selectedCourseObj) return 8;
+    return (selectedCourseObj.durationYears || 4) * 2;
+  }, [selectedCourseObj]);
+
+  const semesterFilterOptions = useMemo(() => {
+    return Array.from({ length: maxSemestersForFilter }, (_, i) => i + 1);
+  }, [maxSemestersForFilter]);
+
+  // Available Branches for Main Filter
+  const availableBranchesForFilter = useMemo(() => {
+    if (!selectedCourse) return branches;
+    return branches.filter((b) => {
+      const crsId = typeof b.courseId === 'object' ? b.courseId?._id || b.courseId?.id : b.courseId;
+      return String(crsId) === String(selectedCourse);
+    });
+  }, [branches, selectedCourse]);
+
+  // Subjects Query
   const { data: subjects = [], isLoading, isError, refetch } = useSubjectsQuery({
-    departmentId: deptId,
+    departmentId: cleanDeptId,
     search: debouncedSearch || undefined,
     branchId: selectedBranch || undefined,
     semester: selectedSemester ? Number(selectedSemester) : undefined,
   });
 
-  const { data: courses = [] } = useCoursesQuery();
-  const { data: branches = [] } = useBranchesQuery();
-
   const createMutation = useCreateSubjectMutation();
   const updateMutation = useUpdateSubjectMutation();
   const deleteMutation = useDeleteSubjectMutation();
 
-  // Filter subjects by Type locally
+  // Filter subjects locally by Course & Type if specified
   const filteredSubjects = useMemo(() => {
     if (!subjects) return [];
-    if (!selectedType) return subjects;
-    return subjects.filter((s) => s.type === selectedType);
-  }, [subjects, selectedType]);
+    let result = subjects;
+    if (selectedCourse) {
+      result = result.filter((s) => {
+        const crsId = typeof s.branchId?.courseId === 'object' ? s.branchId?.courseId?._id : (s.branchId?.courseId || s.courseId);
+        return String(crsId) === String(selectedCourse);
+      });
+    }
+    if (selectedType) {
+      result = result.filter((s) => s.type === selectedType);
+    }
+    return result;
+  }, [subjects, selectedCourse, selectedType]);
 
   // Branches filtered by course selection for Add Form
   const availableBranchesForAdd = useMemo(() => {
@@ -122,76 +212,96 @@ export const HodSubjectsHub = () => {
   }, [branches, editFormData.courseId]);
 
   const isAnyFilterActive = useMemo(() => {
-    return Boolean(search || selectedSemester || selectedBranch || selectedType);
-  }, [search, selectedSemester, selectedBranch, selectedType]);
+    return Boolean(search || selectedCourse || selectedSemester || selectedBranch || selectedType);
+  }, [search, selectedCourse, selectedSemester, selectedBranch, selectedType]);
 
   const handleClearFilters = () => {
     setSearch('');
     setDebouncedSearch('');
+    setSelectedCourse('');
     setSelectedSemester('');
     setSelectedBranch('');
     setSelectedType('');
   };
 
   // Metrics
-  const totalSubjects = subjects.length;
-  const theoryCount = subjects.filter((s) => s.type === 'THEORY').length;
-  const practicalCount = subjects.filter((s) => s.type === 'PRACTICAL').length;
-  const electiveCount = subjects.filter((s) => s.type === 'ELECTIVE').length;
+  const totalSubjects = filteredSubjects.length;
+  const theoryCount = filteredSubjects.filter((s) => s.type === 'THEORY').length;
+  const practicalCount = filteredSubjects.filter((s) => s.type === 'PRACTICAL').length;
+  const electiveCount = filteredSubjects.filter((s) => s.type === 'ELECTIVE').length;
 
   const columns = [
     {
       id: 'code',
-      label: 'Subject Code',
+      label: 'SUBJECT CODE',
       render: (row) => (
         <Chip
-          label={row.code || 'N/A'}
+          label={computeSubjectCode(row, row.branchId || branches?.find((b) => String(b._id) === String(row.branchId))) || 'N/A'}
           size="small"
           sx={{
             fontWeight: 800,
-            fontFamily: theme.typography.mono.fontFamily,
             fontSize: '0.7rem',
-            bgcolor: `${theme.palette.primary.main}15`,
+            bgcolor: `${theme.palette.primary.main}18`,
             color: theme.palette.primary.main,
+            height: 22,
           }}
         />
       ),
     },
     {
       id: 'name',
-      label: 'Subject Name',
+      label: 'SUBJECT TITLE & WEIGHTAGE',
       render: (row) => (
-        <Typography variant="body2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
-          {row.name}
-        </Typography>
-      ),
-    },
-    {
-      id: 'credits',
-      label: 'Credits',
-      render: (row) => (
-        <Chip
-          label={`${row.credits || 3} Credits`}
-          size="small"
-          variant="outlined"
-          sx={{ fontWeight: 700, fontSize: '0.68rem' }}
-        />
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.ink?.[900], lineHeight: 1.2 }}>
+            {row.name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {row.credits || 3} Credits • Code: <strong style={{ fontFamily: 'monospace' }}>{row.code || '—'}</strong>
+          </Typography>
+        </Box>
       ),
     },
     {
       id: 'type',
-      label: 'Subject Type',
+      label: 'TYPE',
       render: (row) => (
         <Chip
           label={row.type || 'THEORY'}
           size="small"
-          color={row.type === 'THEORY' ? 'primary' : row.type === 'PRACTICAL' ? 'secondary' : 'default'}
-          sx={{ fontWeight: 800, fontSize: '0.65rem' }}
+          color={row.type === 'THEORY' ? 'primary' : row.type === 'PRACTICAL' ? 'secondary' : 'warning'}
+          sx={{ fontWeight: 800, fontSize: '0.65rem', height: 20 }}
         />
       ),
     },
-    { id: 'branch', label: 'Branch Specialization', render: (row) => row.branchId?.name || '—' },
-    { id: 'semester', label: 'Semester', render: (row) => (row.semester ? `Sem ${row.semester}` : '—') },
+    {
+      id: 'branch',
+      label: 'CURRICULUM PLACEMENT',
+      render: (row) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+          <Chip label={row.branchId?.code || row.branchId?.name || 'General'} size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: '0.65rem', height: 20 }} />
+          <Chip label={row.semester ? `Sem ${row.semester}` : 'Sem 1'} size="small" color="primary" sx={{ fontWeight: 800, fontSize: '0.65rem', height: 20 }} />
+        </Box>
+      ),
+    },
+    {
+      id: 'actions',
+      label: 'ACTIONS',
+      render: (row) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Tooltip title="Edit Subject">
+            <IconButton size="small" color="primary" onClick={() => handleOpenEdit(row)}>
+              <EditOutlined fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete Subject">
+            <IconButton size="small" color="error" onClick={() => setDeleteSubjectId(row._id || row.id)}>
+              <DeleteOutline fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+    },
   ];
 
   const handleOpen = () => setOpenModal(true);
@@ -211,11 +321,13 @@ export const HodSubjectsHub = () => {
   const handleOpenEdit = (subject) => {
     const parentCourseId = subject.branchId?.courseId?._id || subject.branchId?.courseId;
     const branchIdVal = subject.branchId?._id || subject.branchId;
+    const branchObj = typeof subject.branchId === 'object' ? subject.branchId : branches?.find((b) => String(b._id || b.id) === String(branchIdVal));
+    const computedCode = subject.code || computeSubjectCode(subject, branchObj) || '';
 
     setEditFormData({
       id: subject._id || subject.id,
       name: subject.name || '',
-      code: subject.code || '',
+      code: computedCode,
       credits: subject.credits || 3,
       type: subject.type || 'THEORY',
       courseId: parentCourseId || '',
@@ -253,7 +365,7 @@ export const HodSubjectsHub = () => {
       credits: Number(formData.credits),
       type: formData.type,
       branchId: formData.branchId,
-      departmentId: deptId,
+      departmentId: cleanDeptId,
       semester: Number(formData.semester),
     };
     createMutation.mutate(payload, {
@@ -313,10 +425,10 @@ export const HodSubjectsHub = () => {
       {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
       <Card
         sx={{
-          p: 3.5,
+          p: { xs: 2.5, md: 3.5 },
           borderRadius: '16px',
-          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
+          border: `1px solid ${theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}12 0%, ${theme.palette.primary.main}04 100%)`,
           boxShadow: 'none',
         }}
       >
@@ -324,24 +436,23 @@ export const HodSubjectsHub = () => {
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
               <Chip
-                icon={<MenuBookOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
-                label="DEPARTMENT CURRICULUM & SUBJECT MANAGEMENT DESK"
+                icon={<MenuBookOutlined sx={{ fontSize: '0.85rem !important', color: `${theme.palette.primary.main} !important` }} />}
+                label="CURRICULAR SUBJECTS & DEPT SYLLABUS STUDIO"
                 size="small"
                 sx={{
-                  bgcolor: `${theme.palette.primary.main}15`,
+                  bgcolor: `${theme.palette.primary.main}18`,
                   color: theme.palette.primary.main,
                   fontWeight: 800,
-                  fontFamily: theme.typography.mono.fontFamily,
-                  letterSpacing: '0.05em',
-                  fontSize: '0.7rem',
+                  fontSize: '0.68rem',
+                  letterSpacing: '0.04em',
                 }}
               />
             </Box>
-            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink?.[900], letterSpacing: '-0.02em' }}>
               Curriculum & Subject Management
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
-              Define department curriculum subjects, allocate credit weights, classify theory/practical/elective modules, and manage semester structures.
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5, maxWidth: 680 }}>
+              Define department curriculum subjects, allocate credit weights, classify theory/practical/elective modules, and manage semester placements.
             </Typography>
           </Box>
 
@@ -350,7 +461,7 @@ export const HodSubjectsHub = () => {
               variant="outlined"
               startIcon={<RefreshOutlined />}
               onClick={() => refetch()}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 2 }}
             >
               Refresh
             </Button>
@@ -358,7 +469,7 @@ export const HodSubjectsHub = () => {
               variant="outlined"
               startIcon={<LibraryAddOutlined />}
               onClick={() => setOpenBulkModal(true)}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 2 }}
             >
               Add Bulk Subjects
             </Button>
@@ -367,11 +478,11 @@ export const HodSubjectsHub = () => {
               startIcon={<AddOutlined />}
               onClick={handleOpen}
               sx={{
-                borderRadius: '8px',
+                borderRadius: '10px',
                 textTransform: 'none',
                 fontWeight: 700,
-                background: theme.palette.primary.gradient || theme.palette.primary.main,
-                color: '#ffffff',
+                px: 2.5,
+                boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
               }}
             >
               Add Single Subject
@@ -383,70 +494,70 @@ export const HodSubjectsHub = () => {
       {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.primary.main}`, boxShadow: 'none' }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
-              CURRICULUM SUBJECTS
+              TOTAL CURRICULUM SUBJECTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : totalSubjects}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink?.[900], mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : totalSubjects}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Total registered in department
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              Registered in active roster
             </Typography>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.primary.main }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.primary.main}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               THEORY MODULES
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.primary.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : theoryCount}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.primary.main, mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : theoryCount}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
               Lecture-based subjects
             </Typography>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.secondary?.main || '#9c27b0' }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.secondary?.main || '#9c27b0'}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               PRACTICAL / LABS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.secondary?.main || '#9c27b0', mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : practicalCount}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.secondary?.main || '#9c27b0', mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : practicalCount}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
               Hands-on lab modules
             </Typography>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.brass?.[500] || '#b8863e' }}>
+          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.warning.main}`, boxShadow: 'none' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               ELECTIVE MODULES
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.brass?.[500] || '#b8863e', mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : electiveCount}
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 0.5 }}>
+              {isLoading ? <CircularProgress size={22} /> : electiveCount}
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Optional / specialized courses
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              Specialized courses
             </Typography>
           </Card>
         </Grid>
       </Grid>
 
       {/* ── 3. Filters & Directory Table ────────────────────────────────── */}
-      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-        <Grid container spacing={2} sx={{ mb: 3 }} alignItems="center">
-          <Grid item xs={12} sm={4}>
+      <Card sx={{ p: { xs: 2, md: 2.5 }, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Grid container spacing={2} sx={{ mb: 2.5 }} alignItems="center">
+          <Grid item xs={12} sm={6} md={3}>
             <TextField
               fullWidth
               size="small"
-              placeholder="Search by subject name or code..."
+              placeholder="Search subject or Code..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               InputProps={{
@@ -455,19 +566,41 @@ export const HodSubjectsHub = () => {
             />
           </Grid>
 
-          <Grid item xs={12} sm={3}>
+          {/* Course Program Filter */}
+          <Grid item xs={12} sm={6} md={2.5}>
             <TextField
               select
               fullWidth
               size="small"
-              label="Branch"
+              label="Course Program"
+              value={selectedCourse}
+              onChange={(e) => {
+                setSelectedCourse(e.target.value);
+                setSelectedBranch('');
+                setSelectedSemester('');
+              }}
+            >
+              <MenuItem value="">All Courses</MenuItem>
+              {hodCourses.map((c) => (
+                <MenuItem key={c._id} value={c._id}>
+                  {c.code} — {c.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+
+          {/* Branch Specialization Filter */}
+          <Grid item xs={12} sm={6} md={2.5}>
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Branch Specialization"
               value={selectedBranch}
               onChange={(e) => setSelectedBranch(e.target.value)}
-              SelectProps={{ displayEmpty: true }}
-              InputLabelProps={{ shrink: true }}
             >
               <MenuItem value="">All Branches</MenuItem>
-              {branches?.map((b) => (
+              {availableBranchesForFilter.map((b) => (
                 <MenuItem key={b._id || b.id} value={b._id || b.id}>
                   {b.name} ({b.code})
                 </MenuItem>
@@ -475,7 +608,8 @@ export const HodSubjectsHub = () => {
             </TextField>
           </Grid>
 
-          <Grid item xs={12} sm={2.5}>
+          {/* Semester Filter bounded by Course Duration */}
+          <Grid item xs={12} sm={6} md={2}>
             <TextField
               select
               fullWidth
@@ -483,11 +617,9 @@ export const HodSubjectsHub = () => {
               label="Semester"
               value={selectedSemester}
               onChange={(e) => setSelectedSemester(e.target.value)}
-              SelectProps={{ displayEmpty: true }}
-              InputLabelProps={{ shrink: true }}
             >
               <MenuItem value="">All Semesters</MenuItem>
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+              {semesterFilterOptions.map((s) => (
                 <MenuItem key={s} value={s}>
                   Semester {s}
                 </MenuItem>
@@ -495,7 +627,8 @@ export const HodSubjectsHub = () => {
             </TextField>
           </Grid>
 
-          <Grid item xs={12} sm={2.5}>
+          {/* Subject Type Filter */}
+          <Grid item xs={12} sm={6} md={2}>
             <TextField
               select
               fullWidth
@@ -503,16 +636,25 @@ export const HodSubjectsHub = () => {
               label="Subject Type"
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              SelectProps={{ displayEmpty: true }}
-              InputLabelProps={{ shrink: true }}
             >
               <MenuItem value="">All Types</MenuItem>
-              <MenuItem value="THEORY">Theory Only</MenuItem>
-              <MenuItem value="PRACTICAL">Practical Only</MenuItem>
-              <MenuItem value="ELECTIVE">Elective Only</MenuItem>
+              <MenuItem value="THEORY">Theory</MenuItem>
+              <MenuItem value="PRACTICAL">Practical</MenuItem>
+              <MenuItem value="ELECTIVE">Elective</MenuItem>
             </TextField>
           </Grid>
         </Grid>
+
+        {isAnyFilterActive && (
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Active Filters applied.
+            </Typography>
+            <Button size="small" startIcon={<ClearOutlined />} onClick={handleClearFilters} sx={{ textTransform: 'none', fontSize: '0.72rem' }}>
+              Clear All Filters
+            </Button>
+          </Box>
+        )}
 
         {isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
@@ -522,7 +664,7 @@ export const HodSubjectsHub = () => {
           <EmptyState
             type="courses"
             title="No Curriculum Subjects Found"
-            description="No subjects match the active search or branch filter criteria."
+            description="No subjects match the active search or filter criteria."
             actionText={isAnyFilterActive ? 'Clear Filters' : 'Add First Subject'}
             onAction={isAnyFilterActive ? handleClearFilters : handleOpen}
           />
@@ -532,16 +674,14 @@ export const HodSubjectsHub = () => {
             data={filteredSubjects}
             isLoading={isLoading}
             isError={isError}
-            onEdit={handleOpenEdit}
-            onDelete={(row) => setDeleteSubjectId(row._id || row.id)}
             emptyMessage="No subjects found."
           />
         )}
       </Card>
 
       {/* ── 4. Add Subject Modal ──────────────────────────────────────────── */}
-      <Dialog open={openModal} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Add New Subject</DialogTitle>
+      <Dialog open={openModal} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px', p: 1 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Add New Curriculum Subject</DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField label="Subject Name" name="name" value={formData.name} onChange={handleChange} required fullWidth placeholder="e.g. Data Structures & Algorithms" />
@@ -564,7 +704,7 @@ export const HodSubjectsHub = () => {
               <Grid item xs={6}>
                 <TextField select label="Degree Course" name="courseId" value={formData.courseId} onChange={handleChange} required fullWidth>
                   <MenuItem value="">Select Course</MenuItem>
-                  {courses?.map((c) => (
+                  {hodCourses.map((c) => (
                     <MenuItem key={c._id || c.id} value={c._id || c.id}>
                       {c.name} ({c.code})
                     </MenuItem>
@@ -592,7 +732,7 @@ export const HodSubjectsHub = () => {
             </TextField>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={handleClose} variant="outlined" sx={{ borderRadius: '8px' }}>Cancel</Button>
+            <Button onClick={handleClose} variant="outlined" sx={{ borderRadius: '8px', fontWeight: 600 }}>Cancel</Button>
             <Button type="submit" variant="contained" disabled={createMutation.isPending} sx={{ borderRadius: '8px', fontWeight: 700 }}>
               {createMutation.isPending ? 'Adding...' : 'Add Subject'}
             </Button>
@@ -601,7 +741,7 @@ export const HodSubjectsHub = () => {
       </Dialog>
 
       {/* ── 5. Edit Subject Modal ─────────────────────────────────────────── */}
-      <Dialog open={openEditModal} onClose={handleCloseEdit} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
+      <Dialog open={openEditModal} onClose={handleCloseEdit} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px', p: 1 } }}>
         <DialogTitle sx={{ fontWeight: 800 }}>Edit Subject Details</DialogTitle>
         <form onSubmit={handleEditSubmit}>
           <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -625,7 +765,7 @@ export const HodSubjectsHub = () => {
               <Grid item xs={6}>
                 <TextField select label="Degree Course" name="courseId" value={editFormData.courseId} onChange={handleEditChange} required fullWidth>
                   <MenuItem value="">Select Course</MenuItem>
-                  {courses?.map((c) => (
+                  {hodCourses.map((c) => (
                     <MenuItem key={c._id || c.id} value={c._id || c.id}>
                       {c.name} ({c.code})
                     </MenuItem>
@@ -653,7 +793,7 @@ export const HodSubjectsHub = () => {
             </TextField>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={handleCloseEdit} variant="outlined" sx={{ borderRadius: '8px' }}>Cancel</Button>
+            <Button onClick={handleCloseEdit} variant="outlined" sx={{ borderRadius: '8px', fontWeight: 600 }}>Cancel</Button>
             <Button type="submit" variant="contained" disabled={updateMutation.isPending} sx={{ borderRadius: '8px', fontWeight: 700 }}>
               {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
@@ -677,7 +817,7 @@ export const HodSubjectsHub = () => {
       <BulkSubjectModal
         open={openBulkModal}
         onClose={() => setOpenBulkModal(false)}
-        deptId={deptId}
+        deptId={cleanDeptId}
         onSuccess={() => refetch()}
       />
     </Box>

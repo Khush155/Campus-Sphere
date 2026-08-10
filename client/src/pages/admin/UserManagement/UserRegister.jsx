@@ -182,6 +182,19 @@ export const UserRegister = ({ open, onClose }) => {
     }
   }, [selectedCourse, courses, setValue]);
 
+  const selectedBranch = watch('branchId');
+
+  // Auto-fill Department from selected Branch's hostingDepartmentId
+  useEffect(() => {
+    if (selectedBranch && branches) {
+      const matchBranch = branches.find((b) => String(b._id) === String(selectedBranch));
+      const homeDeptId = matchBranch?.hostingDepartmentId?._id || matchBranch?.hostingDepartmentId;
+      if (homeDeptId) {
+        setValue('departmentId', String(homeDeptId));
+      }
+    }
+  }, [selectedBranch, branches, setValue]);
+
   const onSubmit = async (data) => {
     try {
       const payload = {
@@ -255,13 +268,14 @@ export const UserRegister = ({ open, onClose }) => {
           {/* Role selector first */}
           <Box>
             <Typography component="label" htmlFor="reg-role-select" sx={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: theme.palette.ink[900], mb: 1 }}>
-              Select Account Role
+              Select Account Role *
             </Typography>
             <TextField
               id="reg-role-select"
               select
               fullWidth
               size="small"
+              value={selectedRole || ''}
               {...register('role')}
               error={!!errors.role}
               helperText={errors.role?.message}
@@ -342,6 +356,7 @@ export const UserRegister = ({ open, onClose }) => {
                     select
                     fullWidth
                     size="small"
+                    value={selectedDept || ''}
                     {...register('departmentId')}
                     error={!!errors.departmentId}
                     helperText={errors.departmentId?.message}
@@ -371,6 +386,7 @@ export const UserRegister = ({ open, onClose }) => {
                         select
                         fullWidth
                         size="small"
+                        value={field.value || ''}
                         error={!!errors.shift}
                         helperText={errors.shift?.message}
                       >
@@ -411,6 +427,7 @@ export const UserRegister = ({ open, onClose }) => {
                       select
                       fullWidth
                       size="small"
+                      value={selectedCourse || ''}
                       {...register('courseId')}
                       error={!!errors.courseId}
                       helperText={errors.courseId?.message}
@@ -435,6 +452,7 @@ export const UserRegister = ({ open, onClose }) => {
                         fullWidth
                         disabled={!selectedCourse}
                         size="small"
+                        value={selectedBranch || ''}
                         {...register('branchId')}
                         error={!!errors.branchId}
                         helperText={errors.branchId?.message}
@@ -460,6 +478,7 @@ export const UserRegister = ({ open, onClose }) => {
                         fullWidth
                         disabled={!selectedCourse}
                         size="small"
+                        value={watch('semester') ?? 1}
                         {...register('semester', { valueAsNumber: true })}
                         error={!!errors.semester}
                         helperText={errors.semester?.message}

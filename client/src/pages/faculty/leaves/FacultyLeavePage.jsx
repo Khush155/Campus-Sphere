@@ -14,6 +14,7 @@ import {
   Chip,
   CircularProgress,
   useTheme,
+  Avatar,
 } from '@mui/material';
 import {
   AddOutlined,
@@ -173,6 +174,15 @@ export const FacultyLeavePage = () => {
     },
   ];
 
+  // Compute Leave Statistics
+  const leaveStats = useMemo(() => {
+    const total = leaveList.length;
+    const approved = leaveList.filter((l) => l.status === 'APPROVED').length;
+    const pending = leaveList.filter((l) => l.status === 'PENDING' || !l.status).length;
+    const rejected = leaveList.filter((l) => l.status === 'REJECTED').length;
+    return { total, approved, pending, rejected };
+  }, [leaveList]);
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
       {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
@@ -237,7 +247,185 @@ export const FacultyLeavePage = () => {
         </Box>
       </Card>
 
-      {/* ── 2. Filters & Leave History Roster ────────────────────────────── */}
+      {/* ── 2. KPI Summary Grid (Faculty Roster Card Style) ───────────────── */}
+      <Grid container spacing={2.5}>
+        {/* 1. Total Applications Card */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+                  TOTAL APPLICATIONS
+                </Typography>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.ink ? theme.palette.ink[900] : 'text.primary',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
+                  {leaveStats.total}
+                </Typography>
+              </Box>
+              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
+                <EventAvailableOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+
+        {/* 2. Approved Leaves Card */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.success || '#10b981'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.success || '#10b981' }}
+                >
+                  APPROVED LEAVES
+                </Typography>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.signal?.success || '#10b981',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
+                  {leaveStats.approved}
+                </Typography>
+              </Box>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.signal?.success || '#10b981'}15`,
+                  color: theme.palette.signal?.success || '#10b981',
+                }}
+              >
+                <EventAvailableOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+
+        {/* 3. Pending HOD Review Card */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.warning?.main || '#f59e0b'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning?.main || '#f59e0b' }}
+                >
+                  PENDING HOD REVIEW
+                </Typography>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.warning?.main || '#f59e0b',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
+                  {leaveStats.pending}
+                </Typography>
+              </Box>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.warning?.main || '#f59e0b'}15`,
+                  color: theme.palette.warning?.main || '#f59e0b',
+                }}
+              >
+                <EventAvailableOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+
+        {/* 4. Rejected / Disapproved Card */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.error || '#ef4444'}`,
+              boxShadow: 'none',
+              bgcolor: theme.palette.background.paper,
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.error || '#ef4444' }}
+                >
+                  REJECTED / DISAPPROVED
+                </Typography>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 800,
+                    color: theme.palette.signal?.error || '#ef4444',
+                    mt: 1,
+                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  }}
+                >
+                  {leaveStats.rejected}
+                </Typography>
+              </Box>
+              <Avatar
+                sx={{
+                  bgcolor: `${theme.palette.signal?.error || '#ef4444'}15`,
+                  color: theme.palette.signal?.error || '#ef4444',
+                }}
+              >
+                <EventAvailableOutlined />
+              </Avatar>
+            </Box>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* ── 3. Filters & Leave History Roster ────────────────────────────── */}
       <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
           <TextField
@@ -245,7 +433,10 @@ export const FacultyLeavePage = () => {
             placeholder="Search leave reason..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            sx={{ minWidth: 260 }}
+            sx={{
+              minWidth: 260,
+              '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+            }}
           />
 
           <TextField
@@ -254,7 +445,10 @@ export const FacultyLeavePage = () => {
             label="Filter Status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            sx={{ minWidth: 180 }}
+            sx={{
+              minWidth: 180,
+              '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+            }}
           >
             <MenuItem value="">All Statuses</MenuItem>
             <MenuItem value="PENDING">Pending Approval</MenuItem>

@@ -37,6 +37,21 @@ const profileFormSchema = z.object({
     .min(1, 'College name is required')
     .max(150, 'College name cannot exceed 150 characters')
     .trim(),
+  institutionCode: z
+    .string()
+    .max(50, 'Institution code cannot exceed 50 characters')
+    .trim()
+    .optional()
+    .or(z.literal('')),
+  establishmentYear: z
+    .union([z.number(), z.string().transform((val) => (val ? Number(val) : undefined))])
+    .optional(),
+  accreditation: z
+    .string()
+    .max(150, 'Accreditation info cannot exceed 150 characters')
+    .trim()
+    .optional()
+    .or(z.literal('')),
   affiliation: z
     .string()
     .max(200, 'Affiliation info cannot exceed 200 characters')
@@ -57,6 +72,12 @@ const profileFormSchema = z.object({
     .or(z.literal(''))
     .or(z.null()),
   contactPhone: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(''))
+    .or(z.null()),
+  website: z
     .string()
     .trim()
     .optional()
@@ -88,15 +109,20 @@ export const CollegeProfile = () => {
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       name: '',
+      institutionCode: '',
+      establishmentYear: 1998,
+      accreditation: '',
       affiliation: '',
       address: '',
       contactEmail: '',
       contactPhone: '',
+      website: '',
     },
   });
 
   const watchName = watch('name');
   const watchAffiliation = watch('affiliation');
+  const watchAccreditation = watch('accreditation');
   const watchAddress = watch('address');
 
   // Load values when query resolves
@@ -104,10 +130,14 @@ export const CollegeProfile = () => {
     if (profile) {
       reset({
         name: profile.name || '',
+        institutionCode: profile.institutionCode || '',
+        establishmentYear: profile.establishmentYear || 1998,
+        accreditation: profile.accreditation || '',
         affiliation: profile.affiliation || '',
         address: profile.address || '',
         contactEmail: profile.contactEmail || '',
         contactPhone: profile.contactPhone || '',
+        website: profile.website || '',
       });
     }
   }, [profile, reset]);
@@ -171,11 +201,17 @@ export const CollegeProfile = () => {
     }
   };
 
+  const [logoError, setLogoError] = useState(false);
+
   const getFullLogoUrl = (relativeUrl) => {
     if (!relativeUrl) return null;
+    if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://') || relativeUrl.startsWith('data:')) {
+      return relativeUrl;
+    }
     const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-    const rootUrl = baseUrl.replace('/api/v1', '');
-    return `${rootUrl}${relativeUrl}`;
+    const rootUrl = baseUrl.replace(/\/api\/v1\/?$/, '');
+    const cleanRelative = relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`;
+    return `${rootUrl}${cleanRelative}`;
   };
 
   if (isLoading) {
@@ -293,28 +329,49 @@ export const CollegeProfile = () => {
             }}
           >
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Institution Details
-              </Typography>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: theme.palette.ink[900], mb: 0.5 }}>
+                  Institutional Identity & Metadata
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Official name, affiliation, establishment year, and accreditation grade.
+                </Typography>
+              </Box>
 
               <Grid container spacing={2.5}>
-                <Grid item xs={12}>
-                  <Typography component="label" htmlFor="college-name-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1, color: theme.palette.ink[900] }}>
+                <Grid item xs={12} sm={8}>
+                  <Typography component="label" htmlFor="college-name-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 0.8, color: theme.palette.ink[900] }}>
                     College Name *
                   </Typography>
                   <TextField
                     id="college-name-input"
                     fullWidth
                     size="small"
+                    placeholder="e.g. CampusSphere Institute of Technology"
                     {...register('name')}
                     error={!!errors.name}
                     helperText={errors.name?.message}
                   />
                 </Grid>
 
-                <Grid item xs={12}>
-                  <Typography component="label" htmlFor="affiliation-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1, color: theme.palette.ink[900] }}>
-                    Affiliation Info
+                <Grid item xs={12} sm={4}>
+                  <Typography component="label" htmlFor="code-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 0.8, color: theme.palette.ink[900] }}>
+                    Institution Code
+                  </Typography>
+                  <TextField
+                    id="code-input"
+                    fullWidth
+                    size="small"
+                    placeholder="e.g. CS-ERP-101"
+                    {...register('institutionCode')}
+                    error={!!errors.institutionCode}
+                    helperText={errors.institutionCode?.message}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Typography component="label" htmlFor="affiliation-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 0.8, color: theme.palette.ink[900] }}>
+                    University Affiliation
                   </Typography>
                   <TextField
                     id="affiliation-input"
@@ -327,17 +384,63 @@ export const CollegeProfile = () => {
                   />
                 </Grid>
 
+                <Grid item xs={12} sm={6}>
+                  <Typography component="label" htmlFor="accreditation-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 0.8, color: theme.palette.ink[900] }}>
+                    Accreditation & Ranking
+                  </Typography>
+                  <TextField
+                    id="accreditation-input"
+                    fullWidth
+                    size="small"
+                    placeholder="e.g. NAAC Grade A+ | NBA Accredited"
+                    {...register('accreditation')}
+                    error={!!errors.accreditation}
+                    helperText={errors.accreditation?.message}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Typography component="label" htmlFor="establishment-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 0.8, color: theme.palette.ink[900] }}>
+                    Establishment Year
+                  </Typography>
+                  <TextField
+                    id="establishment-input"
+                    type="number"
+                    fullWidth
+                    size="small"
+                    placeholder="e.g. 1998"
+                    {...register('establishmentYear')}
+                    error={!!errors.establishmentYear}
+                    helperText={errors.establishmentYear?.message}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Typography component="label" htmlFor="website-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 0.8, color: theme.palette.ink[900] }}>
+                    Official Website URL
+                  </Typography>
+                  <TextField
+                    id="website-input"
+                    fullWidth
+                    size="small"
+                    placeholder="e.g. https://campussphere.edu"
+                    {...register('website')}
+                    error={!!errors.website}
+                    helperText={errors.website?.message}
+                  />
+                </Grid>
+
                 <Grid item xs={12}>
-                  <Typography component="label" htmlFor="address-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1, color: theme.palette.ink[900] }}>
-                    Campus Address
+                  <Typography component="label" htmlFor="address-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 0.8, color: theme.palette.ink[900] }}>
+                    Campus Physical Address
                   </Typography>
                   <TextField
                     id="address-input"
                     fullWidth
                     size="small"
                     multiline
-                    rows={3}
-                    placeholder="Enter full physical address"
+                    rows={2.5}
+                    placeholder="Enter full campus physical address..."
                     {...register('address')}
                     error={!!errors.address}
                     helperText={errors.address?.message}
@@ -345,8 +448,8 @@ export const CollegeProfile = () => {
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
-                  <Typography component="label" htmlFor="contact-email-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1, color: theme.palette.ink[900] }}>
-                    Contact Email
+                  <Typography component="label" htmlFor="contact-email-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 0.8, color: theme.palette.ink[900] }}>
+                    Administrative Contact Email
                   </Typography>
                   <TextField
                     id="contact-email-input"
@@ -360,8 +463,8 @@ export const CollegeProfile = () => {
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
-                  <Typography component="label" htmlFor="contact-phone-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 1, color: theme.palette.ink[900] }}>
-                    Contact Phone
+                  <Typography component="label" htmlFor="contact-phone-input" sx={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, mb: 0.8, color: theme.palette.ink[900] }}>
+                    Administrative Contact Phone
                   </Typography>
                   <TextField
                     id="contact-phone-input"
@@ -419,19 +522,21 @@ export const CollegeProfile = () => {
               Branding & Institutional Seal
             </Typography>
 
-            {/* Current Logo / Preview */}
+            {/* Current Logo / Circular Seal Preview */}
             <Box
               sx={{
-                width: '100%',
-                height: 160,
-                border: `1px dashed ${theme.palette.divider}`,
-                borderRadius: '12px',
+                width: 140,
+                height: 140,
+                mx: 'auto',
+                border: `2px dashed ${theme.palette.primary.main}50`,
+                borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)',
                 position: 'relative',
                 overflow: 'hidden',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
               }}
             >
               {previewUrl ? (
@@ -439,20 +544,21 @@ export const CollegeProfile = () => {
                   component="img"
                   src={previewUrl}
                   alt="New logo preview"
-                  sx={{ width: 'auto', maxHeight: '100%', objectFit: 'contain', p: 1.5 }}
+                  sx={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', p: 0.5 }}
                 />
-              ) : profile?.logoUrl ? (
+              ) : profile?.logoUrl && !logoError ? (
                 <Box
                   component="img"
                   src={getFullLogoUrl(profile.logoUrl)}
                   alt={`${profile?.name} logo`}
-                  sx={{ width: 'auto', maxHeight: '100%', objectFit: 'contain', p: 1.5 }}
+                  onError={() => setLogoError(true)}
+                  sx={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', p: 0.5 }}
                 />
               ) : (
-                <Box sx={{ textAlign: 'center', color: 'text.secondary' }}>
-                  <SchoolOutlined sx={{ fontSize: 36, color: 'text.disabled', mb: 0.5 }} />
-                  <Typography variant="body2" sx={{ fontSize: '0.82rem' }}>
-                    No logo uploaded yet
+                <Box sx={{ textAlign: 'center', color: 'text.secondary', p: 1 }}>
+                  <SchoolOutlined sx={{ fontSize: 38, color: theme.palette.primary.main, mb: 0.5 }} />
+                  <Typography variant="caption" sx={{ fontSize: '0.72rem', display: 'block', fontWeight: 600 }}>
+                    No Logo Seal
                   </Typography>
                 </Box>
               )}
@@ -525,9 +631,9 @@ export const CollegeProfile = () => {
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 1 }}>
                 {previewUrl ? (
-                  <Box component="img" src={previewUrl} alt="Logo" sx={{ height: 36, objectFit: 'contain' }} />
-                ) : profile?.logoUrl ? (
-                  <Box component="img" src={getFullLogoUrl(profile.logoUrl)} alt="Logo" sx={{ height: 36, objectFit: 'contain' }} />
+                  <Box component="img" src={previewUrl} alt="Logo" sx={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover' }} />
+                ) : profile?.logoUrl && !logoError ? (
+                  <Box component="img" src={getFullLogoUrl(profile.logoUrl)} alt="Logo" onError={() => setLogoError(true)} sx={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
                   <SchoolOutlined sx={{ fontSize: 32, color: theme.palette.primary.main }} />
                 )}
@@ -536,8 +642,8 @@ export const CollegeProfile = () => {
               <Typography variant="h6" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 700, fontSize: '1rem', color: theme.palette.ink[900] }}>
                 {watchName || profile?.name || 'CAMPUS SPHERE ACADEMY'}
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.72rem', fontFamily: theme.typography.mono.fontFamily }}>
-                {watchAffiliation || profile?.affiliation || 'Affiliated to State University'}
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.72rem', fontFamily: theme.typography.mono.fontFamily, fontWeight: 600 }}>
+                {[watchAffiliation || profile?.affiliation, watchAccreditation || profile?.accreditation].filter(Boolean).join(' • ') || 'Affiliated to State University'}
               </Typography>
               {watchAddress && (
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.7rem', mt: 0.5 }}>

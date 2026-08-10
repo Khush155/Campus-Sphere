@@ -22,8 +22,8 @@ const academicSessionSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['ACTIVE', 'ARCHIVED'],
-      default: 'ACTIVE',
+      enum: ['ACTIVE', 'UPCOMING', 'ARCHIVED'],
+      default: 'UPCOMING',
     },
   },
   {

@@ -98,7 +98,7 @@ beforeEach(async () => {
   // 5. Create a Subject (type must be THEORY|PRACTICAL|SESSIONAL, branchId required)
   const subject = await Subject.create({
     name: 'Data Structures',
-    code: 'CS201',
+    sequenceNo: 1,
     credits: 4,
     type: 'THEORY',
     branchId: branch._id,

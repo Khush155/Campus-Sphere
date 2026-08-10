@@ -44,10 +44,16 @@ const timeToHours = (timeStr) => {
   return (hours || 0) + (mins || 0) / 60;
 };
 
-export const TimetableGrid = ({ timetableData = [] }) => {
+export const TimetableGrid = ({ timetableData = [], defaultShift = 'MORNING', hideShiftToggle = false }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
-  const [activeShift, setActiveShift] = useState('MORNING');
+  const [activeShift, setActiveShift] = useState(defaultShift);
+
+  React.useEffect(() => {
+    if (defaultShift) {
+      setActiveShift(defaultShift);
+    }
+  }, [defaultShift]);
 
   const activePeriods = activeShift === 'MORNING' ? MORNING_PERIODS : EVENING_PERIODS;
 
@@ -55,7 +61,8 @@ export const TimetableGrid = ({ timetableData = [] }) => {
     <Paper id="timetable-print-area" sx={{ borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', overflowX: 'auto', bgcolor: isDark ? 'background.paper' : '#ffffff' }}>
       <Box sx={{ minWidth: 1000, p: 2.5 }}>
         {/* Shift Selector Toolbar */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5, className: 'no-print' }}>
+        {!hideShiftToggle && (
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5, className: 'no-print' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.secondary' }}>
               ACADEMIC SHIFT:
@@ -118,6 +125,7 @@ export const TimetableGrid = ({ timetableData = [] }) => {
             {activeShift === 'MORNING' ? '60 Mins per Class • Lunch 1-2 PM' : '50 Mins per Class • Recess 7:30-7:50 PM'}
           </Typography>
         </Box>
+        )}
 
         {/* Header Row: Period Title + Days of Week */}
         <Box sx={{ display: 'grid', gridTemplateColumns: `160px repeat(${DAYS.length}, 1fr)`, gap: 1.5, mb: 2 }}>

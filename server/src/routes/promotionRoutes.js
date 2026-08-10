@@ -9,7 +9,7 @@ const ROLES = require('../constants/roles');
 const router = express.Router();
 
 router.use(authMiddleware);
-router.use(roleMiddleware(ROLES.SUPER_ADMIN));
+router.use(roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD));
 
 router.post('/preview', validate(promotionSchema), promotionController.previewPromotion);
 router.post('/execute', validate(promotionSchema), promotionController.executePromotion);

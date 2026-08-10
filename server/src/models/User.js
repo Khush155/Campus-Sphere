@@ -67,6 +67,12 @@ const userSchema = new mongoose.Schema(
       required: false,
     },
     // Academic profile fields (primarily for STUDENT role)
+    admissionYear: {
+      type: Number,
+      min: [2000, 'Admission year must be at least 2000'],
+      max: [2100, 'Admission year cannot exceed 2100'],
+      required: false,
+    },
     rollNumber: {
       type: String,
       unique: true,
@@ -151,6 +157,9 @@ userSchema.pre('save', async function (next) {
 
 // Instance method to compare candidate password with hashed password in database
 userSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!candidatePassword || !this.password) {
+    return false;
+  }
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

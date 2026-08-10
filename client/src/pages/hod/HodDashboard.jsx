@@ -54,7 +54,7 @@ export const HodDashboard = () => {
   });
   const { data: depts } = useDepartmentsQuery();
   const { data: activeSession } = useActiveSessionQuery();
-  const { data: recentNotices, isLoading: loadingNotices } = useRecentNoticesQuery(5);
+  const { data: recentNotices, isLoading: loadingNotices } = useRecentNoticesQuery();
 
   const deptInfo = depts?.find((d) => String(d._id) === String(user?.departmentId));
 
@@ -327,7 +327,7 @@ export const HodDashboard = () => {
               path: '/hod/placements',
             },
           ].map((act) => (
-            <Grid item xs={12} sm={6} md={4} key={act.title}>
+            <Grid item xs={12} sm={6} md={4} key={act.title} sx={{ display: 'flex' }}>
               <Paper
                 onClick={() => navigate(act.path)}
                 sx={{
@@ -340,6 +340,7 @@ export const HodDashboard = () => {
                   boxShadow: 'none',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
+                  width: '100%',
                   '&:hover': {
                     borderColor: theme.palette.primary.main,
                     bgcolor: `${theme.palette.primary.main}06`,
@@ -347,10 +348,10 @@ export const HodDashboard = () => {
                   },
                 }}
               >
-                <Avatar sx={{ bgcolor: `${theme.palette.primary.main}12`, color: theme.palette.primary.main }}>
+                <Avatar sx={{ bgcolor: `${theme.palette.primary.main}12`, color: theme.palette.primary.main, flexShrink: 0 }}>
                   {act.icon}
                 </Avatar>
-                <Box sx={{ flex: 1 }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
                     {act.title}
                   </Typography>
@@ -358,7 +359,7 @@ export const HodDashboard = () => {
                     {act.desc}
                   </Typography>
                 </Box>
-                <ArrowForwardOutlined sx={{ fontSize: 18, color: theme.palette.text.secondary }} />
+                <ArrowForwardOutlined sx={{ fontSize: 18, color: theme.palette.text.secondary, flexShrink: 0 }} />
               </Paper>
             </Grid>
           ))}
@@ -422,60 +423,104 @@ export const HodDashboard = () => {
         </Grid>
 
         <Grid item xs={12} md={7}>
-          <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', height: '100%' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Card sx={{
+            borderRadius: '16px',
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: 'none',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}>
+            {/* Fixed Header */}
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              p: 3,
+              pb: 2,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              flexShrink: 0,
+            }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <NotificationsOutlined sx={{ color: theme.palette.primary.main }} />
                 <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
-                  Recent Institutional Notices
+                  Recent Notices
                 </Typography>
               </Box>
-              <Button size="small" onClick={() => navigate('/hod/notices')} sx={{ textTransform: 'none', fontWeight: 700 }}>
-                View All Notices
-              </Button>
+              {recentNotices && recentNotices.length > 0 && (
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
+                  {recentNotices.length} notice{recentNotices.length !== 1 ? 's' : ''}
+                </Typography>
+              )}
             </Box>
 
-            {loadingNotices ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                <CircularProgress size={28} />
-              </Box>
-            ) : !recentNotices || recentNotices.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
-                No active announcements at this time.
-              </Typography>
-            ) : (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                {recentNotices.slice(0, 4).map((n) => (
-                  <Paper
-                    key={n._id}
-                    onClick={() => navigate('/hod/notices')}
-                    sx={{
-                      p: 2,
-                      borderRadius: '10px',
-                      border: `1px solid ${theme.palette.divider}`,
-                      boxShadow: 'none',
-                      cursor: 'pointer',
-                      '&:hover': { bgcolor: `${theme.palette.primary.main}04` },
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
-                        {n.title}
+            {/* Latest notices */}
+            <Box sx={{ flex: 1, p: 2 }}>
+              {loadingNotices ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                  <CircularProgress size={28} />
+                </Box>
+              ) : !recentNotices || recentNotices.length === 0 ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4, gap: 1 }}>
+                  <NotificationsOutlined sx={{ fontSize: 36, color: theme.palette.text.disabled }} />
+                  <Typography variant="body2" color="text.secondary">
+                    No active announcements at this time.
+                  </Typography>
+                </Box>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {recentNotices.map((n, idx) => (
+                    <Paper
+                      key={n._id || n.id || `notice-${idx}`}
+                      onClick={() => navigate('/hod/notices')}
+                      sx={{
+                        p: 2,
+                        borderRadius: '10px',
+                        border: `1px solid ${theme.palette.divider}`,
+                        boxShadow: 'none',
+                        cursor: 'pointer',
+                        transition: 'background 0.15s',
+                        '&:hover': { bgcolor: `${theme.palette.primary.main}06`, borderColor: theme.palette.primary.main },
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5, gap: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.ink[900], flex: 1, lineHeight: 1.3 }}>
+                          {n.title}
+                        </Typography>
+                        <Chip
+                          label={n.priority || 'NORMAL'}
+                          size="small"
+                          color={n.priority === 'URGENT' ? 'error' : n.priority === 'IMPORTANT' ? 'warning' : 'default'}
+                          sx={{ fontWeight: 800, fontSize: '0.6rem', height: 18, flexShrink: 0 }}
+                        />
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {n.content}
                       </Typography>
-                      <Chip
-                        label={n.priority || 'NORMAL'}
-                        size="small"
-                        color={n.priority === 'URGENT' ? 'error' : n.priority === 'IMPORTANT' ? 'warning' : 'default'}
-                        sx={{ fontWeight: 800, fontSize: '0.6rem', height: 18 }}
-                      />
-                    </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {n.content}
-                    </Typography>
-                  </Paper>
-                ))}
-              </Box>
-            )}
+                    </Paper>
+                  ))}
+                </Box>
+              )}
+            </Box>
+
+            {/* Sticky Footer CTA */}
+            <Box sx={{
+              p: 2,
+              pt: 1.5,
+              borderTop: `1px solid ${theme.palette.divider}`,
+              flexShrink: 0,
+            }}>
+              <Button
+                fullWidth
+                variant="outlined"
+                size="small"
+                onClick={() => navigate('/hod/notices')}
+                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
+              >
+                View All Notices →
+              </Button>
+            </Box>
           </Card>
         </Grid>
       </Grid>

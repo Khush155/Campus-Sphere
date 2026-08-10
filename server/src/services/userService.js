@@ -375,6 +375,39 @@ const deleteUserAccount = async (userId, adminUserId, meta, actorRole) => {
 };
 
 /**
+ * Permanently and irreversibly deletes a user from the database.
+ * Requires SUPER_ADMIN. Logs an audit event before deletion.
+ */
+const permanentlyDeleteUser = async (userId, adminUserId, meta, actorRole) => {
+  if (String(userId) === String(adminUserId)) {
+    throw new AppError('You cannot permanently delete your own account.', 403, ERROR_CODES.FORBIDDEN);
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError('User not found.', 404, ERROR_CODES.NOT_FOUND);
+  }
+
+  assertNoPrivilegeEscalation({ actorRole, targetCurrentRole: user.role });
+
+  // Log before deletion so audit trail is preserved
+  await logAuditEvent({
+    actorId: adminUserId,
+    action: 'USER_PERMANENTLY_DELETED',
+    targetId: user._id,
+    targetModel: 'User',
+    before: { name: user.name, email: user.email, role: user.role, status: user.status },
+    after: null,
+    meta,
+  });
+
+  await User.findByIdAndDelete(userId);
+
+  logger.info(`[User Permanently Deleted] ID: ${userId} - Actioned By: ${adminUserId}`);
+  return true;
+};
+
+/**
  * Returns the last 8 audit logs populated with actor info.
  */
 const getAuditLogsList = async () => {
@@ -644,14 +677,20 @@ const getMyProfile = async (userId) => {
     const Faculty = require('../models/Faculty');
     profileMeta = await Faculty.findOne({ userId: user._id }).populate('subjects departmentId');
   } else if (user.role === 'STUDENT') {
-    const Student = require('../models/Student');
-    profileMeta = await Student.findOne({ userId: user._id }).populate('courseId branchId departmentId');
+    profileMeta = {
+      rollNumber: user.rollNumber,
+      course: user.course,
+      branch: user.branch,
+      semester: user.semester,
+      group: user.group,
+      shift: user.shift,
+    };
   }
   return { user, profileMeta };
 };
 
 const updateMyProfile = async (userId, data) => {
-  const user = await User.findById(userId);
+  const user = await User.findById(userId).select('+password');
   if (!user) {
     throw new AppError('User account not found.', 404, ERROR_CODES.NOT_FOUND);
   }
@@ -672,12 +711,20 @@ const updateMyProfile = async (userId, data) => {
     newPassword,
   } = data;
 
-  if (!currentPassword) {
-    throw new AppError('Current password is required to save profile changes.', 400, ERROR_CODES.VALIDATION_ERROR);
-  }
-  const isMatch = await user.comparePassword(currentPassword);
-  if (!isMatch) {
-    throw new AppError('Current password is incorrect.', 400, ERROR_CODES.INVALID_CREDENTIALS);
+  // Only require current-password verification when the user is changing their password.
+  // Low-stakes edits (photo, bio, preferences, emergency contacts) must not require re-auth.
+  if (newPassword && newPassword.trim().length > 0) {
+    if (!currentPassword) {
+      throw new AppError('Current password is required to set a new password.', 400, ERROR_CODES.VALIDATION_ERROR);
+    }
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      throw new AppError('Current password is incorrect.', 400, ERROR_CODES.INVALID_CREDENTIALS);
+    }
+    if (newPassword.trim().length < 6) {
+      throw new AppError('New password must be at least 6 characters.', 400, ERROR_CODES.VALIDATION_ERROR);
+    }
+    user.password = newPassword;
   }
 
   if (name !== undefined) { user.name = name.trim(); }
@@ -692,12 +739,6 @@ const updateMyProfile = async (userId, data) => {
   if (emergencyContactPhone !== undefined) { user.emergencyContactPhone = emergencyContactPhone.trim(); }
   if (notificationPreference !== undefined) { user.notificationPreference = notificationPreference; }
 
-  if (newPassword && newPassword.trim().length > 0) {
-    if (newPassword.trim().length < 6) {
-      throw new AppError('New password must be at least 6 characters.', 400, ERROR_CODES.VALIDATION_ERROR);
-    }
-    user.password = newPassword;
-  }
   await user.save();
   const updatedUser = await User.findById(userId).select('-password').populate('departmentId', 'name code');
   return updatedUser;
@@ -708,6 +749,7 @@ module.exports = {
   getUserDetails,
   updateUserDetails,
   deleteUserAccount,
+  permanentlyDeleteUser,
   getAuditLogsList,
   getInstitutionalInsights,
   checkHodConflict,

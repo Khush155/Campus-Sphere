@@ -1,6 +1,14 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
 const env = require('./env');
 const logger = require('../utils/logger');
+
+// Set public DNS fallback for MongoDB SRV record lookups
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+  // Ignore if already set
+}
 
 let isConnected = false;
 

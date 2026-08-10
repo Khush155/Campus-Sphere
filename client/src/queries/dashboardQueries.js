@@ -46,12 +46,19 @@ export const useDashboardInsightsQuery = () =>
     retry: 1,
   });
 
+/**
+ * Fetches the recent notice feed for the current authenticated user.
+ * Uses /notices/feed which is accessible to ALL roles (HOD, Faculty, Student, Admin).
+ * The feed is scoped to the user's role and department targeting rules.
+ */
 export const useRecentNoticesQuery = (options = {}) =>
   useQuery({
-    queryKey: ['dashboard', 'recent-notices'],
+    queryKey: ['notices', 'feed', 'recent'],
     queryFn: async () => {
-      const res = await api.get('/admin/dashboard/recent-notices');
-      return res.data.data;
+      const res = await api.get('/notices/feed', { params: { limit: 2, page: 1 } });
+      // feed returns { data: { notices: [...], meta: {...} } } or { data: [...] }
+      const payload = res.data.data;
+      return Array.isArray(payload) ? payload : payload?.notices ?? [];
     },
     retry: 1,
     ...options,

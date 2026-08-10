@@ -10,11 +10,10 @@ export const useMyProfileQuery = () => {
     queryFn: async () => {
       const response = await api.get('/users/me');
       const data = response.data?.data;
+      // Preserve { user, profileMeta } nesting so consumers can read profileData.user
+      // Previously this was spread-flattened, which broke profileData?.user lookups
       if (data && data.user) {
-        return {
-          ...data.user,
-          profileMeta: data.profileMeta,
-        };
+        return { user: data.user, profileMeta: data.profileMeta };
       }
       return data;
     },

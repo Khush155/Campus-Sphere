@@ -7,10 +7,14 @@ const ROLES = require('../constants/roles');
 
 const router = express.Router();
 
-// Guard route for SUPER_ADMIN only
-const superAdminGuard = [authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN)];
+// Guard route for Admin access (SUPER_ADMIN and COLLEGE_ADMIN)
+const adminGuard = [
+  authMiddleware,
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN),
+];
 
-router.get('/', superAdminGuard, asyncHandler(auditLogController.getAuditLogs));
-router.get('/actions', superAdminGuard, asyncHandler(auditLogController.getDistinctActions));
+router.get('/', adminGuard, asyncHandler(auditLogController.getAuditLogs));
+router.get('/actions', adminGuard, asyncHandler(auditLogController.getDistinctActions));
+router.get('/targets', adminGuard, asyncHandler(auditLogController.getDistinctTargetModels));
 
 module.exports = router;

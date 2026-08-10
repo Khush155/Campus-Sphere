@@ -52,6 +52,45 @@ const STATUS_OPTIONS = [
   { value: 'ESCALATED', label: 'Escalated' },
 ];
 
+const KpiCard = ({ title, value, subtitle, accentColor, icon }) => {
+  const theme = useTheme();
+  return (
+    <Card
+      sx={{
+        p: 2.5,
+        borderRadius: '14px',
+        border: `1px solid ${theme.palette.divider}`,
+        borderTop: `4px solid ${accentColor}`,
+        boxShadow: 'none',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: '0 6px 20px rgba(0,0,0,0.04)',
+        },
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.06em', color: accentColor, textTransform: 'uppercase', fontSize: '0.65rem' }}>
+          {title}
+        </Typography>
+        {icon && <Box sx={{ color: accentColor, opacity: 0.8 }}>{icon}</Box>}
+      </Box>
+      <Typography variant="h3" sx={{ fontWeight: 900, color: accentColor, mt: 1, fontFamily: 'monospace', lineHeight: 1.1 }}>
+        {value}
+      </Typography>
+      {subtitle && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          {subtitle}
+        </Typography>
+      )}
+    </Card>
+  );
+};
+
 export const HodComplaintsHub = () => {
   const theme = useTheme();
   const { showToast } = useToast();
@@ -297,73 +336,53 @@ export const HodComplaintsHub = () => {
       {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
-              TOTAL TICKETS
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.total}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Registered grievances
-            </Typography>
-          </Card>
+          <KpiCard
+            title="TOTAL TICKETS"
+            value={isLoading ? <CircularProgress size={24} /> : stats.total}
+            subtitle="Registered grievances"
+            accentColor={theme.palette.ink[900]}
+            icon={<ReportProblemOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
-              OPEN TICKETS
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.open}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Pending investigation
-            </Typography>
-          </Card>
+          <KpiCard
+            title="OPEN TICKETS"
+            value={isLoading ? <CircularProgress size={24} /> : stats.open}
+            subtitle="Pending investigation"
+            accentColor={theme.palette.warning.main}
+            icon={<WarningAmberOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info?.main || '#0288d1' }}>
-              IN PROGRESS
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info?.main || '#0288d1', mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.inProgress}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Under active review
-            </Typography>
-          </Card>
+          <KpiCard
+            title="IN PROGRESS"
+            value={isLoading ? <CircularProgress size={24} /> : stats.inProgress}
+            subtitle="Under active review"
+            accentColor={theme.palette.info?.main || '#0288d1'}
+            icon={<AccessTimeOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
-              RESOLVED TICKETS
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.resolved}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Successfully resolved
-            </Typography>
-          </Card>
+          <KpiCard
+            title="RESOLVED TICKETS"
+            value={isLoading ? <CircularProgress size={24} /> : stats.resolved}
+            subtitle="Successfully resolved"
+            accentColor={theme.palette.signal.success}
+            icon={<CheckCircleOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
 
         <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
-              SLA BREACHED
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
-              {isLoading ? <CircularProgress size={24} /> : stats.slaBreach}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-              Overdue resolution time
-            </Typography>
-          </Card>
+          <KpiCard
+            title="SLA BREACHED"
+            value={isLoading ? <CircularProgress size={24} /> : stats.slaBreach}
+            subtitle="Overdue resolution time"
+            accentColor={theme.palette.signal.error}
+            icon={<WarningAmberOutlined sx={{ fontSize: 20 }} />}
+          />
         </Grid>
       </Grid>
 

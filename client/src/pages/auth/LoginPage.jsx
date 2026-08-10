@@ -55,11 +55,17 @@ export const LoginPage = () => {
 
   const { data: profile } = useCollegeProfileQuery();
 
+  const [logoError, setLogoError] = useState(false);
+
   const getFullLogoUrl = (relativeUrl) => {
     if (!relativeUrl) return null;
+    if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://') || relativeUrl.startsWith('data:')) {
+      return relativeUrl;
+    }
     const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-    const rootUrl = baseUrl.replace('/api/v1', '');
-    return `${rootUrl}${relativeUrl}`;
+    const rootUrl = baseUrl.replace(/\/api\/v1\/?$/, '');
+    const cleanRelative = relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`;
+    return `${rootUrl}${cleanRelative}`;
   };
 
   const hasCustomProfile = profile && profile.name && profile.name !== 'My College';
@@ -270,12 +276,13 @@ export const LoginPage = () => {
 
         {/* Wordmark and Tagline */}
         <Box sx={{ zIndex: 2 }}>
-          {hasCustomProfile && profile.logoUrl ? (
+          {hasCustomProfile && profile.logoUrl && !logoError ? (
             <Box
               component="img"
               src={getFullLogoUrl(profile.logoUrl)}
               alt="College Logo"
-              sx={{ width: 64, height: 64, objectFit: 'contain', mb: 2 }}
+              onError={() => setLogoError(true)}
+              sx={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', mb: 2, boxShadow: '0 4px 14px rgba(0,0,0,0.15)' }}
             />
           ) : null}
           <Typography

@@ -46,9 +46,29 @@ const activateSession = async (req, res, _next) => {
   return successResponse(res, 200, 'Academic session activated successfully.', session);
 };
 
+/**
+ * Controller to delete an academic session.
+ */
+const deleteSession = async (req, res, _next) => {
+  const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
+  const session = await academicSessionService.deleteSession(req.params.id, req.user.id, meta);
+  return successResponse(res, 200, 'Academic session deleted successfully.', session);
+};
+
+/**
+ * Controller to update an existing academic session.
+ */
+const updateSession = async (req, res, _next) => {
+  const meta = { ipAddress: req.ip || req.headers['x-forwarded-for'], userAgent: req.headers['user-agent'] };
+  const session = await academicSessionService.updateSession(req.params.id, req.body, req.user.id, meta);
+  return successResponse(res, 200, 'Academic session updated successfully.', session);
+};
+
 module.exports = {
   createSession,
   getSessions,
   getActiveSession,
   activateSession,
+  updateSession,
+  deleteSession,
 };
