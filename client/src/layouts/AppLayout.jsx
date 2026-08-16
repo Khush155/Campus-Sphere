@@ -211,7 +211,7 @@ export const AppLayout = () => {
         { text: 'Attendance', icon: <FactCheckIcon />, path: '/student/attendance', roles: ['STUDENT'] },
         { text: 'Examinations', icon: <ArticleIcon />, path: '/student/examinations', roles: ['STUDENT'] },
         { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['STUDENT'] },
-        { text: 'Notices', icon: <CampaignIcon />, path: '/notices', roles: ['STUDENT'] },
+        { text: 'Notices', icon: <CampaignIcon />, path: '/student/notices', roles: ['STUDENT'] },
         { text: 'Projects', icon: <FolderIcon />, path: '/student/projects', roles: ['STUDENT'] },
         { text: 'Placements', icon: <WorkIcon />, path: '/student/placements', roles: ['STUDENT'] },
         { text: 'Library', icon: <LocalLibraryIcon />, path: '/student/library', roles: ['STUDENT'] },

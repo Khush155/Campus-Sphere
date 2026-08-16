@@ -668,7 +668,11 @@ const importStudents = async (fileBuffer, actorId, req) => {
 };
 
 const getMyProfile = async (userId) => {
-  const user = await User.findById(userId).select('-password').populate('departmentId', 'name code');
+  const user = await User.findById(userId)
+    .select('-password')
+    .populate('departmentId', 'name code')
+    .populate('courseId', 'name code')
+    .populate('branchId', 'name code');
   if (!user) {
     throw new AppError('User account not found.', 404, ERROR_CODES.NOT_FOUND);
   }
@@ -679,8 +683,8 @@ const getMyProfile = async (userId) => {
   } else if (user.role === 'STUDENT') {
     profileMeta = {
       rollNumber: user.rollNumber,
-      course: user.course,
-      branch: user.branch,
+      course: user.courseId?.name || user.courseId?.code || '',
+      branch: user.branchId?.name || user.branchId?.code || '',
       semester: user.semester,
       group: user.group,
       shift: user.shift,

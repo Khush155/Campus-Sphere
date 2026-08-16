@@ -185,19 +185,24 @@ const finalizeApplication = async (appId, finalizeData, actor, req) => {
 const getApplications = async (queryOptions, actor) => {
   const { driveId, finalStatus, isNocIssued } = queryOptions;
 
-  // Find all drives for the department
-  const driveFilters = {};
+  const filters = {};
+
   if (actor.role === ROLES.HOD) {
-    driveFilters.departmentIds = actor.departmentId;
-  }
-  if (driveId) {
-    driveFilters._id = driveId;
+    const driveFilters = { departmentIds: actor.departmentId };
+    if (driveId) {
+      driveFilters._id = driveId;
+    }
+    const drives = await PlacementDrive.find(driveFilters).select('_id');
+    filters.driveId = { $in: drives.map(d => d._id) };
+  } else if (actor.role === ROLES.STUDENT) {
+    filters.studentId = actor.id;
+    if (driveId) {
+      filters.driveId = driveId;
+    }
+  } else if (driveId) {
+    filters.driveId = driveId;
   }
 
-  const drives = await PlacementDrive.find(driveFilters).select('_id');
-  const driveIds = drives.map(d => d._id);
-
-  const filters = { driveId: { $in: driveIds } };
   if (finalStatus) {
     filters.finalStatus = finalStatus;
   }
@@ -209,7 +214,7 @@ const getApplications = async (queryOptions, actor) => {
     ...queryOptions,
     populate: [
       { path: 'studentId', select: 'name email rollNumber cgpa activeBacklogs' },
-      { path: 'driveId', select: 'companyName role driveType' }
+      { path: 'driveId', select: 'companyName role driveType packageInfo selectionProcess eligibilityCriteria driveDate applicationDeadline status' }
     ],
     sort: { createdAt: -1 }
   });

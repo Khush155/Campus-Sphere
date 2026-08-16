@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Box,
   Container,
@@ -21,23 +21,42 @@ import {
   EmojiEventsOutlined as PassIcon,
 } from '@mui/icons-material';
 
+import { useAuth } from '../../contexts/AuthContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
+import { useStudentGpaQuery, useStudentExaminationsQuery } from '../../queries/studentQueries';
 
 export const StudentExaminationsPage = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
+  const { user } = useAuth();
   const { data: profile } = useMyProfileQuery();
 
+  const currentUser = profile?.user || user;
   const studentMeta = profile?.profileMeta || {};
 
-  // Sample examination marks data
-  const examRecords = [
-    { code: 'CS601', name: 'Advanced Operating Systems', internal: 24, midTerm: 42, maxMarks: 50, grade: 'A+', status: 'PASSED' },
-    { code: 'CS602', name: 'Database Management Systems', internal: 22, midTerm: 40, maxMarks: 50, grade: 'A', status: 'PASSED' },
-    { code: 'CS603', name: 'Computer Networks & Security', internal: 21, midTerm: 38, maxMarks: 50, grade: 'B+', status: 'PASSED' },
-    { code: 'CS604', name: 'Software Engineering & Design', internal: 25, midTerm: 45, maxMarks: 50, grade: 'O', status: 'PASSED' },
-    { code: 'CS605', name: 'Web Technology Lab', internal: 25, midTerm: 48, maxMarks: 50, grade: 'O', status: 'PASSED' },
-  ];
+  const studentId = currentUser?._id || currentUser?.id;
+  const { data: gpaData, isLoading: isGpaLoading } = useStudentGpaQuery(studentId);
+  const { data: examinationsList = [], isLoading: isExamsLoading } = useStudentExaminationsQuery();
+
+  const gradeBreakdown = gpaData?.gradeBreakdown || [];
+  const gpaValue = gpaData?.gpa !== undefined && gpaData?.gpa !== null ? Number(gpaData.gpa).toFixed(2) : null;
+
+  const resultStatusLabel = useMemo(() => {
+    if (gpaData?.gpa === undefined || gpaData?.gpa === null) return 'EVALUATION PENDING';
+    if (gpaData.gpa >= 8.5) return 'PASSED WITH DISTINCTION';
+    if (gpaData.gpa >= 6.0) return 'PASSED';
+    if (gpaData.gpa > 0) return 'NEED IMPROVEMENT';
+    return 'EVALUATION PENDING';
+  }, [gpaData]);
+
+  const resultStatusColor = useMemo(() => {
+    if (gpaData?.gpa === undefined || gpaData?.gpa === null) return 'info';
+    if (gpaData.gpa >= 6.0) return 'success';
+    if (gpaData.gpa > 0) return 'warning';
+    return 'info';
+  }, [gpaData]);
+
+  const isLoading = isGpaLoading || isExamsLoading;
 
   return (
     <Container maxWidth="xl" sx={{ py: 3.5 }}>
@@ -73,7 +92,7 @@ export const StudentExaminationsPage = () => {
                   CURRENT SEMESTER GPA
                 </Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                  8.85 / 10.0
+                  {gpaValue !== null ? `${gpaValue} / 10.0` : 'N/A'}
                 </Typography>
               </Box>
             </Box>
@@ -98,7 +117,7 @@ export const StudentExaminationsPage = () => {
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
                   ACADEMIC RESULT STATUS
                 </Typography>
-                <Chip label="PASSED WITH DISTINCTION" color="success" sx={{ fontWeight: 800, mt: 0.5 }} />
+                <Chip label={resultStatusLabel} color={resultStatusColor} sx={{ fontWeight: 800, mt: 0.5 }} />
               </Box>
             </Box>
           </Paper>
@@ -123,7 +142,7 @@ export const StudentExaminationsPage = () => {
                   EVALUATED SUBJECTS
                 </Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                  5 / 5
+                  {gradeBreakdown.length} / {gradeBreakdown.length || (Array.isArray(examinationsList) ? examinationsList.length : 0) || 0}
                 </Typography>
               </Box>
             </Box>
@@ -152,33 +171,47 @@ export const StudentExaminationsPage = () => {
             <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: 800 }}>SUBJECT CODE & NAME</TableCell>
-                <TableCell sx={{ fontWeight: 800 }}>INTERNAL MARKS (25)</TableCell>
-                <TableCell sx={{ fontWeight: 800 }}>MID-TERM MARKS (50)</TableCell>
+                <TableCell sx={{ fontWeight: 800 }}>CREDITS</TableCell>
+                <TableCell sx={{ fontWeight: 800 }}>GRADE POINT</TableCell>
                 <TableCell sx={{ fontWeight: 800 }}>GRADE</TableCell>
                 <TableCell sx={{ fontWeight: 800 }}>RESULT STATUS</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {examRecords.map((row) => (
-                <TableRow key={row.code} hover>
-                  <TableCell>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                      {row.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {row.code}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{row.internal} / 25</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{row.midTerm} / 50</TableCell>
-                  <TableCell>
-                    <Chip label={row.grade} color="primary" size="small" sx={{ fontWeight: 800 }} />
-                  </TableCell>
-                  <TableCell>
-                    <Chip label={row.status} color="success" size="small" sx={{ fontWeight: 800 }} />
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 4, fontWeight: 600 }}>
+                    Loading examination grade sheet...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : gradeBreakdown.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary', fontWeight: 600 }}>
+                    No published evaluation results recorded yet for this semester.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                gradeBreakdown.map((row, idx) => (
+                  <TableRow key={row.subjectCode || idx} hover>
+                    <TableCell>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                        {row.subjectName}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {row.subjectCode}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>{row.credits} Credits</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>{row.gradePoint} / 10</TableCell>
+                    <TableCell>
+                      <Chip label={row.grade || 'A'} color="primary" size="small" sx={{ fontWeight: 800 }} />
+                    </TableCell>
+                    <TableCell>
+                      <Chip label="PASSED" color="success" size="small" sx={{ fontWeight: 800 }} />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>

@@ -47,9 +47,11 @@ const getComplaints = async (queryOptions, actor) => {
     filters.slaBreached = slaBreached === 'true' || slaBreached === true;
   }
 
-  // Enforce HOD department boundaries
+  // Enforce role boundaries
   if (actor.role === ROLES.HOD) {
     filters.departmentId = actor.departmentId;
+  } else if (actor.role === ROLES.STUDENT) {
+    filters.submittedBy = actor.id;
   }
 
   // Auto-check SLA breaches on fetch

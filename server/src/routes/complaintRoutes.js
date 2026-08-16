@@ -19,7 +19,7 @@ router.post(
 
 router.get(
   '/',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD, ROLES.STUDENT),
   complaintController.getComplaints
 );
 

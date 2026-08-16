@@ -22,22 +22,60 @@ import {
   DownloadOutlined as DownloadIcon,
 } from '@mui/icons-material';
 
+import { useAuth } from '../../contexts/AuthContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
 
 export const StudentFeesPage = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
-  const { data: profile } = useMyProfileQuery();
+  const { user: authUser } = useAuth();
+  const { data: profile, isLoading } = useMyProfileQuery();
 
+  const currentUser = profile?.user || authUser;
   const studentMeta = profile?.profileMeta || {};
 
-  const feeItems = [
-    { head: 'Semester Tuition Fee', amount: '₹ 45,000', status: 'PAID', date: '2026-07-15' },
-    { head: 'Laboratory & Computer Facility Fee', amount: '₹ 8,500', status: 'PAID', date: '2026-07-15' },
-    { head: 'Library & Learning Resources Fee', amount: '₹ 3,000', status: 'PAID', date: '2026-07-15' },
-    { head: 'Examination & Assessment Fee', amount: '₹ 2,500', status: 'PAID', date: '2026-07-15' },
-    { head: 'Campus Development Fund', amount: '₹ 4,000', status: 'PAID', date: '2026-07-15' },
+  const feeStatus = currentUser?.feeStatus || 'CLEARED';
+  const feeDues = currentUser?.feeDues || { tuition: 0, hostel: 0, library: 0, lab: 0 };
+  const noDuesIssuedAt = currentUser?.noDuesIssuedAt;
+
+  const totalDues =
+    Number(feeDues.tuition || 0) +
+    Number(feeDues.hostel || 0) +
+    Number(feeDues.library || 0) +
+    Number(feeDues.lab || 0);
+
+  const clearanceLabel =
+    feeStatus === 'OVERDUE'
+      ? 'FEE OVERDUE'
+      : feeStatus === 'PENDING' || totalDues > 0
+      ? 'PAYMENT PENDING'
+      : 'ALL DUES CLEARED';
+
+  const clearanceColor =
+    totalDues > 0 ? (feeStatus === 'OVERDUE' ? 'error' : 'warning') : 'success';
+
+  const totalPaidAmount = Math.max(0, 63000 - totalDues);
+
+  const baseFeeStructure = [
+    { key: 'tuition', head: 'Semester Tuition Fee', baseAmount: 45000 },
+    { key: 'lab', head: 'Laboratory & Computer Facility Fee', baseAmount: 8500 },
+    { key: 'library', head: 'Library & Learning Resources Fee', baseAmount: 3000 },
+    { key: 'hostel', head: 'Hostel & Residential Accommodation Fee', baseAmount: 6500 },
   ];
+
+  const feeItems = baseFeeStructure.map((item) => {
+    const due = Number(feeDues[item.key] || 0);
+    const isPaid = due === 0;
+    const status = isPaid ? 'PAID' : feeStatus === 'OVERDUE' ? 'OVERDUE' : 'PENDING';
+    const statusColor = isPaid ? 'success' : status === 'OVERDUE' ? 'error' : 'warning';
+    const date = isPaid
+      ? noDuesIssuedAt
+        ? new Date(noDuesIssuedAt).toLocaleDateString()
+        : '2026-07-15'
+      : 'Due Now';
+    const amount = isPaid ? `₹ ${item.baseAmount.toLocaleString('en-IN')}` : `₹ ${due.toLocaleString('en-IN')} (Due)`;
+    return { head: item.head, amount, status, statusColor, date };
+  });
 
   return (
     <Container maxWidth="xl" sx={{ py: 3.5 }}>
@@ -90,7 +128,7 @@ export const StudentFeesPage = () => {
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
                   CLEARANCE STATUS
                 </Typography>
-                <Chip label="ALL DUES CLEARED" color="success" sx={{ fontWeight: 800, mt: 0.5 }} />
+                <Chip label={clearanceLabel} color={clearanceColor} sx={{ fontWeight: 800, mt: 0.5 }} />
               </Box>
             </Box>
           </Paper>
@@ -115,7 +153,7 @@ export const StudentFeesPage = () => {
                   TOTAL FEES PAID
                 </Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                  ₹ 63,000
+                  ₹ {totalPaidAmount.toLocaleString('en-IN')}
                 </Typography>
               </Box>
             </Box>
@@ -133,15 +171,15 @@ export const StudentFeesPage = () => {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.info.main}15`, color: theme.palette.info.main, width: 48, height: 48 }}>
+              <Avatar sx={{ bgcolor: totalDues > 0 ? `${theme.palette.error.main}15` : `${theme.palette.info.main}15`, color: totalDues > 0 ? theme.palette.error.main : theme.palette.info.main, width: 48, height: 48 }}>
                 <FeeIcon />
               </Avatar>
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
                   OUTSTANDING DUES
                 </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'success.main' }}>
-                  ₹ 0.00
+                <Typography variant="h4" sx={{ fontWeight: 800, color: totalDues > 0 ? 'error.main' : 'success.main' }}>
+                  ₹ {totalDues.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </Typography>
               </Box>
             </Box>
@@ -176,16 +214,24 @@ export const StudentFeesPage = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {feeItems.map((item) => (
-                <TableRow key={item.head} hover>
-                  <TableCell sx={{ fontWeight: 800, color: 'text.primary' }}>{item.head}</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{item.amount}</TableCell>
-                  <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>{item.date}</TableCell>
-                  <TableCell>
-                    <Chip label={item.status} color="success" size="small" sx={{ fontWeight: 800 }} />
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 4, fontWeight: 600 }}>
+                    Loading fee clearance statement...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                feeItems.map((item) => (
+                  <TableRow key={item.head} hover>
+                    <TableCell sx={{ fontWeight: 800, color: 'text.primary' }}>{item.head}</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>{item.amount}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>{item.date}</TableCell>
+                    <TableCell>
+                      <Chip label={item.status} color={item.statusColor} size="small" sx={{ fontWeight: 800 }} />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>

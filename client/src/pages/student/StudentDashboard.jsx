@@ -592,7 +592,7 @@ export const StudentDashboard = () => {
                   </Typography>
                 </Box>
 
-                <Button size="small" onClick={() => navigate('/notices')} sx={{ textTransform: 'none', fontWeight: 800 }}>
+                <Button size="small" onClick={() => navigate('/student/notices')} sx={{ textTransform: 'none', fontWeight: 800 }}>
                   View All
                 </Button>
               </Box>

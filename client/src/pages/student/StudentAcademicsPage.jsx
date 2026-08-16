@@ -29,22 +29,15 @@ export const StudentAcademicsPage = () => {
 
   const branchObj = currentUser?.branchId;
   const branchId = typeof branchObj === 'object' ? branchObj?._id : branchObj;
+  const semesterVal = currentUser?.semester || studentMeta?.semester;
   const admissionYear = currentUser?.admissionYear || 2024;
 
-  const { data: liveSubjects } = useSubjectsQuery({
+  const { data: liveSubjects, isLoading } = useSubjectsQuery({
     branchId: branchId || undefined,
-    semester: currentUser?.semester || undefined,
+    semester: semesterVal || undefined,
   });
 
-  const subjects = (liveSubjects && liveSubjects.length > 0)
-    ? liveSubjects
-    : [
-        { sequenceNo: 6, semester: 3, name: 'Deep Learning & Neural Networks', credits: 4, type: 'THEORY', faculty: 'Dr. Rajesh Sharma' },
-        { sequenceNo: 1, semester: 3, name: 'Data Structures & Algorithms', credits: 4, type: 'THEORY', faculty: 'Prof. Anita Verma' },
-        { sequenceNo: 2, semester: 3, name: 'Database Management Systems', credits: 3, type: 'THEORY', faculty: 'Prof. Suresh Kumar' },
-        { sequenceNo: 4, semester: 3, name: 'Software Engineering & Design', credits: 3, type: 'THEORY', faculty: 'Dr. Priya Mehta' },
-        { sequenceNo: 5, semester: 3, name: 'AI & Machine Learning Lab', credits: 2, type: 'PRACTICAL LAB', faculty: 'Prof. Vikram Singh' },
-      ];
+  const subjects = Array.isArray(liveSubjects) ? liveSubjects : [];
 
   return (
     <Container maxWidth="xl" sx={{ py: 3.5 }}>
@@ -55,69 +48,93 @@ export const StudentAcademicsPage = () => {
         </Typography>
         <Typography variant="body1" color="text.secondary">
           Enrolled subject syllabus for Course <strong>{studentMeta?.course || 'B.Tech'}</strong> • Branch{' '}
-          <strong>{studentMeta?.branch || 'CSE'}</strong> (Semester {currentUser?.semester || 3} · Batch &apos;{String(admissionYear).slice(-2)}).
+          <strong>{studentMeta?.branch || 'CSE'}</strong> (Semester {semesterVal || 3} · Batch &apos;{String(admissionYear).slice(-2)}).
         </Typography>
       </Box>
 
       {/* Grid List of Enrolled Subjects */}
-      <Grid container spacing={3}>
-        {subjects.map((sub, idx) => {
-          const displayCode = computeSubjectCode(sub, sub.branchId || branchObj || 'CAI', admissionYear);
-          return (
-            <Grid item xs={12} sm={6} md={4} key={sub._id || sub.sequenceNo || idx}>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  borderRadius: '24px',
-                  border: `1px solid ${theme.palette.divider}`,
-                  bgcolor: isDark ? 'background.paper' : '#ffffff',
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                    <Chip label={displayCode} color="primary" size="small" sx={{ fontWeight: 800 }} />
-                  <Chip
-                    label={sub.type}
-                    size="small"
-                    variant="outlined"
-                    color={sub.type === 'PRACTICAL LAB' ? 'secondary' : 'default'}
-                    sx={{ fontWeight: 800, fontSize: '0.7rem' }}
-                  />
-                </Box>
+      {isLoading ? (
+        <Paper elevation={0} sx={{ p: 4, borderRadius: '24px', textAlign: 'center', border: `1px solid ${theme.palette.divider}` }}>
+          <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+            Loading enrolled academic subjects...
+          </Typography>
+        </Paper>
+      ) : subjects.length === 0 ? (
+        <Paper elevation={0} sx={{ p: 4, borderRadius: '24px', textAlign: 'center', border: `1px solid ${theme.palette.divider}` }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
+            No Enrolled Subjects Found
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+            No active curriculum subjects are registered for Semester {semesterVal || 3} in your branch.
+          </Typography>
+        </Paper>
+      ) : (
+        <Grid container spacing={3}>
+          {subjects.map((sub, idx) => {
+            const displayCode = computeSubjectCode(sub, sub.branchId || branchObj || 'CAI', admissionYear);
+            const facultyName =
+              sub.facultyId?.name ||
+              sub.facultyId?.user?.name ||
+              (typeof sub.facultyId === 'string' ? sub.facultyId : null) ||
+              sub.faculty ||
+              'Department Faculty';
 
-                <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', mb: 1 }}>
-                  {sub.name}
-                </Typography>
+            return (
+              <Grid item xs={12} sm={6} md={4} key={sub._id || sub.sequenceNo || idx}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    borderRadius: '24px',
+                    border: `1px solid ${theme.palette.divider}`,
+                    bgcolor: isDark ? 'background.paper' : '#ffffff',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                      <Chip label={displayCode} color="primary" size="small" sx={{ fontWeight: 800 }} />
+                      <Chip
+                        label={sub.type || 'THEORY'}
+                        size="small"
+                        variant="outlined"
+                        color={sub.type === 'PRACTICAL LAB' ? 'secondary' : 'default'}
+                        sx={{ fontWeight: 800, fontSize: '0.7rem' }}
+                      />
+                    </Box>
 
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 2 }}>
-                  Course Credits: <strong>{sub.credits} Credits</strong>
-                </Typography>
-              </Box>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', mb: 1 }}>
+                      {sub.name}
+                    </Typography>
 
-              <Box sx={{ pt: 2, borderTop: `1px solid ${theme.palette.divider}`, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Avatar sx={{ width: 34, height: 34, bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
-                  <PersonIcon fontSize="small" />
-                </Avatar>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 2 }}>
+                      Course Credits: <strong>{sub.credits || 3} Credits</strong>
+                    </Typography>
+                  </Box>
 
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>
-                    FACULTY INSTRUCTOR
-                  </Typography>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.82rem' }}>
-                    {sub.faculty}
-                  </Typography>
-                </Box>
-              </Box>
-            </Paper>
-          </Grid>
-        );
-      })}
-    </Grid>
+                  <Box sx={{ pt: 2, borderTop: `1px solid ${theme.palette.divider}`, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Avatar sx={{ width: 34, height: 34, bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
+                      <PersonIcon fontSize="small" />
+                    </Avatar>
+
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>
+                        FACULTY INSTRUCTOR
+                      </Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.82rem' }}>
+                        {facultyName}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Paper>
+              </Grid>
+            );
+          })}
+        </Grid>
+      )}
     </Container>
   );
 };

@@ -42,7 +42,7 @@ router.patch(
 
 router.get(
   '/applications',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD, ROLES.STUDENT),
   placementController.getApplications
 );
 
