@@ -39,7 +39,7 @@ export const StudentAttendancePage = () => {
   const rawAttendanceList = useMemo(() => {
     if (!attendanceList) return [];
     if (Array.isArray(attendanceList)) return attendanceList;
-    return attendanceList.records || attendanceList.data || [];
+    return attendanceList.summary || attendanceList.records || attendanceList.data || [];
   }, [attendanceList]);
 
   // Overall attendance calculation

@@ -1,5 +1,6 @@
 const TimetableSlot = require('../models/TimetableSlot');
 const FacultyAssignment = require('../models/FacultyAssignment');
+const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
 const logger = require('../utils/logger');
@@ -177,9 +178,49 @@ const getSlotsForFaculty = async (facultyId) => {
     .sort({ startTime: 1 });
 };
 
+const getSlotsForStudent = async (studentUserId) => {
+  const student = await User.findById(studentUserId);
+  if (!student) {
+    throw new AppError('Student record not found.', 404, ERROR_CODES.NOT_FOUND);
+  }
+
+  const filter = {};
+  if (student.departmentId) {
+    filter.departmentId = student.departmentId;
+  }
+  if (student.courseId) {
+    filter.courseId = student.courseId;
+  }
+  if (student.branchId) {
+    filter.branchId = student.branchId;
+  }
+  if (student.semester) {
+    filter.semester = student.semester;
+  }
+
+  if (student.group) {
+    filter.$or = [
+      { group: student.group },
+      { group: { $exists: false } },
+      { group: null },
+      { group: '' },
+      { group: 'FULL_BATCH' },
+      { group: 'ALL' }
+    ];
+  }
+
+  return await TimetableSlot.find(filter)
+    .populate('subjectId', 'name code credits')
+    .populate('facultyId', 'name email')
+    .populate('courseId', 'name code')
+    .populate('branchId', 'name code')
+    .sort({ startTime: 1 });
+};
+
 module.exports = {
   createSlot,
   getSlotsForBatch,
   deleteSlot,
   getSlotsForFaculty,
+  getSlotsForStudent,
 };

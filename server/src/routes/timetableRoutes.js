@@ -12,7 +12,7 @@ router.use(authMiddleware);
 
 router
   .route('/')
-  .get(roleMiddleware(ROLES.HOD, ROLES.FACULTY), timetableController.getSlotsForBatch)
+  .get(roleMiddleware(ROLES.HOD, ROLES.FACULTY, ROLES.STUDENT), timetableController.getSlotsForBatch)
   .post(
     roleMiddleware(ROLES.HOD),
     validate(createSlotSchema),

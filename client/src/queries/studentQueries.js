@@ -8,9 +8,9 @@ export const useStudentAttendanceQuery = (studentId) => {
   return useQuery({
     queryKey: ['student-attendance', studentId],
     queryFn: async () => {
-      if (!studentId) return [];
+      if (!studentId) return { summary: [], records: [] };
       const response = await api.get(`/attendance/student/${studentId}`);
-      return response.data?.data || [];
+      return response.data?.data || { summary: [], records: [] };
     },
     enabled: Boolean(studentId),
   });
@@ -23,7 +23,7 @@ export const useStudentAssignmentsQuery = (params = {}) => {
   return useQuery({
     queryKey: ['student-assignments', params],
     queryFn: async () => {
-      const response = await api.get('/assignments', { params });
+      const response = await api.get('/faculty-assignments', { params });
       return response.data?.data || [];
     },
   });
@@ -36,7 +36,7 @@ export const useSubmitAssignmentMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ assignmentId, submissionUrl, notes }) => {
-      const response = await api.post(`/assignments/${assignmentId}/submit`, {
+      const response = await api.post(`/faculty-assignments/${assignmentId}/submit`, {
         submissionUrl,
         notes,
       });

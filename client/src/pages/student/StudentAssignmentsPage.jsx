@@ -38,19 +38,19 @@ export const StudentAssignmentsPage = () => {
   const pendingAssignments = useMemo(() => {
     if (!assignmentsList) return [];
     const list = Array.isArray(assignmentsList) ? assignmentsList : (assignmentsList.data || []);
-    return list.filter((a) => a.status === 'PUBLISHED' || a.status === 'OPEN');
+    return list.filter((a) => !a.mySubmission && (a.status === 'PUBLISHED' || a.status === 'OPEN'));
   }, [assignmentsList]);
 
   const submittedAssignments = useMemo(() => {
     if (!assignmentsList) return [];
     const list = Array.isArray(assignmentsList) ? assignmentsList : (assignmentsList.data || []);
-    return list.filter((a) => a.status === 'SUBMITTED' || a.status === 'GRADED');
+    return list.filter((a) => Boolean(a.mySubmission) || a.status === 'SUBMITTED' || a.status === 'GRADED');
   }, [assignmentsList]);
 
   const handleOpenSubmit = (assignment) => {
     setSelectedAssignment(assignment);
-    setSubmissionUrl('');
-    setSubmissionNotes('');
+    setSubmissionUrl(assignment.mySubmission?.submissionUrl || '');
+    setSubmissionNotes(assignment.mySubmission?.notes || '');
   };
 
   const handleCloseSubmit = () => {
@@ -200,21 +200,45 @@ export const StudentAssignmentsPage = () => {
                     <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
                       {assignment.title}
                     </Typography>
-                    <Chip icon={<DoneIcon />} label="SUBMITTED" color="success" size="small" sx={{ fontWeight: 800 }} />
+                    <Chip
+                      icon={<DoneIcon />}
+                      label={assignment.mySubmission?.status === 'LATE' ? 'SUBMITTED (LATE)' : assignment.mySubmission?.status === 'GRADED' ? 'GRADED' : 'SUBMITTED'}
+                      color={assignment.mySubmission?.status === 'LATE' ? 'warning' : 'success'}
+                      size="small"
+                      sx={{ fontWeight: 800 }}
+                    />
                   </Box>
 
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                     {assignment.description}
                   </Typography>
 
-                  {assignment.grade !== undefined && (
+                  {assignment.mySubmission?.submissionUrl && (
+                    <Box sx={{ mb: 1.5, p: 1.5, borderRadius: '12px', bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', border: `1px solid ${theme.palette.divider}` }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>
+                        SUBMITTED LINK:
+                      </Typography>
+                      <Typography
+                        component="a"
+                        href={assignment.mySubmission.submissionUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        variant="body2"
+                        sx={{ color: 'primary.main', fontWeight: 600, wordBreak: 'break-all' }}
+                      >
+                        {assignment.mySubmission.submissionUrl}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {assignment.mySubmission?.marksObtained !== null && assignment.mySubmission?.marksObtained !== undefined && (
                     <Box sx={{ p: 1.5, borderRadius: '12px', bgcolor: `${theme.palette.success.main}12`, border: `1px solid ${theme.palette.success.main}` }}>
                       <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'success.main' }}>
-                        Grade Awarded: {assignment.grade} / {assignment.maxMarks || 100}
+                        Grade Awarded: {assignment.mySubmission.marksObtained} / {assignment.maxMarks || 100}
                       </Typography>
-                      {assignment.feedback && (
+                      {assignment.mySubmission.feedback && (
                         <Typography variant="caption" color="text.secondary">
-                          Faculty Feedback: &quot;{assignment.feedback}&quot;
+                          Faculty Feedback: &quot;{assignment.mySubmission.feedback}&quot;
                         </Typography>
                       )}
                     </Box>

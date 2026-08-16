@@ -63,7 +63,7 @@ export const TimetableCard = ({ slot }) => {
               borderRadius: '4px',
             }}
           >
-            {slot.subjectCode}
+            {slot.subjectCode || slot.subjectId?.code || 'SUB'}
           </Typography>
           <Chip
             label={typeConfig.label}
@@ -92,7 +92,7 @@ export const TimetableCard = ({ slot }) => {
             overflow: 'hidden',
           }}
         >
-          {slot.subjectName}
+          {slot.subjectName || slot.subjectId?.name || 'Class Session'}
         </Typography>
       </Box>
 

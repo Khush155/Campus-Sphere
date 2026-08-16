@@ -29,6 +29,10 @@ const getSlotsForBatch = asyncHandler(async (req, res) => {
     const slots = await timetableService.getSlotsForFaculty(req.user.id);
     return successResponse(res, 200, 'Timetable fetched successfully', slots);
   }
+  if (req.user.role === 'STUDENT') {
+    const slots = await timetableService.getSlotsForStudent(req.user.id);
+    return successResponse(res, 200, 'Timetable fetched successfully', slots);
+  }
   const departmentId = req.user.departmentId;
   const slots = await timetableService.getSlotsForBatch(departmentId, req.query);
   return successResponse(res, 200, 'Timetable fetched successfully', slots);

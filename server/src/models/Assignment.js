@@ -1,5 +1,45 @@
 const mongoose = require('mongoose');
 
+const submissionSchema = new mongoose.Schema(
+  {
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'Student reference is required'],
+    },
+    submissionUrl: {
+      type: String,
+      required: [true, 'Submission URL is required'],
+      trim: true,
+    },
+    notes: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    submittedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    status: {
+      type: String,
+      enum: ['SUBMITTED', 'GRADED', 'LATE'],
+      default: 'SUBMITTED',
+    },
+    marksObtained: {
+      type: Number,
+      default: null,
+    },
+    feedback: {
+      type: String,
+      default: '',
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
 const assignmentSchema = new mongoose.Schema(
   {
     title: {
@@ -45,6 +85,7 @@ const assignmentSchema = new mongoose.Schema(
       enum: ['DRAFT', 'PUBLISHED', 'CLOSED', 'ARCHIVED'],
       default: 'PUBLISHED',
     },
+    submissions: [submissionSchema],
   },
   {
     timestamps: true,

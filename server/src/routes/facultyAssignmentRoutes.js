@@ -32,4 +32,10 @@ router.patch(
   facultyAssignmentController.updateAssignmentStatus
 );
 
+router.post(
+  '/:id/submit',
+  roleMiddleware(ROLES.STUDENT),
+  facultyAssignmentController.submitAssignment
+);
+
 module.exports = router;

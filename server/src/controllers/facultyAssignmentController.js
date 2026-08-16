@@ -45,7 +45,7 @@ const createAssignment = asyncHandler(async (req, res, next) => {
  * @access  Private
  */
 const getAssignments = asyncHandler(async (req, res, _next) => {
-  const { subjectId, group, status } = req.query;
+  const { subjectId, group, status, semester } = req.query;
   const filter = {};
 
   if (subjectId) {
@@ -57,11 +57,53 @@ const getAssignments = asyncHandler(async (req, res, _next) => {
   if (status && status !== 'ALL') {
     filter.status = status;
   }
+  if (semester) {
+    filter.semester = parseInt(semester, 10);
+  }
+
+  // If requesting user is STUDENT, show assignments matching their cohort
+  if (req.user && req.user.role === 'STUDENT') {
+    const User = require('../models/User');
+    const student = await User.findById(req.user.id);
+    if (student) {
+      if (student.semester) {
+        filter.semester = student.semester;
+      }
+      if (student.group) {
+        filter.$or = [
+          { group: student.group },
+          { group: 'ALL' },
+          { group: null },
+          { group: '' },
+          { group: 'FULL_BATCH' }
+        ];
+      }
+    }
+    // Students only see published or closed assignments (not drafts)
+    if (!status || status === 'ALL') {
+      filter.status = { $in: ['PUBLISHED', 'CLOSED'] };
+    }
+  }
 
   const assignments = await Assignment.find(filter)
-    .populate('subjectId', 'name code')
-    .populate('uploadedBy', 'name')
+    .populate('subjectId', 'name code credits')
+    .populate('uploadedBy', 'name email')
     .sort({ createdAt: -1 });
+
+  // For students, attach helper fields so frontend can easily identify submission state
+  if (req.user && req.user.role === 'STUDENT') {
+    const studentIdStr = String(req.user.id);
+    const enriched = assignments.map((a) => {
+      const aObj = a.toObject();
+      const mySub = a.submissions?.find((s) => String(s.studentId) === studentIdStr);
+      aObj.mySubmission = mySub || null;
+      if (mySub) {
+        aObj.submissionStatus = mySub.status || 'SUBMITTED';
+      }
+      return aObj;
+    });
+    return successResponse(res, 200, 'Assignments retrieved successfully', enriched);
+  }
 
   return successResponse(res, 200, 'Assignments retrieved successfully', assignments);
 });
@@ -161,10 +203,74 @@ const deleteAssignment = asyncHandler(async (req, res, next) => {
   return successResponse(res, 200, 'Assignment deleted successfully', null);
 });
 
+/**
+ * @desc    Submit homework / coursework solution as a Student
+ * @route   POST /api/v1/faculty-assignments/:id/submit
+ * @access  Private/Student
+ */
+const submitAssignment = asyncHandler(async (req, res, next) => {
+  const { submissionUrl, notes = '' } = req.body;
+
+  if (!submissionUrl || !submissionUrl.trim()) {
+    return next(new AppError('Submission URL or file link is required', 400, ERROR_CODES.VALIDATION_ERROR));
+  }
+
+  const assignment = await Assignment.findById(req.params.id);
+  if (!assignment) {
+    return next(new AppError('Assignment not found', 404, ERROR_CODES.NOT_FOUND));
+  }
+
+  if (assignment.status === 'DRAFT' || assignment.status === 'ARCHIVED') {
+    return next(new AppError('This assignment is not accepting submissions', 400, ERROR_CODES.BAD_REQUEST));
+  }
+
+  const studentId = req.user.id;
+  const isLate = assignment.dueDate && new Date() > new Date(assignment.dueDate);
+
+  // Check if student already submitted - if so, update their existing submission
+  if (!assignment.submissions) {
+    assignment.submissions = [];
+  }
+
+  const existingSubIndex = assignment.submissions.findIndex(
+    (s) => String(s.studentId) === String(studentId)
+  );
+
+  const submissionData = {
+    studentId,
+    submissionUrl: submissionUrl.trim(),
+    notes: notes ? notes.trim() : '',
+    submittedAt: new Date(),
+    status: isLate ? 'LATE' : 'SUBMITTED',
+  };
+
+  if (existingSubIndex >= 0) {
+    const prevMarks = assignment.submissions[existingSubIndex].marksObtained;
+    const prevFeedback = assignment.submissions[existingSubIndex].feedback;
+    assignment.submissions[existingSubIndex] = {
+      ...assignment.submissions[existingSubIndex].toObject(),
+      ...submissionData,
+      marksObtained: prevMarks,
+      feedback: prevFeedback,
+    };
+  } else {
+    assignment.submissions.push(submissionData);
+  }
+
+  await assignment.save();
+
+  const mySub = assignment.submissions.find(
+    (s) => String(s.studentId) === String(studentId)
+  );
+
+  return successResponse(res, 200, 'Assignment submitted successfully', mySub);
+});
+
 module.exports = {
   createAssignment,
   getAssignments,
   updateAssignment,
   updateAssignmentStatus,
   deleteAssignment,
+  submitAssignment,
 };

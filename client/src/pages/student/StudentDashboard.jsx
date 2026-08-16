@@ -73,15 +73,13 @@ export const StudentDashboard = () => {
 
   // Attendance Overall Calculation
   const attendanceStats = useMemo(() => {
-    const list = Array.isArray(attendanceData)
-      ? attendanceData
-      : (attendanceData?.records || attendanceData?.data || []);
+    const list = attendanceData?.summary || (Array.isArray(attendanceData) ? attendanceData : (attendanceData?.records || attendanceData?.data || []));
     if (!list || list.length === 0) {
-      return { percentage: 85, totalClasses: 120, attendedClasses: 102, status: 'GOOD' };
+      return { percentage: 100, totalClasses: 0, attendedClasses: 0, status: 'GOOD' };
     }
     const total = list.reduce((acc, curr) => acc + (curr.totalClasses || 0), 0);
     const attended = list.reduce((acc, curr) => acc + (curr.attendedClasses || 0), 0);
-    const pct = total > 0 ? Math.round((attended / total) * 100) : 0;
+    const pct = total > 0 ? Math.round((attended / total) * 100) : 100;
     return {
       percentage: pct,
       totalClasses: total,
@@ -324,7 +322,7 @@ export const StudentDashboard = () => {
             </Box>
             <Box>
               <Typography variant="h3" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
-                {attendanceData.length || 6}
+                {attendanceData?.summary?.length || (Array.isArray(attendanceData) ? attendanceData.length : 0) || 6}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
                 Active Enrolled Subjects
