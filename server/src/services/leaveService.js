@@ -53,7 +53,7 @@ const createLeaveRequest = async (leaveData, actor) => {
     const hods = await User.find({ role: ROLES.HOD, departmentId: actor.departmentId }).select('_id');
     const hodIds = hods.map((h) => h._id);
     await createBulkNotifications(hodIds, {
-      title: `🌴 Leave Request Submitted: ${actor.name || 'Faculty Member'}`,
+      title: `🌴 Leave Request Submitted: ${actor.name || 'Applicant'}`,
       message: `A new ${leaveType} leave request has been submitted for review.`,
       category: 'LEAVE',
       link: '/hod/leave-management',
@@ -129,14 +129,17 @@ const updateLeaveStatus = async (id, statusData, actor, req) => {
 
   await leave.save();
 
-  // Notify requesting faculty member
+  // Notify requesting applicant (faculty or student)
   try {
+    const applicant = await User.findById(leave.userId).select('role');
+    const notificationLink = applicant?.role === ROLES.STUDENT ? '/student/leave' : '/faculty/leaves';
+
     await createNotification({
       recipientId: leave.userId,
       title: `🌴 Leave Request ${status}: ${leave.leaveType}`,
       message: `Your ${leave.leaveType} leave request has been ${status.toLowerCase()} by your HOD.${remarks ? ` Remarks: ${remarks}` : ''}`,
       category: 'LEAVE',
-      link: '/faculty/leaves',
+      link: notificationLink,
       senderId: actor.id,
       metadata: { leaveId: leave._id, status },
     });

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -13,20 +14,24 @@ import {
   TableRow,
   Chip,
   Avatar,
+  Button,
   useTheme,
 } from '@mui/material';
 import {
   ArticleOutlined as ExamIcon,
   GradeOutlined as GradeIcon,
   EmojiEventsOutlined as PassIcon,
+  ConfirmationNumberOutlined as HallTicketIcon,
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
 import { useStudentGpaQuery, useStudentExaminationsQuery } from '../../queries/studentQueries';
+import { useSubjectsQuery } from '../../queries/collegeQueries';
 
 export const StudentExaminationsPage = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const isDark = theme.palette.mode === 'dark';
   const { user } = useAuth();
   const { data: profile } = useMyProfileQuery();
@@ -35,11 +40,22 @@ export const StudentExaminationsPage = () => {
   const studentMeta = profile?.profileMeta || {};
 
   const studentId = currentUser?._id || currentUser?.id;
+  const branchObj = currentUser?.branchId;
+  const branchId = typeof branchObj === 'object' ? branchObj?._id : branchObj;
+  const semesterVal = currentUser?.semester || studentMeta?.semester || 1;
+
   const { data: gpaData, isLoading: isGpaLoading } = useStudentGpaQuery(studentId);
-  const { data: examinationsList = [], isLoading: isExamsLoading } = useStudentExaminationsQuery();
+  const { isLoading: isExamsLoading } = useStudentExaminationsQuery();
+  const { data: enrolledSubjectsData = [] } = useSubjectsQuery({
+    branchId: branchId || undefined,
+    semester: semesterVal || undefined,
+  });
+
+  const enrolledSubjects = Array.isArray(enrolledSubjectsData) ? enrolledSubjectsData : [];
+  const enrolledCount = enrolledSubjects.length || 5;
 
   const gradeBreakdown = gpaData?.gradeBreakdown || [];
-  const gpaValue = gpaData?.gpa !== undefined && gpaData?.gpa !== null ? Number(gpaData.gpa).toFixed(2) : null;
+  const gpaValue = gpaData?.gpa !== undefined && gpaData?.gpa !== null && Number(gpaData.gpa) > 0 ? Number(gpaData.gpa).toFixed(2) : null;
 
   const resultStatusLabel = useMemo(() => {
     if (gpaData?.gpa === undefined || gpaData?.gpa === null) return 'EVALUATION PENDING';
@@ -61,14 +77,33 @@ export const StudentExaminationsPage = () => {
   return (
     <Container maxWidth="xl" sx={{ py: 3.5 }}>
       {/* Page Header */}
-      <Box sx={{ mb: 3.5 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em', mb: 0.5 }}>
-          Examinations & Internal Assessment Gradebook
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Official semester evaluation records for Course <strong>{studentMeta?.course || 'B.Tech'}</strong> (Sem{' '}
-          {studentMeta?.semester || 6}).
-        </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3.5, flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em', mb: 0.5 }}>
+            Examinations & Internal Assessment Gradebook
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Official semester evaluation records for Course <strong>{studentMeta?.course || 'B.Tech'}</strong> (Sem{' '}
+            {studentMeta?.semester || 6}).
+          </Typography>
+        </Box>
+
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<HallTicketIcon />}
+          onClick={() => navigate('/student/hall-ticket')}
+          sx={{
+            borderRadius: '12px',
+            px: 3,
+            py: 1.25,
+            fontWeight: 800,
+            textTransform: 'none',
+            boxShadow: '0 8px 20px rgba(79, 70, 229, 0.25)',
+          }}
+        >
+          View Exam Hall Ticket / Admit Card
+        </Button>
       </Box>
 
       {/* Summary KPI Row */}
@@ -92,7 +127,7 @@ export const StudentExaminationsPage = () => {
                   CURRENT SEMESTER GPA
                 </Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                  {gpaValue !== null ? `${gpaValue} / 10.0` : 'N/A'}
+                  {gpaValue !== null && Number(gpaValue) > 0 ? `${gpaValue} / 10.0` : 'Evaluation Pending'}
                 </Typography>
               </Box>
             </Box>
@@ -142,7 +177,7 @@ export const StudentExaminationsPage = () => {
                   EVALUATED SUBJECTS
                 </Typography>
                 <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                  {gradeBreakdown.length} / {gradeBreakdown.length || (Array.isArray(examinationsList) ? examinationsList.length : 0) || 0}
+                  {gradeBreakdown.length} / {enrolledCount}
                 </Typography>
               </Box>
             </Box>
@@ -185,11 +220,34 @@ export const StudentExaminationsPage = () => {
                   </TableCell>
                 </TableRow>
               ) : gradeBreakdown.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary', fontWeight: 600 }}>
-                    No published evaluation results recorded yet for this semester.
-                  </TableCell>
-                </TableRow>
+                enrolledSubjects.length > 0 ? (
+                  enrolledSubjects.map((sub, idx) => (
+                    <TableRow key={sub._id || idx} hover>
+                      <TableCell>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                          {sub.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {sub.code || `SUB-${sub.sequenceNo || idx + 1}`}
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>{sub.credits || 4} Credits</TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>—</TableCell>
+                      <TableCell>
+                        <Chip label="Pending" size="small" variant="outlined" sx={{ fontWeight: 800 }} />
+                      </TableCell>
+                      <TableCell>
+                        <Chip label="Evaluation Pending" color="info" size="small" sx={{ fontWeight: 800 }} />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary', fontWeight: 600 }}>
+                      No published evaluation results recorded yet for this semester.
+                    </TableCell>
+                  </TableRow>
+                )
               ) : (
                 gradeBreakdown.map((row, idx) => (
                   <TableRow key={row.subjectCode || idx} hover>

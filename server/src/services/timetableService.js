@@ -209,12 +209,27 @@ const getSlotsForStudent = async (studentUserId) => {
     ];
   }
 
-  return await TimetableSlot.find(filter)
+  const rawSlots = await TimetableSlot.find(filter)
     .populate('subjectId', 'name code credits')
     .populate('facultyId', 'name email')
     .populate('courseId', 'name code')
     .populate('branchId', 'name code')
     .sort({ startTime: 1 });
+
+  const seenKeys = new Set();
+  const deduplicatedSlots = [];
+
+  for (const slot of rawSlots) {
+    const subId = slot.subjectId?._id || slot.subjectId;
+    const grp = slot.group || 'FULL_BATCH';
+    const key = `${slot.dayOfWeek}_${slot.startTime}_${slot.endTime}_${subId}_${grp}`;
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      deduplicatedSlots.push(slot);
+    }
+  }
+
+  return deduplicatedSlots;
 };
 
 module.exports = {

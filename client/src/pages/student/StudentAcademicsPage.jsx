@@ -48,7 +48,7 @@ export const StudentAcademicsPage = () => {
         </Typography>
         <Typography variant="body1" color="text.secondary">
           Enrolled subject syllabus for Course <strong>{studentMeta?.course || 'B.Tech'}</strong> • Branch{' '}
-          <strong>{studentMeta?.branch || 'CSE'}</strong> (Semester {semesterVal || 3} · Batch &apos;{String(admissionYear).slice(-2)}).
+          <strong>{studentMeta?.branch || 'CSE'}</strong> (Semester {semesterVal || 'N/A'} · Batch &apos;{String(admissionYear).slice(-2)}).
         </Typography>
       </Box>
 
@@ -65,7 +65,7 @@ export const StudentAcademicsPage = () => {
             No Enrolled Subjects Found
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-            No active curriculum subjects are registered for Semester {semesterVal || 3} in your branch.
+            No active curriculum subjects are registered for Semester {semesterVal || 'N/A'} in your branch.
           </Typography>
         </Paper>
       ) : (
@@ -77,7 +77,7 @@ export const StudentAcademicsPage = () => {
               sub.facultyId?.user?.name ||
               (typeof sub.facultyId === 'string' ? sub.facultyId : null) ||
               sub.faculty ||
-              'Department Faculty';
+              'Unassigned';
 
             return (
               <Grid item xs={12} sm={6} md={4} key={sub._id || sub.sequenceNo || idx}>

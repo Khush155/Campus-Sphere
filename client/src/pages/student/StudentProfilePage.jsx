@@ -43,9 +43,9 @@ export const StudentProfilePage = () => {
 
   const [activeTab, setActiveTab] = useState(0);
 
-  const phone = currentUser?.phone || '+91 98765 43210';
-  const emergencyContact = '+91 98765 00000';
-  const address = '123 University Campus Road, Sector 4, Tech City';
+  const phone = currentUser?.phone || 'N/A';
+  const emergencyContact = studentMeta?.emergencyContact || currentUser?.emergencyContact || 'N/A';
+  const address = currentUser?.address || 'N/A';
 
   const shift = studentMeta?.shift || currentUser?.shift || 'MORNING';
 
@@ -117,7 +117,7 @@ export const StudentProfilePage = () => {
                 </Box>
 
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  Roll No: <strong>{studentMeta?.rollNumber || currentUser?.rollNumber || 'STU-2026-001'}</strong> • Department:{' '}
+                  Roll No: <strong>{studentMeta?.rollNumber || currentUser?.rollNumber || 'N/A'}</strong> • Department:{' '}
                   <strong>{studentMeta?.branch || 'Computer Science'}</strong>
                 </Typography>
               </Box>
@@ -184,7 +184,7 @@ export const StudentProfilePage = () => {
                         STUDENT ROLL NUMBER
                       </Typography>
                       <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'text.primary', mt: 0.25 }}>
-                        {studentMeta?.rollNumber || currentUser?.rollNumber || 'STU-2026-001'}
+                        {studentMeta?.rollNumber || currentUser?.rollNumber || 'N/A'}
                       </Typography>
                     </Box>
                   </Grid>
@@ -315,7 +315,7 @@ export const StudentProfilePage = () => {
                       GUARDIAN / PARENT
                     </Typography>
                     <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                      Mr. Rajesh Sharma
+                      {studentMeta?.guardianName || currentUser?.guardianName || 'N/A'}
                     </Typography>
                   </Grid>
 
@@ -498,7 +498,7 @@ export const StudentProfilePage = () => {
               </Typography>
 
               <Chip
-                label={`ROLL NO: ${studentMeta?.rollNumber || currentUser?.rollNumber || 'STU-2026-001'}`}
+                label={`ROLL NO: ${studentMeta?.rollNumber || currentUser?.rollNumber || 'N/A'}`}
                 sx={{ bgcolor: '#ffffff', color: '#4f46e5', fontWeight: 800, fontSize: '0.85rem', px: 1, py: 2 }}
               />
             </Box>
@@ -514,7 +514,7 @@ export const StudentProfilePage = () => {
             {/* Footer */}
             <Box sx={{ pt: 2, borderTop: '1px solid rgba(255,255,255,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="caption" sx={{ opacity: 0.85, fontWeight: 700 }}>
-                Group: {studentMeta?.group || 'G1'} ({shift})
+                Group: {studentMeta?.group || currentUser?.group || 'N/A'} ({shift})
               </Typography>
               <Typography variant="caption" sx={{ opacity: 0.85, fontWeight: 700 }}>
                 Valid: 2023 - 2027

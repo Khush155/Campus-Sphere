@@ -37,6 +37,7 @@ import DataTable from '../../../components/common/DataTable';
 import EmptyState from '../../../components/common/EmptyState';
 import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
 import { useNoticesQuery, useCreateNoticesMutation, useDeleteNoticeMutation } from '../../../queries/hodQueries';
+import { useFeedQuery } from '../../../queries/noticeQueries';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 
@@ -92,12 +93,28 @@ export const FacultyNoticeHub = () => {
     return () => clearTimeout(handler);
   }, [search]);
 
-  // Queries & Mutations
-  const { data: noticesData = [], isLoading, refetch } = useNoticesQuery({ priority: priorityFilter || undefined });
+  const isStudent = user?.role === 'STUDENT';
+  const { data: adminNoticesData = [], isLoading: isAdminLoading, refetch: refetchAdmin } = useNoticesQuery(
+    { priority: priorityFilter || undefined },
+    { enabled: !isStudent }
+  );
+  const { data: studentFeedData = [], isLoading: isFeedLoading, refetch: refetchFeed } = useFeedQuery(
+    { priority: priorityFilter || undefined },
+    { enabled: isStudent }
+  );
+
+  const noticesData = isStudent ? studentFeedData : adminNoticesData;
+  const isLoading = isStudent ? isFeedLoading : isAdminLoading;
+  const refetch = isStudent ? refetchFeed : refetchAdmin;
+
   const createMutation = useCreateNoticesMutation();
   const deleteMutation = useDeleteNoticeMutation();
 
-  const rawList = useMemo(() => (Array.isArray(noticesData) ? noticesData : []), [noticesData]);
+  const rawList = useMemo(() => {
+    if (!noticesData) return [];
+    if (Array.isArray(noticesData)) return noticesData;
+    return noticesData.notices || noticesData.data || [];
+  }, [noticesData]);
 
   const filteredNotices = useMemo(() => {
     let list = rawList;
@@ -330,20 +347,22 @@ export const FacultyNoticeHub = () => {
             >
               Refresh Feed
             </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddOutlined />}
-              onClick={handleOpenPublish}
-              sx={{
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontWeight: 700,
-                background: theme.palette.primary.gradient || theme.palette.primary.main,
-                color: '#ffffff',
-              }}
-            >
-              Publish Class Notice
-            </Button>
+            {!isStudent && (
+              <Button
+                variant="contained"
+                startIcon={<AddOutlined />}
+                onClick={handleOpenPublish}
+                sx={{
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  background: theme.palette.primary.gradient || theme.palette.primary.main,
+                  color: '#ffffff',
+                }}
+              >
+                Publish Class Notice
+              </Button>
+            )}
           </Box>
         </Box>
       </Card>

@@ -193,6 +193,7 @@ export const StudentAttendancePage = () => {
                 <TableCell sx={{ fontWeight: 800 }}>SUBJECT</TableCell>
                 <TableCell sx={{ fontWeight: 800 }}>TOTAL CLASSES</TableCell>
                 <TableCell sx={{ fontWeight: 800 }}>ATTENDED</TableCell>
+                <TableCell sx={{ fontWeight: 800 }}>ABSENT</TableCell>
                 <TableCell sx={{ fontWeight: 800 }}>PERCENTAGE</TableCell>
                 <TableCell sx={{ fontWeight: 800 }}>STATUS</TableCell>
               </TableRow>
@@ -200,19 +201,20 @@ export const StudentAttendancePage = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                     Loading attendance records...
                   </TableCell>
                 </TableRow>
               ) : rawAttendanceList.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary', fontWeight: 600 }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary', fontWeight: 600 }}>
                     No subject attendance recorded yet for this semester.
                   </TableCell>
                 </TableRow>
               ) : (
                 rawAttendanceList.map((row) => {
                   const pct = row.attendancePercentage || 0;
+                  const absentCount = row.absentClasses !== undefined ? row.absentClasses : Math.max(0, (row.totalClasses || 0) - (row.attendedClasses || 0));
                   const isEligible = pct >= 75;
                   return (
                     <TableRow key={row.subjectId || row.subjectCode} hover>
@@ -225,7 +227,10 @@ export const StudentAttendancePage = () => {
                         </Typography>
                       </TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>{row.totalClasses}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{row.attendedClasses}</TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: 'success.main' }}>{row.attendedClasses}</TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: absentCount > 0 ? 'error.main' : 'text.secondary' }}>
+                        {absentCount}
+                      </TableCell>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           <Box sx={{ width: '100%', mr: 1 }}>

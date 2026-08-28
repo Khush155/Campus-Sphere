@@ -130,6 +130,25 @@ const getStudentAttendanceSummary = async (studentId) => {
             $cond: [{ $in: ['$status', ['PRESENT', 'LATE']] }, 1, 0],
           },
         },
+        absentClasses: {
+          $sum: {
+            $cond: [{ $eq: ['$status', 'ABSENT'] }, 1, 0],
+          },
+        },
+        medicalClasses: {
+          $sum: {
+            $cond: [
+              {
+                $or: [
+                  { $in: ['$status', ['MEDICAL_LEAVE', 'DUTY_LEAVE', 'EXCUSED']] },
+                  { $eq: ['$isMedicalApproved', true] },
+                ],
+              },
+              1,
+              0,
+            ],
+          },
+        },
       },
     },
     {
@@ -151,11 +170,24 @@ const getStudentAttendanceSummary = async (studentId) => {
         subjectCode: '$subjectInfo.code',
         totalClasses: 1,
         attendedClasses: 1,
+        absentClasses: 1,
+        medicalClasses: 1,
         attendancePercentage: {
           $round: [
             {
               $multiply: [
                 { $divide: ['$attendedClasses', '$totalClasses'] },
+                100,
+              ],
+            },
+            1,
+          ],
+        },
+        effectivePercentage: {
+          $round: [
+            {
+              $multiply: [
+                { $divide: [{ $add: ['$attendedClasses', '$medicalClasses'] }, '$totalClasses'] },
                 100,
               ],
             },

@@ -11,6 +11,7 @@ import {
   FreeBreakfastOutlined as LunchIcon,
   WbSunnyOutlined as MorningIcon,
   NightsStayOutlined as EveningIcon,
+  TodayOutlined as TodayIcon,
 } from '@mui/icons-material';
 import TimetableCard from './TimetableCard';
 
@@ -44,7 +45,13 @@ const timeToHours = (timeStr) => {
   return (hours || 0) + (mins || 0) / 60;
 };
 
-export const TimetableGrid = ({ timetableData = [], defaultShift = 'MORNING', hideShiftToggle = false }) => {
+export const TimetableGrid = ({
+  timetableData = [],
+  defaultShift = 'MORNING',
+  hideShiftToggle = false,
+  todayDay = null,
+  ongoingSlotId = null,
+}) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const [activeShift, setActiveShift] = useState(defaultShift);
@@ -134,11 +141,56 @@ export const TimetableGrid = ({ timetableData = [], defaultShift = 'MORNING', hi
               PERIOD / TIME
             </Typography>
           </Box>
-          {DAYS.map((day) => (
-            <Typography key={day} variant="subtitle2" sx={{ textAlign: 'center', fontWeight: 800, color: 'text.primary', py: 1.5, bgcolor: isDark ? 'action.hover' : 'rgba(79, 70, 229, 0.04)', borderRadius: 2 }}>
-              {day}
-            </Typography>
-          ))}
+          {DAYS.map((day) => {
+            const isToday = todayDay && day === todayDay;
+            return (
+              <Box
+                key={day}
+                sx={{
+                  textAlign: 'center',
+                  py: 1.5,
+                  borderRadius: 2,
+                  bgcolor: isToday
+                    ? isDark ? `${theme.palette.primary.main}25` : `${theme.palette.primary.main}12`
+                    : isDark ? 'action.hover' : 'rgba(79, 70, 229, 0.04)',
+                  border: isToday ? `2px solid ${theme.palette.primary.main}40` : '2px solid transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 0.5,
+                }}
+              >
+                {isToday && <TodayIcon sx={{ fontSize: 14, color: theme.palette.primary.main }} />}
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    fontWeight: 800,
+                    color: isToday ? theme.palette.primary.main : 'text.primary',
+                  }}
+                >
+                  {day}
+                </Typography>
+                {isToday && (
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    sx={{
+                      fontWeight: 800,
+                      color: theme.palette.primary.main,
+                      fontSize: '0.6rem',
+                      bgcolor: `${theme.palette.primary.main}18`,
+                      px: 0.6,
+                      py: 0.1,
+                      borderRadius: '4px',
+                      ml: 0.25,
+                    }}
+                  >
+                    TODAY
+                  </Typography>
+                )}
+              </Box>
+            );
+          })}
         </Box>
 
         {/* Period Rows */}
@@ -192,6 +244,7 @@ export const TimetableGrid = ({ timetableData = [], defaultShift = 'MORNING', hi
 
                 {/* Days Cells */}
                 {DAYS.map((day) => {
+                  const isToday = todayDay && day === todayDay;
                   const matchingSlots = timetableData.filter((slot) => {
                     const slotDay = (slot.dayOfWeek || slot.day || '').toUpperCase();
                     if (slotDay !== day) return false;
@@ -206,8 +259,12 @@ export const TimetableGrid = ({ timetableData = [], defaultShift = 'MORNING', hi
                       sx={{
                         borderRadius: '12px',
                         minHeight: 85,
-                        bgcolor: isDark ? 'rgba(255, 255, 255, 0.015)' : 'rgba(0, 0, 0, 0.01)',
-                        border: `1px solid ${theme.palette.divider}`,
+                        bgcolor: isToday && matchingSlots.length === 0
+                          ? isDark ? 'rgba(79,70,229,0.04)' : 'rgba(79,70,229,0.02)'
+                          : isDark ? 'rgba(255, 255, 255, 0.015)' : 'rgba(0, 0, 0, 0.01)',
+                        border: isToday
+                          ? `1px solid ${theme.palette.primary.main}25`
+                          : `1px solid ${theme.palette.divider}`,
                         p: matchingSlots.length > 0 ? 0.75 : 0,
                         display: 'flex',
                         flexDirection: 'column',
@@ -215,11 +272,17 @@ export const TimetableGrid = ({ timetableData = [], defaultShift = 'MORNING', hi
                       }}
                     >
                       {matchingSlots.length > 0 ? (
-                        matchingSlots.map((slot) => (
-                          <Box key={slot.id || slot._id} sx={{ height: '100%' }}>
-                            <TimetableCard slot={slot} />
-                          </Box>
-                        ))
+                        matchingSlots.map((slot) => {
+                          const slotId = slot._id || slot.id;
+                          const ongoing = Boolean(
+                            ongoingSlotId && slotId && String(slotId) === String(ongoingSlotId)
+                          );
+                          return (
+                            <Box key={slotId} sx={{ height: '100%' }}>
+                              <TimetableCard slot={slot} isOngoing={ongoing} />
+                            </Box>
+                          );
+                        })
                       ) : (
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', py: 2 }}>
                           <Typography variant="caption" color="text.disabled" sx={{ fontWeight: 600 }}>

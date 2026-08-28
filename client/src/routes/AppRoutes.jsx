@@ -73,6 +73,9 @@ import StudentDocumentsPage from '../pages/student/StudentDocumentsPage';
 import StudentComplaintsPage from '../pages/student/StudentComplaintsPage';
 import StudentProjectsPage from '../pages/student/StudentProjectsPage';
 import StudentPlacementsPage from '../pages/student/StudentPlacementsPage';
+import StudentPortfolioPage from '../pages/student/StudentPortfolioPage';
+import StudentHallTicketPage from '../pages/student/StudentHallTicketPage';
+import StudentFeeReceiptPage from '../pages/student/StudentFeeReceiptPage';
 
 // Newly added Expanded Faculty pages
 import MaterialsPage from '../pages/faculty/materials/MaterialsPage';
@@ -405,13 +408,15 @@ export const AppRoutes = () => {
         <Route path="student/assignments" element={<RoleRoute allowedRoles={['STUDENT']}><StudentAssignmentsPage /></RoleRoute>} />
         <Route path="student/attendance" element={<RoleRoute allowedRoles={['STUDENT']}><StudentAttendancePage /></RoleRoute>} />
         <Route path="student/examinations" element={<RoleRoute allowedRoles={['STUDENT']}><StudentExaminationsPage /></RoleRoute>} />
+        <Route path="student/hall-ticket" element={<RoleRoute allowedRoles={['STUDENT']}><StudentHallTicketPage /></RoleRoute>} />
         <Route path="student/leave" element={<RoleRoute allowedRoles={['STUDENT']}><StudentLeavePage /></RoleRoute>} />
         <Route path="student/fees" element={<RoleRoute allowedRoles={['STUDENT']}><StudentFeesPage /></RoleRoute>} />
+        <Route path="student/fees/receipt/:receiptId" element={<RoleRoute allowedRoles={['STUDENT']}><StudentFeeReceiptPage /></RoleRoute>} />
         <Route path="student/notices" element={<RoleRoute allowedRoles={['STUDENT']}><FacultyNoticeHub /></RoleRoute>} />
         <Route path="student/projects" element={<RoleRoute allowedRoles={['STUDENT']}><StudentProjectsPage /></RoleRoute>} />
         <Route path="student/placements" element={<RoleRoute allowedRoles={['STUDENT']}><StudentPlacementsPage /></RoleRoute>} />
         <Route path="student/library" element={<RoleRoute allowedRoles={['STUDENT']}><StudentLibraryPage /></RoleRoute>} />
-        <Route path="student/portfolio" element={<RoleRoute allowedRoles={['STUDENT']}><PlaceholderView title="Student Portfolio" /></RoleRoute>} />
+        <Route path="student/portfolio" element={<RoleRoute allowedRoles={['STUDENT']}><StudentPortfolioPage /></RoleRoute>} />
         <Route path="student/documents" element={<RoleRoute allowedRoles={['STUDENT']}><StudentDocumentsPage /></RoleRoute>} />
         <Route path="student/complaints" element={<RoleRoute allowedRoles={['STUDENT']}><StudentComplaintsPage /></RoleRoute>} />
         <Route path="student/notifications" element={<RoleRoute allowedRoles={['STUDENT']}><StudentNotificationsPage /></RoleRoute>} />

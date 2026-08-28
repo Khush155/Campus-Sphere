@@ -203,3 +203,31 @@ export const useApplyPlacementDriveMutation = () => {
     },
   });
 };
+
+/**
+ * Fetch official fee receipts for student
+ */
+export const useStudentFeeReceiptsQuery = () => {
+  return useQuery({
+    queryKey: ['student-fee-receipts'],
+    queryFn: async () => {
+      const response = await api.get('/fees/receipts');
+      return response.data?.data || [];
+    },
+  });
+};
+
+/**
+ * Fetch a single fee receipt by ID
+ */
+export const useStudentFeeReceiptQuery = (receiptId) => {
+  return useQuery({
+    queryKey: ['student-fee-receipt', receiptId],
+    queryFn: async () => {
+      if (!receiptId) return null;
+      const response = await api.get(`/fees/receipts/${receiptId}`);
+      return response.data?.data || null;
+    },
+    enabled: Boolean(receiptId),
+  });
+};

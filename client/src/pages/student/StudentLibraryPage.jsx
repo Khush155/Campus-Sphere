@@ -118,7 +118,7 @@ export const StudentLibraryPage = () => {
         </Typography>
         <Typography variant="body1" color="text.secondary">
           Official course materials, lecture presentations, e-notes, and video references uploaded by faculty for{' '}
-          <strong>{studentMeta?.course || 'B.Tech'}</strong> (Sem {semester || 6}).
+          <strong>{studentMeta?.course || 'B.Tech'}</strong>{semester ? ` (Sem ${semester})` : ''}.
         </Typography>
       </Box>
 

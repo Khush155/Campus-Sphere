@@ -39,9 +39,10 @@ import {
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
-import { useStudentAttendanceQuery, useStudentAssignmentsQuery } from '../../queries/studentQueries';
+import { useStudentAttendanceQuery, useStudentAssignmentsQuery, useStudentGpaQuery } from '../../queries/studentQueries';
+import { useSubjectsQuery } from '../../queries/collegeQueries';
 import { useTimetableQuery } from '../../queries/timetableQueries';
-import { useNoticesQuery } from '../../queries/noticeQueries';
+import { useFeedQuery } from '../../queries/noticeQueries';
 
 // Helper to determine time-of-day greeting
 const getGreeting = () => {
@@ -65,11 +66,48 @@ export const StudentDashboard = () => {
 
   const greeting = getGreeting();
 
+  const studentId = currentUser?._id || currentUser?.id;
+  const branchObj = currentUser?.branchId;
+  const branchId = typeof branchObj === 'object' ? branchObj?._id : branchObj;
+  const currentSemester = studentMeta?.semester || currentUser?.semester || 1;
+
   // Queries
-  const { data: attendanceData = [] } = useStudentAttendanceQuery(currentUser?._id || currentUser?.id);
+  const { data: attendanceData = [] } = useStudentAttendanceQuery(studentId);
   const { data: assignmentsData = [] } = useStudentAssignmentsQuery();
   const { data: timetableData = [] } = useTimetableQuery();
-  const { data: noticesData = [] } = useNoticesQuery();
+  const { data: noticesData = [] } = useFeedQuery();
+  const { data: gpaData } = useStudentGpaQuery(studentId);
+  const { data: liveSubjects = [] } = useSubjectsQuery({
+    branchId: branchId || undefined,
+    semester: currentSemester || undefined,
+  });
+
+  // Calculate dynamic GPA and label
+  const gpaValue = useMemo(() => {
+    if (gpaData?.gpa !== undefined && gpaData?.gpa !== null && Number(gpaData.gpa) > 0) {
+      return Number(gpaData.gpa).toFixed(2);
+    }
+    if (currentUser?.cgpa !== undefined && currentUser?.cgpa !== null && Number(currentUser.cgpa) > 0) {
+      return Number(currentUser.cgpa).toFixed(2);
+    }
+    return null;
+  }, [gpaData, currentUser]);
+
+  const gpaLabelInfo = useMemo(() => {
+    if (!gpaValue) return { label: 'Pending', color: 'info' };
+    const num = parseFloat(gpaValue);
+    if (num >= 8.5) return { label: 'Distinction', color: 'success' };
+    if (num >= 6.0) return { label: 'Passed', color: 'success' };
+    if (num > 0) return { label: 'Improvement', color: 'warning' };
+    return { label: 'Pending', color: 'info' };
+  }, [gpaValue]);
+
+  // Enrolled Subjects Count
+  const enrolledSubjectsCount = useMemo(() => {
+    if (Array.isArray(liveSubjects)) return liveSubjects.length;
+    if (liveSubjects?.data && Array.isArray(liveSubjects.data)) return liveSubjects.data.length;
+    return 0;
+  }, [liveSubjects]);
 
   // Attendance Overall Calculation
   const attendanceStats = useMemo(() => {
@@ -107,7 +145,7 @@ export const StudentDashboard = () => {
   const pendingAssignments = useMemo(() => {
     if (!assignmentsData) return [];
     const list = Array.isArray(assignmentsData) ? assignmentsData : (assignmentsData.data || []);
-    return list.filter((a) => a.status === 'PUBLISHED' || a.status === 'OPEN');
+    return list.filter((a) => !a.mySubmission && (a.status === 'PUBLISHED' || a.status === 'OPEN'));
   }, [assignmentsData]);
 
   const recentNotices = useMemo(() => {
@@ -186,9 +224,9 @@ export const StudentDashboard = () => {
                 </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap', opacity: 0.95 }}>
-                  <Chip label={`ROLL: ${studentMeta?.rollNumber || currentUser?.rollNumber || 'STU-2026-001'}`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#ffffff', fontWeight: 700 }} />
-                  <Chip label={`${studentMeta?.course || 'B.Tech'} • ${studentMeta?.branch || 'CSE'}`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#ffffff', fontWeight: 700 }} />
-                  <Chip label={`Sem ${studentMeta?.semester || 6} • Group ${studentMeta?.group || 'G1'}`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#ffffff', fontWeight: 700 }} />
+                  <Chip label={`ROLL: ${studentMeta?.rollNumber || currentUser?.rollNumber || 'N/A'}`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#ffffff', fontWeight: 700 }} />
+                  <Chip label={`${studentMeta?.course || 'B.Tech'} • ${studentMeta?.branch || branchObj?.code || 'N/A'}`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#ffffff', fontWeight: 700 }} />
+                  <Chip label={`Sem ${currentSemester} • Group ${studentMeta?.group || currentUser?.group || 'N/A'}`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.18)', color: '#ffffff', fontWeight: 700 }} />
                 </Box>
               </Box>
             </Box>
@@ -318,11 +356,11 @@ export const StudentDashboard = () => {
               <Avatar sx={{ bgcolor: `${theme.palette.info.main}15`, color: theme.palette.info.main, width: 46, height: 46 }}>
                 <AcademicIcon />
               </Avatar>
-              <Chip label="Semester 6" size="small" color="info" sx={{ fontWeight: 800, fontSize: '0.7rem' }} />
+              <Chip label={`Semester ${currentSemester}`} size="small" color="info" sx={{ fontWeight: 800, fontSize: '0.7rem' }} />
             </Box>
             <Box>
               <Typography variant="h3" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
-                {attendanceData?.summary?.length || (Array.isArray(attendanceData) ? attendanceData.length : 0) || 6}
+                {enrolledSubjectsCount}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
                 Active Enrolled Subjects
@@ -396,11 +434,11 @@ export const StudentDashboard = () => {
               <Avatar sx={{ bgcolor: `${theme.palette.success.main}15`, color: theme.palette.success.main, width: 46, height: 46 }}>
                 <GradeIcon />
               </Avatar>
-              <Chip label="Distinction" size="small" color="success" sx={{ fontWeight: 800, fontSize: '0.7rem' }} />
+              <Chip label={gpaLabelInfo.label} size="small" color={gpaLabelInfo.color} sx={{ fontWeight: 800, fontSize: '0.7rem' }} />
             </Box>
             <Box>
-              <Typography variant="h3" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
-                8.85
+              <Typography variant={gpaValue ? 'h3' : 'h6'} sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
+                {gpaValue || 'Evaluation Pending'}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
                 Current Semester CGPA / Grade
@@ -480,14 +518,14 @@ export const StudentDashboard = () => {
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <RoomIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                              Room: {slot.roomNumber || slot.room || 'L-101'}
+                              Room: {slot.roomNumber || slot.room || 'N/A'}
                             </Typography>
                           </Box>
 
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <InstructorIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                              {slot.facultyId?.name || slot.faculty || 'Prof. Faculty'}
+                              {slot.facultyId?.name || slot.faculty || 'Unassigned'}
                             </Typography>
                           </Box>
                         </Box>

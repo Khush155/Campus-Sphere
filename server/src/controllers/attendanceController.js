@@ -28,7 +28,11 @@ const getAttendanceSheet = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const getStudentAttendanceSummary = asyncHandler(async (req, res) => {
-  const summary = await attendanceService.getStudentAttendanceSummary(req.params.studentId);
+  let targetStudentId = req.params.studentId;
+  if (req.user.role === 'STUDENT') {
+    targetStudentId = req.user.id;
+  }
+  const summary = await attendanceService.getStudentAttendanceSummary(targetStudentId);
   return successResponse(res, 200, 'Student attendance summary calculated', summary);
 });
 

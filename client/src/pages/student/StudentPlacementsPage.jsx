@@ -110,7 +110,7 @@ export const StudentPlacementsPage = () => {
         </Typography>
         <Typography variant="body1" color="text.secondary">
           Explore upcoming company recruitment drives, eligibility rules, and track your ongoing interview applications for{' '}
-          <strong>{studentMeta?.course || 'B.Tech'}</strong> (CGPA: {currentUser?.cgpa || '8.4'}).
+          <strong>{studentMeta?.course || 'B.Tech'}</strong> (CGPA: {currentUser?.cgpa !== undefined && currentUser?.cgpa !== null ? currentUser.cgpa : 'N/A'}).
         </Typography>
       </Box>
 

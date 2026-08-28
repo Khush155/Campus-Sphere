@@ -356,7 +356,9 @@ const getAllSubjects = async (queryOptions = {}) => {
   }
   // Default sort for curriculum subjects: semester ASC → sequenceNo ASC
   const sort = queryOptions.sort || { semester: 1, sequenceNo: 1 };
-  return await paginate(Subject, filter, {
+  const FacultyAssignment = require('../models/FacultyAssignment');
+
+  const result = await paginate(Subject, filter, {
     ...queryOptions,
     sort,
     populate: [
@@ -370,6 +372,18 @@ const getAllSubjects = async (queryOptions = {}) => {
       'facultyId',
     ],
   });
+
+  const subjectsList = Array.isArray(result) ? result : (result.data || []);
+  for (const sub of subjectsList) {
+    if (!sub.facultyId) {
+      const activeAssign = await FacultyAssignment.findOne({ subjectId: sub._id, status: 'ACTIVE' }).populate('facultyId', 'name email');
+      if (activeAssign && activeAssign.facultyId) {
+        sub.facultyId = activeAssign.facultyId;
+      }
+    }
+  }
+
+  return result;
 };
 
 const getSubjectById = async (id) => {

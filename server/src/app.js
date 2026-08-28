@@ -154,6 +154,7 @@ app.use('/api/v1/materials', require('./routes/materialRoutes'));
 app.use('/api/v1/notifications', require('./routes/notificationRoutes'));
 app.use('/api/v1/faculty-assignments', require('./routes/facultyAssignmentRoutes'));
 app.use('/api/v1/academics', require('./routes/academicRoutes'));
+app.use('/api/v1/fees', require('./routes/feeRoutes'));
 
 // Serve static client build in production
 if (env.NODE_ENV === 'production') {

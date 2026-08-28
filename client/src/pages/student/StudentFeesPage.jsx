@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -14,22 +15,28 @@ import {
   Chip,
   Avatar,
   Button,
+  Skeleton,
   useTheme,
 } from '@mui/material';
 import {
   ReceiptLongOutlined as FeeIcon,
   CheckCircleOutlineOutlined as VerifiedIcon,
   DownloadOutlined as DownloadIcon,
+  VisibilityOutlined as ViewIcon,
+  PrintOutlined as PrintIcon,
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
+import { useStudentFeeReceiptsQuery } from '../../queries/studentQueries';
 
 export const StudentFeesPage = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const isDark = theme.palette.mode === 'dark';
   const { user: authUser } = useAuth();
   const { data: profile, isLoading } = useMyProfileQuery();
+  const { data: receipts = [], isLoading: isReceiptsLoading } = useStudentFeeReceiptsQuery();
 
   const currentUser = profile?.user || authUser;
   const studentMeta = profile?.profileMeta || {};
@@ -235,6 +242,118 @@ export const StudentFeesPage = () => {
             </TableBody>
           </Table>
         </TableContainer>
+      </Paper>
+
+      {/* Official Payment Receipts Section */}
+      <Paper
+        elevation={0}
+        sx={{
+          mt: 3.5,
+          borderRadius: '24px',
+          border: `1px solid ${theme.palette.divider}`,
+          overflow: 'hidden',
+          bgcolor: isDark ? 'background.paper' : '#ffffff',
+        }}
+      >
+        <Box sx={{ p: 3, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
+            Official Fee Payment Receipts
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Verified institutional receipts for cleared fee transactions
+          </Typography>
+        </Box>
+
+        {isReceiptsLoading ? (
+          <Box sx={{ p: 4 }}>
+            <Skeleton variant="rectangular" height={80} sx={{ borderRadius: '12px' }} />
+          </Box>
+        ) : receipts.length === 0 ? (
+          <Box sx={{ py: 6, textAlign: 'center' }}>
+            <FeeIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1.5 }} />
+            <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
+              No Fee Receipts Available
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Official payment receipts will be generated once institutional fee dues are cleared.
+            </Typography>
+          </Box>
+        ) : (
+          <TableContainer>
+            <Table>
+              <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 800 }}>RECEIPT NO.</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>TRANSACTION ID</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>PAYMENT DATE</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>AMOUNT PAID</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>STATUS</TableCell>
+                  <TableCell sx={{ fontWeight: 800, textAlign: 'right' }}>ACTIONS</TableCell>
+                </TableRow>
+              </TableHead>
+
+              <TableBody>
+                {receipts.map((rcp) => (
+                  <TableRow key={rcp.receiptId} hover>
+                    <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontFamily: 'monospace' }}>
+                      {rcp.receiptNumber}
+                    </TableCell>
+
+                    <TableCell sx={{ fontWeight: 700, color: 'primary.main', fontFamily: 'monospace' }}>
+                      {rcp.transactionId}
+                    </TableCell>
+
+                    <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                      {new Date(rcp.paymentDate).toLocaleDateString('en-IN', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </TableCell>
+
+                    <TableCell sx={{ fontWeight: 800, color: 'success.main' }}>
+                      ₹ {rcp.totalPaid.toLocaleString('en-IN')}
+                    </TableCell>
+
+                    <TableCell>
+                      <Chip
+                        label={rcp.isCleared ? 'CLEARED' : rcp.feeStatus}
+                        color={rcp.isCleared ? 'success' : 'warning'}
+                        size="small"
+                        sx={{ fontWeight: 800 }}
+                      />
+                    </TableCell>
+
+                    <TableCell align="right">
+                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<ViewIcon />}
+                          onClick={() => navigate(`/student/fees/receipt/${rcp.receiptId}`)}
+                          sx={{ borderRadius: '8px', fontWeight: 800, textTransform: 'none' }}
+                        >
+                          View Receipt
+                        </Button>
+
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="primary"
+                          startIcon={<PrintIcon />}
+                          onClick={() => navigate(`/student/fees/receipt/${rcp.receiptId}`)}
+                          sx={{ borderRadius: '8px', fontWeight: 800, textTransform: 'none' }}
+                        >
+                          Print / PDF
+                        </Button>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
       </Paper>
     </Container>
   );
