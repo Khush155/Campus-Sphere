@@ -78,6 +78,7 @@ const noticeFormSchema = z.object({
 
 export const NoticeBoard = () => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
 
   // Filter and search state
@@ -248,19 +249,22 @@ export const NoticeBoard = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
-      {/* ── 1. Hero Header Banner Card ─────────────────────────────────────── */}
+      {/* ── 1. Hero Header Banner Card (Glassmorphic Luxury Bar) ────────── */}
       <Card
         sx={{
           p: 3.5,
-          borderRadius: '16px',
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0F 0%, ${theme.palette.brass?.[500] || '#b8863e'}08 100%)`,
-          boxShadow: theme.custom?.elevation?.raised || 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(184, 134, 62, 0.06) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: theme.custom?.elevation?.raised || '0 8px 24px rgba(0,0,0,0.03)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 2,
+          gap: 2.5,
         }}
       >
         <Box>
@@ -272,22 +276,23 @@ export const NoticeBoard = () => {
               sx={{
                 bgcolor: `${theme.palette.primary.main}15`,
                 color: theme.palette.primary.main,
-                fontFamily: theme.typography.mono.fontFamily,
-                fontWeight: 700,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontWeight: 800,
                 fontSize: '0.68rem',
                 letterSpacing: '0.06em',
-                borderRadius: '6px',
+                borderRadius: '8px',
               }}
             />
             <Chip
               label={`${noticesData?.meta?.total || 0} Total Notices`}
               size="small"
               sx={{
-                bgcolor: theme.palette.background.paper,
+                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
                 border: `1px solid ${theme.palette.divider}`,
-                fontFamily: theme.typography.mono.fontFamily,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                 fontSize: '0.72rem',
-                fontWeight: 600,
+                fontWeight: 700,
+                borderRadius: '6px',
               }}
             />
             <Chip
@@ -295,10 +300,11 @@ export const NoticeBoard = () => {
               size="small"
               sx={{
                 bgcolor: 'rgba(16, 185, 129, 0.1)',
-                color: theme.palette.signal.success,
-                fontFamily: theme.typography.mono.fontFamily,
+                color: theme.palette.signal?.success || '#10b981',
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                 fontSize: '0.72rem',
-                fontWeight: 600,
+                fontWeight: 700,
+                borderRadius: '6px',
               }}
             />
             {urgentCount > 0 && (
@@ -307,10 +313,11 @@ export const NoticeBoard = () => {
                 size="small"
                 sx={{
                   bgcolor: 'rgba(239, 68, 68, 0.1)',
-                  color: theme.palette.signal.error,
-                  fontFamily: theme.typography.mono.fontFamily,
+                  color: theme.palette.signal?.error || '#ef4444',
+                  fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                   fontSize: '0.72rem',
-                  fontWeight: 700,
+                  fontWeight: 800,
+                  borderRadius: '6px',
                 }}
               />
             )}
@@ -319,11 +326,12 @@ export const NoticeBoard = () => {
                 label={`${archivedCount} Archived`}
                 size="small"
                 sx={{
-                  bgcolor: 'rgba(107, 114, 128, 0.1)',
+                  bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(107, 114, 128, 0.1)',
                   color: theme.palette.text.secondary,
-                  fontFamily: theme.typography.mono.fontFamily,
+                  fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                   fontSize: '0.72rem',
                   fontWeight: 600,
+                  borderRadius: '6px',
                 }}
               />
             )}
@@ -333,9 +341,9 @@ export const NoticeBoard = () => {
             variant="h4"
             component="h1"
             sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 600,
-              color: theme.palette.ink[900],
+              fontWeight: 800,
+              color: 'text.primary',
+              letterSpacing: '-0.02em',
               lineHeight: 1.15,
               mb: 0.5,
             }}
@@ -345,9 +353,8 @@ export const NoticeBoard = () => {
           <Typography
             variant="body2"
             sx={{
-              fontFamily: theme.typography.body2.fontFamily,
               color: theme.palette.text.secondary,
-              maxWidth: 640,
+              maxWidth: 680,
             }}
           >
             Publish, edit, and target critical broadcast notices to students, faculty, or specific departments.
@@ -361,15 +368,12 @@ export const NoticeBoard = () => {
           sx={{
             background: theme.palette.primary.gradient || theme.palette.primary.main,
             color: '#ffffff',
-            fontWeight: 700,
-            px: 3,
-            py: 1.25,
-            borderRadius: '8px',
+            fontWeight: 800,
+            px: 2.75,
+            height: '42px',
+            borderRadius: '10px',
             textTransform: 'none',
-            boxShadow: `0 4px 16px ${theme.palette.primary.main}40`,
-            '&:hover': {
-              filter: 'brightness(1.1)',
-            },
+            boxShadow: `0 4px 18px ${theme.palette.primary.main}40`,
           }}
         >
           Create Notice
@@ -377,7 +381,15 @@ export const NoticeBoard = () => {
       </Card>
 
       {/* ── 2. Filters & Searches ─────────────────────────────────────────── */}
-      <Card sx={{ p: 2.5, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
+      <Card
+        sx={{
+          p: 2.5,
+          border: `1px solid ${theme.palette.divider}`,
+          boxShadow: 'none',
+          borderRadius: '18px',
+          bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+        }}
+      >
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1, flexWrap: 'wrap' }}>
             <TextField
@@ -488,7 +500,7 @@ export const NoticeBoard = () => {
       ) : (
         <>
           {viewMode === 'list' ? (
-            <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
+            <TableContainer component={Card} sx={{ border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '18px', bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper }}>
               <Table aria-label="Notices configuration table" size="small">
                 <TableHead sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(28, 46, 69, 0.02)' }}>
                   <TableRow>

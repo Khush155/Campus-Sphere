@@ -11,7 +11,6 @@ import AdminDashboard from '../pages/admin/AdminDashboard';
 import SetupHub from '../pages/admin/CollegeSetup/SetupHub';
 import UserRoster from '../pages/admin/UserManagement/UserRoster';
 import SetupWizard from '../pages/admin/SetupWizard';
-import AcademicSessionsPage from '../pages/admin/AcademicSessions/AcademicSessionsPage';
 import UserProfilePage from '../pages/profile/UserProfilePage';
 import AccountSettingsPage from '../pages/settings/AccountSettingsPage';
 import { useDepartmentsQuery } from '../queries/collegeQueries';
@@ -377,13 +376,7 @@ export const AppRoutes = () => {
 
         <Route
           path="admin/academic-sessions"
-          element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
-              <AdminSetupGuard>
-                <AcademicCalendar />
-              </AdminSetupGuard>
-            </RoleRoute>
-          }
+          element={<Navigate to="/admin/academic-calendar" replace />}
         />
 
         <Route path="students" element={<RoleRoute allowedRoles={['FACULTY']}><FacultyStudentListPage /></RoleRoute>} />

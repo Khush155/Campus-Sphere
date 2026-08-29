@@ -359,7 +359,7 @@ export const AdminDashboard = () => {
         <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
           No active academic session —{' '}
           <Link
-            to="/admin/academic-sessions"
+            to="/admin/academic-calendar"
             style={{ color: theme.palette.primary.main, textDecoration: 'none', fontWeight: 600 }}
           >
             set up session
@@ -501,7 +501,7 @@ export const AdminDashboard = () => {
           <Button
             variant="outlined"
             startIcon={<DateRangeOutlined />}
-            onClick={() => navigate('/admin/academic-sessions')}
+            onClick={() => navigate('/admin/academic-calendar')}
             sx={{
               fontWeight: 700,
               px: 2.25,
@@ -511,7 +511,7 @@ export const AdminDashboard = () => {
               borderColor: theme.palette.divider,
             }}
           >
-            Academic Sessions
+            Academic Calendar
           </Button>
 
           <Button

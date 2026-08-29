@@ -43,15 +43,19 @@ import { useDepartmentsQuery } from '../../../queries/collegeQueries';
 import { useCollegeProfileQuery } from '../../../queries/collegeProfileQueries';
 import { useToast } from '../../../contexts/ToastContext';
 import EmptyState from '../../../components/common/EmptyState';
+import Pagination from '../../../components/common/Pagination';
 
 export const FeeClearanceHub = () => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
 
   // Filters
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const rowsPerPage = 15;
 
   // Selected Student for Dues Drawer
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -71,7 +75,7 @@ export const FeeClearanceHub = () => {
   // Queries & Mutations
   const { data: studentsData, isLoading: loadingStudents, refetch } = useUsersQuery({
     role: 'STUDENT',
-    limit: 200,
+    limit: 1000,
   });
   const { data: depts } = useDepartmentsQuery();
   const { data: profile } = useCollegeProfileQuery();
@@ -80,7 +84,7 @@ export const FeeClearanceHub = () => {
   const students = studentsData?.data || [];
 
   // Metrics
-  const totalStudents = students.length;
+  const totalStudents = studentsData?.meta?.total || students.length;
   const clearedCount = students.filter((s) => s.feeStatus === 'CLEARED' || !s.feeStatus).length;
   const pendingCount = students.filter((s) => s.feeStatus === 'PENDING').length;
   const overdueCount = students.filter((s) => s.feeStatus === 'OVERDUE').length;
@@ -101,6 +105,9 @@ export const FeeClearanceHub = () => {
 
     return matchesSearch && matchesDept && matchesStatus;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / rowsPerPage));
+  const paginatedStudents = filteredStudents.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   // Bulk Selection Handlers
   const handleSelectAll = (e) => {
@@ -204,37 +211,63 @@ export const FeeClearanceHub = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
-      {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
+      {/* ── 1. Hero Identity Banner (Glassmorphic Luxury Bar) ─────────────── */}
       <Card
         sx={{
           p: 3.5,
-          borderRadius: '16px',
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
-          boxShadow: 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(184, 134, 62, 0.06) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: theme.custom?.elevation?.raised || '0 8px 24px rgba(0,0,0,0.03)',
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2.5 }}>
           <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1, flexWrap: 'wrap' }}>
               <Chip
                 icon={<AccountBalanceWalletOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
-                label="INSTITUTIONAL FINANCIAL & NO-DUES CLEARANCE DESK"
+                label="FINANCIAL & NO-DUES CLEARANCE DESK"
                 size="small"
                 sx={{
                   bgcolor: `${theme.palette.primary.main}15`,
                   color: theme.palette.primary.main,
                   fontWeight: 800,
-                  fontFamily: theme.typography.mono.fontFamily,
-                  letterSpacing: '0.05em',
-                  fontSize: '0.7rem',
+                  fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  letterSpacing: '0.06em',
+                  fontSize: '0.68rem',
+                  borderRadius: '8px',
+                }}
+              />
+              <Chip
+                label={`${clearedCount} / ${totalStudents} Cleared`}
+                size="small"
+                sx={{
+                  bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
+                  border: `1px solid ${theme.palette.divider}`,
+                  fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  borderRadius: '6px',
                 }}
               />
             </Box>
-            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
-              Student Fee Dues & Clearance Desk
+            <Typography
+              variant="h4"
+              component="h1"
+              sx={{
+                fontWeight: 800,
+                color: 'text.primary',
+                letterSpacing: '-0.02em',
+                lineHeight: 1.15,
+                mb: 0.5,
+              }}
+            >
+              Student Fee Dues &amp; Clearance Desk
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, maxWidth: 680 }}>
               Monitor tuition fees, hostel, library, and lab dues, record payments, and issue official No-Dues Clearance Passes.
             </Typography>
           </Box>
@@ -243,7 +276,14 @@ export const FeeClearanceHub = () => {
             variant="outlined"
             startIcon={<RefreshOutlined />}
             onClick={() => refetch()}
-            sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+            sx={{
+              borderRadius: '10px',
+              textTransform: 'none',
+              fontWeight: 600,
+              height: '42px',
+              borderColor: theme.palette.divider,
+              bgcolor: theme.palette.background.paper,
+            }}
           >
             Refresh Fee Roster
           </Button>
@@ -253,11 +293,33 @@ export const FeeClearanceHub = () => {
       {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            sx={{
+              p: 3,
+              borderRadius: '18px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
+            }}
+          >
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               ENROLLED STUDENTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                color: 'text.primary',
+                mt: 1,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+              }}
+            >
               {loadingStudents ? <CircularProgress size={24} /> : totalStudents}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
@@ -267,11 +329,36 @@ export const FeeClearanceHub = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+          <Card
+            sx={{
+              p: 3,
+              borderRadius: '18px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              borderTop: `4px solid ${theme.palette.signal?.success || '#10b981'}`,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.success || '#10b981' }}
+            >
               100% CLEARED ACCOUNTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                color: theme.palette.signal?.success || '#10b981',
+                mt: 1,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+              }}
+            >
               {loadingStudents ? <CircularProgress size={24} /> : clearedCount}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
@@ -281,11 +368,36 @@ export const FeeClearanceHub = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
+          <Card
+            sx={{
+              p: 3,
+              borderRadius: '18px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              borderTop: '4px solid #f59e0b',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 700, letterSpacing: '0.05em', color: '#f59e0b' }}
+            >
               PENDING DUES ACCOUNTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                color: '#f59e0b',
+                mt: 1,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+              }}
+            >
               {loadingStudents ? <CircularProgress size={24} /> : pendingCount}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
@@ -295,11 +407,36 @@ export const FeeClearanceHub = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.error }}>
+          <Card
+            sx={{
+              p: 3,
+              borderRadius: '18px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              borderTop: `4px solid ${theme.palette.signal?.error || '#ef4444'}`,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.error || '#ef4444' }}
+            >
               OVERDUE / BLOCKED ACCOUNTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.error, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                color: theme.palette.signal?.error || '#ef4444',
+                mt: 1,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+              }}
+            >
               {loadingStudents ? <CircularProgress size={24} /> : overdueCount}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
@@ -310,7 +447,7 @@ export const FeeClearanceHub = () => {
       </Grid>
 
       {/* ── 3. Filters & Dues Directory Table ─────────────────────────────── */}
-      <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+      <Card sx={{ p: 3, borderRadius: '18px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper }}>
         <Grid container spacing={2} sx={{ mb: 3 }} alignItems="center">
           <Grid item xs={12} sm={4}>
             <TextField
@@ -318,7 +455,10 @@ export const FeeClearanceHub = () => {
               size="small"
               placeholder="Search by student name, roll no..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               InputProps={{
                 startAdornment: <SearchOutlined sx={{ color: 'text.secondary', mr: 1, fontSize: 18 }} />,
               }}
@@ -332,7 +472,10 @@ export const FeeClearanceHub = () => {
               size="small"
               label="Clearance Status"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
               SelectProps={{ displayEmpty: true }}
               InputLabelProps={{ shrink: true }}
             >
@@ -350,7 +493,10 @@ export const FeeClearanceHub = () => {
               size="small"
               label="Department"
               value={deptFilter}
-              onChange={(e) => setDeptFilter(e.target.value)}
+              onChange={(e) => {
+                setDeptFilter(e.target.value);
+                setPage(1);
+              }}
               SelectProps={{ displayEmpty: true }}
               InputLabelProps={{ shrink: true }}
             >
@@ -449,7 +595,7 @@ export const FeeClearanceHub = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredStudents.map((s) => {
+                  {paginatedStudents.map((s) => {
                     const sId = s.id || s._id;
                     const isSelected = selectedStudentIds.includes(sId);
                     const sStatus = s.feeStatus || 'CLEARED';
@@ -572,6 +718,14 @@ export const FeeClearanceHub = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={filteredStudents.length}
+              limit={rowsPerPage}
+              onPageChange={setPage}
+            />
           </Box>
         )}
       </Card>

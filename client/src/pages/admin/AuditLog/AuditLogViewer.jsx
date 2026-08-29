@@ -360,6 +360,7 @@ const Row = ({ log }) => {
 
 export const AuditLogViewer = () => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
   const [page, setPage] = useState(1);
   const limit = 10;
@@ -470,54 +471,110 @@ export const AuditLogViewer = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, pb: 6 }}>
-      {/* ── 1. Clean Header Bar ───────────────────────────────────────────── */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 0.5 }}>
+      {/* ── 1. Glassmorphic Luxury Header Bar ────────────────────────────── */}
+      <Card
+        sx={{
+          p: 3.5,
+          borderRadius: '22px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(16, 185, 129, 0.06) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(16, 185, 129, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: theme.custom?.elevation?.raised || '0 8px 24px rgba(0,0,0,0.03)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 2.5,
+        }}
+      >
         <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1, flexWrap: 'wrap' }}>
+            <Chip
+              icon={<ShieldOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+              label="IMMUTABLE SECURITY AUDIT STREAM"
+              size="small"
+              sx={{
+                bgcolor: `${theme.palette.primary.main}15`,
+                color: theme.palette.primary.main,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontWeight: 800,
+                fontSize: '0.68rem',
+                letterSpacing: '0.06em',
+                borderRadius: '8px',
+              }}
+            />
+            <Chip
+              label={`${total} Entries Logged`}
+              size="small"
+              sx={{
+                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
+                border: `1px solid ${theme.palette.divider}`,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                borderRadius: '6px',
+              }}
+            />
+          </Box>
           <Typography
             variant="h4"
             component="h1"
             sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 600,
-              color: theme.palette.ink[900],
+              fontWeight: 800,
+              color: 'text.primary',
+              letterSpacing: '-0.02em',
               lineHeight: 1.15,
               mb: 0.5,
             }}
           >
-            Audit Logs & Security Trail
+            Audit Logs &amp; Security Trail
           </Typography>
           <Typography
             variant="body2"
             sx={{
-              fontFamily: theme.typography.body2.fontFamily,
               color: theme.palette.text.secondary,
+              maxWidth: 680,
             }}
           >
-            Trace administrative operations, security policy updates, notice broadcasts, and student promotion history.
+            Trace administrative operations, security policy updates, notice broadcasts, and student promotion history with cryptographic immutability.
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
           <Button
             variant="outlined"
-            size="small"
             startIcon={<DownloadOutlined />}
             onClick={exportAuditCsv}
             sx={{
               textTransform: 'none',
               fontWeight: 700,
-              borderRadius: '8px',
+              borderRadius: '10px',
               px: 2.5,
-              height: '38px',
+              height: '42px',
+              borderColor: theme.palette.divider,
+              bgcolor: theme.palette.background.paper,
             }}
           >
             Export CSV
           </Button>
-          <IconButton onClick={() => refetch()} title="Refresh Logs" sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: '8px' }}>
-            <Refresh />
-          </IconButton>
+          <Tooltip title="Refresh Audit Stream" arrow>
+            <IconButton
+              onClick={() => refetch()}
+              sx={{
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: '10px',
+                width: 42,
+                height: 42,
+                bgcolor: theme.palette.background.paper,
+              }}
+            >
+              <Refresh />
+            </IconButton>
+          </Tooltip>
         </Box>
-      </Box>
+      </Card>
 
       {/* ── 2. Top Summary KPI Cards ─────────────────────────────────────── */}
       <Grid container spacing={2.5}>
@@ -525,20 +582,26 @@ export const AuditLogViewer = () => {
           <Card
             sx={{
               p: 2.5,
-              borderRadius: '14px',
+              borderRadius: '18px',
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: 'none',
               bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
               display: 'flex',
               alignItems: 'center',
               gap: 2,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
             }}
           >
             <Box
               sx={{
-                width: 44,
-                height: 44,
-                borderRadius: '10px',
+                width: 48,
+                height: 48,
+                borderRadius: '12px',
                 bgcolor: `${theme.palette.primary.main}15`,
                 color: theme.palette.primary.main,
                 display: 'flex',
@@ -546,13 +609,13 @@ export const AuditLogViewer = () => {
                 justifyContent: 'center',
               }}
             >
-              <HistoryToggleOffOutlined sx={{ fontSize: 22 }} />
+              <HistoryToggleOffOutlined sx={{ fontSize: 24 }} />
             </Box>
             <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block' }}>
-                Total Audit Logs
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', letterSpacing: '0.04em' }}>
+                TOTAL AUDIT LOGS
               </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
                 {total} Records
               </Typography>
             </Box>
@@ -563,20 +626,26 @@ export const AuditLogViewer = () => {
           <Card
             sx={{
               p: 2.5,
-              borderRadius: '14px',
+              borderRadius: '18px',
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: 'none',
               bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              borderTop: '4px solid #8b5cf6',
               display: 'flex',
               alignItems: 'center',
               gap: 2,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
             }}
           >
             <Box
               sx={{
-                width: 44,
-                height: 44,
-                borderRadius: '10px',
+                width: 48,
+                height: 48,
+                borderRadius: '12px',
                 bgcolor: '#8b5cf615',
                 color: '#8b5cf6',
                 display: 'flex',
@@ -584,13 +653,13 @@ export const AuditLogViewer = () => {
                 justifyContent: 'center',
               }}
             >
-              <VerifiedUserOutlined sx={{ fontSize: 22 }} />
+              <VerifiedUserOutlined sx={{ fontSize: 24 }} />
             </Box>
             <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block' }}>
-                Tracked System Actions
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', letterSpacing: '0.04em' }}>
+                SYSTEM ACTIONS
               </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
                 {actionsList?.length || 0} Action Types
               </Typography>
             </Box>
@@ -601,20 +670,26 @@ export const AuditLogViewer = () => {
           <Card
             sx={{
               p: 2.5,
-              borderRadius: '14px',
+              borderRadius: '18px',
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: 'none',
               bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              borderTop: '4px solid #10b981',
               display: 'flex',
               alignItems: 'center',
               gap: 2,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
             }}
           >
             <Box
               sx={{
-                width: 44,
-                height: 44,
-                borderRadius: '10px',
+                width: 48,
+                height: 48,
+                borderRadius: '12px',
                 bgcolor: '#10b98115',
                 color: '#10b981',
                 display: 'flex',
@@ -622,13 +697,13 @@ export const AuditLogViewer = () => {
                 justifyContent: 'center',
               }}
             >
-              <FolderOpenOutlined sx={{ fontSize: 22 }} />
+              <FolderOpenOutlined sx={{ fontSize: 24 }} />
             </Box>
             <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block' }}>
-                Audited Models
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', letterSpacing: '0.04em' }}>
+                AUDITED ENTITIES
               </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
                 {targetModelsList?.length || 4} Entities
               </Typography>
             </Box>
@@ -639,20 +714,26 @@ export const AuditLogViewer = () => {
           <Card
             sx={{
               p: 2.5,
-              borderRadius: '14px',
+              borderRadius: '18px',
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: 'none',
               bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              borderTop: `4px solid ${theme.palette.brass?.[500] || '#b8863e'}`,
               display: 'flex',
               alignItems: 'center',
               gap: 2,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
             }}
           >
             <Box
               sx={{
-                width: 44,
-                height: 44,
-                borderRadius: '10px',
+                width: 48,
+                height: 48,
+                borderRadius: '12px',
                 bgcolor: `${theme.palette.brass?.[500] || '#b8863e'}18`,
                 color: theme.palette.brass?.[500] || '#b8863e',
                 display: 'flex',
@@ -660,11 +741,11 @@ export const AuditLogViewer = () => {
                 justifyContent: 'center',
               }}
             >
-              <ShieldOutlined sx={{ fontSize: 22 }} />
+              <ShieldOutlined sx={{ fontSize: 24 }} />
             </Box>
             <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block' }}>
-                Log Integrity
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', letterSpacing: '0.04em' }}>
+                LOG INTEGRITY
               </Typography>
               <Typography variant="h6" sx={{ fontWeight: 800, color: '#10b981', fontSize: '0.95rem' }}>
                 100% Immutable
@@ -680,7 +761,8 @@ export const AuditLogViewer = () => {
           p: 3,
           border: `1px solid ${theme.palette.divider}`,
           boxShadow: 'none',
-          borderRadius: '16px',
+          borderRadius: '18px',
+          bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
         }}
       >
         {/* Preset Category Chips */}
@@ -839,7 +921,7 @@ export const AuditLogViewer = () => {
         sx={{
           border: `1px solid ${theme.palette.divider}`,
           boxShadow: 'none',
-          borderRadius: '16px',
+          borderRadius: '18px',
           overflow: 'hidden',
         }}
       >

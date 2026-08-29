@@ -87,6 +87,7 @@ const profileFormSchema = z.object({
 
 export const CollegeProfile = () => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
 
   // Logo file state
@@ -242,19 +243,22 @@ export const CollegeProfile = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, pb: 6 }}>
-      {/* ── 1. Hero Identity Banner Card ───────────────────────────────────── */}
+      {/* ── 1. Hero Identity Banner Card (Glassmorphic Luxury Bar) ────────── */}
       <Card
         sx={{
           p: 3.5,
-          borderRadius: '16px',
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0F 0%, ${theme.palette.brass?.[500] || '#b8863e'}08 100%)`,
-          boxShadow: theme.custom?.elevation?.raised || 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(184, 134, 62, 0.06) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: theme.custom?.elevation?.raised || '0 8px 24px rgba(0,0,0,0.03)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 2,
+          gap: 2.5,
         }}
       >
         <Box>
@@ -266,11 +270,11 @@ export const CollegeProfile = () => {
               sx={{
                 bgcolor: `${theme.palette.primary.main}15`,
                 color: theme.palette.primary.main,
-                fontFamily: theme.typography.mono.fontFamily,
-                fontWeight: 700,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontWeight: 800,
                 fontSize: '0.68rem',
                 letterSpacing: '0.06em',
-                borderRadius: '6px',
+                borderRadius: '8px',
               }}
             />
             <Chip
@@ -278,16 +282,16 @@ export const CollegeProfile = () => {
               label="Official Profile Active"
               size="small"
               color="success"
-              sx={{ fontSize: '0.72rem', fontWeight: 700 }}
+              sx={{ fontSize: '0.72rem', fontWeight: 700, borderRadius: '6px' }}
             />
           </Box>
           <Typography
             variant="h4"
             component="h1"
             sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 600,
-              color: theme.palette.ink[900],
+              fontWeight: 800,
+              color: 'text.primary',
+              letterSpacing: '-0.02em',
               lineHeight: 1.15,
               mb: 0.5,
             }}
@@ -297,9 +301,8 @@ export const CollegeProfile = () => {
           <Typography
             variant="body2"
             sx={{
-              fontFamily: theme.typography.body2.fontFamily,
               color: theme.palette.text.secondary,
-              maxWidth: 640,
+              maxWidth: 680,
             }}
           >
             Manage institution details, branding logos, physical address, and affiliation metadata displayed across documents.
@@ -320,7 +323,7 @@ export const CollegeProfile = () => {
               p: 4,
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: 'none',
-              borderRadius: '16px',
+              borderRadius: '18px',
               bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
               display: 'flex',
               flexDirection: 'column',
@@ -511,7 +514,7 @@ export const CollegeProfile = () => {
               p: 4,
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: 'none',
-              borderRadius: '16px',
+              borderRadius: '18px',
               bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
               display: 'flex',
               flexDirection: 'column',

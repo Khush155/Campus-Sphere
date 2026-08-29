@@ -34,6 +34,7 @@ import { useToast } from '../../../contexts/ToastContext';
 
 export const Reports = () => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
 
   // Queries
@@ -132,19 +133,22 @@ export const Reports = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, pb: 6 }}>
-      {/* ── 1. Hero Export Banner Card ─────────────────────────────────────── */}
+      {/* ── 1. Hero Export Banner Card (Glassmorphic Luxury Bar) ─────────── */}
       <Card
         sx={{
           p: 3.5,
-          borderRadius: '16px',
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0F 0%, ${theme.palette.brass?.[500] || '#b8863e'}08 100%)`,
-          boxShadow: theme.custom?.elevation?.raised || 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(184, 134, 62, 0.06) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: theme.custom?.elevation?.raised || '0 8px 24px rgba(0,0,0,0.03)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 2,
+          gap: 2.5,
         }}
       >
         <Box>
@@ -156,33 +160,35 @@ export const Reports = () => {
               sx={{
                 bgcolor: `${theme.palette.primary.main}15`,
                 color: theme.palette.primary.main,
-                fontFamily: theme.typography.mono.fontFamily,
-                fontWeight: 700,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontWeight: 800,
                 fontSize: '0.68rem',
                 letterSpacing: '0.06em',
-                borderRadius: '6px',
+                borderRadius: '8px',
               }}
             />
             <Chip
               label={`${reportTypes?.length || 0} Standard Templates`}
               size="small"
               sx={{
-                bgcolor: theme.palette.background.paper,
+                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
                 border: `1px solid ${theme.palette.divider}`,
-                fontFamily: theme.typography.mono.fontFamily,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                 fontSize: '0.72rem',
-                fontWeight: 600,
+                fontWeight: 700,
+                borderRadius: '6px',
               }}
             />
             <Chip
               label="CSV & PDF Formats"
               size="small"
               sx={{
-                bgcolor: theme.palette.background.paper,
+                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
                 border: `1px solid ${theme.palette.divider}`,
-                fontFamily: theme.typography.mono.fontFamily,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                 fontSize: '0.72rem',
-                fontWeight: 600,
+                fontWeight: 700,
+                borderRadius: '6px',
               }}
             />
           </Box>
@@ -190,21 +196,20 @@ export const Reports = () => {
             variant="h4"
             component="h1"
             sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 600,
-              color: theme.palette.ink[900],
+              fontWeight: 800,
+              color: 'text.primary',
+              letterSpacing: '-0.02em',
               lineHeight: 1.15,
               mb: 0.5,
             }}
           >
-            Reports & Export Center
+            Reports &amp; Export Center
           </Typography>
           <Typography
             variant="body2"
             sx={{
-              fontFamily: theme.typography.body2.fontFamily,
               color: theme.palette.text.secondary,
-              maxWidth: 640,
+              maxWidth: 680,
             }}
           >
             Select, filter, and compile institutional data into structured spreadsheet CSVs or print-ready PDF reports.

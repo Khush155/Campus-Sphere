@@ -24,13 +24,13 @@ import {
   DownloadOutlined as DownloadIcon,
   HomeOutlined as HomeIcon,
   ContactPhoneOutlined as EmergencyIcon,
-  QrCode2Outlined as QrIcon,
   CheckCircleOutlineOutlined as CheckIcon,
   FactCheckOutlined as AttendanceIcon,
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
+import CollegiateIdCard from '../../components/common/CollegiateIdCard';
 
 export const StudentProfilePage = () => {
   const theme = useTheme();
@@ -445,82 +445,20 @@ export const StudentProfilePage = () => {
 
       {/* TAB 1: Digital ID Card Credential */}
       {activeTab === 1 && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              width: { xs: '100%', sm: 420 },
-              p: 4,
-              borderRadius: '28px',
-              border: `2px solid ${theme.palette.primary.main}`,
-              background: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%)',
-              color: '#ffffff',
-              boxShadow: '0 24px 48px rgba(79, 70, 229, 0.35)',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            {/* Header */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <IdCardIcon sx={{ fontSize: 26 }} />
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, letterSpacing: '0.08em' }}>
-                  CAMPUS SPHERE
-                </Typography>
-              </Box>
-              <Chip label="OFFICIAL DIGITAL ID" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.25)', color: '#ffffff', fontWeight: 800, fontSize: '0.68rem' }} />
-            </Box>
-
-            {/* Avatar & Info */}
-            <Box sx={{ textAlign: 'center', my: 2 }}>
-              <Avatar
-                src={currentUser?.profilePicUrl}
-                sx={{
-                  width: 104,
-                  height: 104,
-                  mx: 'auto',
-                  mb: 2,
-                  border: '4px solid #ffffff',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-                  fontSize: '2.6rem',
-                  fontWeight: 800,
-                  bgcolor: 'rgba(255,255,255,0.2)',
-                }}
-              >
-                {currentUser?.name?.charAt(0) || 'S'}
-              </Avatar>
-
-              <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.01em', mb: 0.5 }}>
-                {currentUser?.name || 'Student Name'}
-              </Typography>
-              <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 700, mb: 1.5 }}>
-                {studentMeta?.course || 'B.Tech'} • {studentMeta?.branch || 'Computer Science'}
-              </Typography>
-
-              <Chip
-                label={`ROLL NO: ${studentMeta?.rollNumber || currentUser?.rollNumber || 'N/A'}`}
-                sx={{ bgcolor: '#ffffff', color: '#4f46e5', fontWeight: 800, fontSize: '0.85rem', px: 1, py: 2 }}
-              />
-            </Box>
-
-            {/* QR Code Bar */}
-            <Box sx={{ my: 3, p: 2, borderRadius: '16px', bgcolor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5 }}>
-              <QrIcon sx={{ fontSize: 32 }} />
-              <Typography variant="caption" sx={{ fontWeight: 800, letterSpacing: '0.1em' }}>
-                VERIFIED ACADEMIC CREDENTIAL
-              </Typography>
-            </Box>
-
-            {/* Footer */}
-            <Box sx={{ pt: 2, borderTop: '1px solid rgba(255,255,255,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="caption" sx={{ opacity: 0.85, fontWeight: 700 }}>
-                Group: {studentMeta?.group || currentUser?.group || 'N/A'} ({shift})
-              </Typography>
-              <Typography variant="caption" sx={{ opacity: 0.85, fontWeight: 700 }}>
-                Valid: 2023 - 2027
-              </Typography>
-            </Box>
-          </Paper>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2 }}>
+          <CollegiateIdCard
+            id="student-digital-credential-card"
+            name={currentUser?.name}
+            rollNumber={studentMeta?.rollNumber || currentUser?.rollNumber}
+            role="STUDENT"
+            department={currentUser?.department || studentMeta?.department || 'Computer Science & Engineering'}
+            course={studentMeta?.course || 'B.Tech'}
+            branch={studentMeta?.branch || 'CSE'}
+            semester={studentMeta?.semester || 1}
+            email={currentUser?.email}
+            photoUrl={currentUser?.profilePicUrl}
+            validThrough="2024 — 2028"
+          />
         </Box>
       )}
     </Container>

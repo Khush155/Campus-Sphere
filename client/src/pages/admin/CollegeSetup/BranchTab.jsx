@@ -22,6 +22,8 @@ import {
   Grid,
   InputAdornment,
   Pagination,
+  Chip,
+  Tooltip,
 } from '@mui/material';
 import { EditOutlined, DeleteOutline, SearchOutlined, FilterListOutlined } from '@mui/icons-material';
 import {
@@ -54,6 +56,7 @@ const branchFormSchema = z.object({
 
 export const BranchTab = ({ setOnAddClick }) => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
 
   // Search, Filter & Pagination state
@@ -351,28 +354,101 @@ export const BranchTab = ({ setOnAddClick }) => {
                     key={branch._id}
                     className="staggered-row"
                     style={{ animationDelay: `${index * 25}ms` }}
-                    sx={{ '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' } }}
+                    sx={{
+                      '&:hover': {
+                        bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(79, 70, 229, 0.03)',
+                      },
+                    }}
                   >
-                    <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem', fontWeight: 600 }}>
-                      {branch.code}
+                    <TableCell>
+                      <Chip
+                        label={branch.code}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        sx={{
+                          fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          borderRadius: '6px',
+                          bgcolor: `${theme.palette.primary.main}0D`,
+                        }}
+                      />
                     </TableCell>
-                    <TableCell sx={{ fontFamily: theme.typography.body1.fontFamily, fontSize: '0.88rem', fontWeight: 600 }}>
-                      {branch.name}
+                    <TableCell>
+                      <Typography sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.9rem' }}>
+                        {branch.name}
+                      </Typography>
                     </TableCell>
-                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.82rem', color: theme.palette.text.primary }}>
-                      {parentCourseName}
+                    <TableCell>
+                      <Chip
+                        label={parentCourseName}
+                        size="small"
+                        sx={{
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          borderRadius: '6px',
+                          bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                        }}
+                      />
                     </TableCell>
-                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.82rem', color: branch.hostingDepartmentId ? theme.palette.text.primary : theme.palette.text.secondary, fontStyle: branch.hostingDepartmentId ? 'normal' : 'italic' }}>
-                      {hostingDeptName}
+                    <TableCell>
+                      {branch.hostingDepartmentId ? (
+                        <Chip
+                          label={hostingDeptName}
+                          size="small"
+                          sx={{
+                            fontWeight: 700,
+                            fontSize: '0.74rem',
+                            bgcolor: isDark ? 'rgba(79, 70, 229, 0.15)' : 'rgba(79, 70, 229, 0.08)',
+                            color: 'primary.main',
+                            borderRadius: '8px',
+                          }}
+                        />
+                      ) : (
+                        <Chip
+                          label="Unassigned"
+                          size="small"
+                          variant="outlined"
+                          sx={{
+                            fontSize: '0.72rem',
+                            color: 'text.secondary',
+                            borderStyle: 'dashed',
+                            fontWeight: 600,
+                          }}
+                        />
+                      )}
                     </TableCell>
                     <TableCell align="right">
-                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                        <IconButton aria-label="edit branch" size="small" onClick={() => handleOpenEdit(branch)}>
-                          <EditOutlined fontSize="small" sx={{ color: theme.palette.text.secondary }} />
-                        </IconButton>
-                        <IconButton aria-label="delete branch" size="small" onClick={() => setDeleteId(branch._id)}>
-                          <DeleteOutline fontSize="small" sx={{ color: theme.palette.signal.error }} />
-                        </IconButton>
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.75 }}>
+                        <Tooltip title="Edit Branch" arrow>
+                          <IconButton
+                            aria-label="edit branch"
+                            size="small"
+                            onClick={() => handleOpenEdit(branch)}
+                            sx={{
+                              color: 'text.secondary',
+                              borderRadius: '8px',
+                              '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
+                            }}
+                          >
+                            <EditOutlined fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete Branch" arrow>
+                          <IconButton
+                            aria-label="delete branch"
+                            size="small"
+                            onClick={() => setDeleteId(branch._id)}
+                            sx={{
+                              color: theme.palette.signal?.error || '#ef4444',
+                              borderRadius: '8px',
+                              '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)' },
+                            }}
+                          >
+                            <DeleteOutline fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       </Box>
                     </TableCell>
                   </TableRow>
