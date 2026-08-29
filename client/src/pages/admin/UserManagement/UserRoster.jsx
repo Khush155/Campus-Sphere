@@ -125,6 +125,7 @@ const formatRelativeTime = (dateString) => {
 
 export const UserRoster = () => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
   const { user: currentUser } = useAuth();
   const { isAdmin, canActOnUser, canDelete } = usePermissions();
@@ -372,19 +373,22 @@ export const UserRoster = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, position: 'relative' }}>
-      {/* ── 1. Hero Directory Header Banner Card ──────────────────────────── */}
+      {/* ── 1. Hero Directory Header Banner Card (Glassmorphic Luxury Bar) ─── */}
       <Card
         sx={{
           p: 3.5,
-          borderRadius: '16px',
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.secondary.main}06 100%)`,
-          boxShadow: theme.custom?.elevation?.raised || 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(14, 165, 233, 0.06) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.07) 0%, rgba(14, 165, 233, 0.03) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: theme.custom?.elevation?.raised || '0 8px 24px rgba(0,0,0,0.03)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 2,
+          gap: 2.5,
         }}
       >
         <Box>
@@ -396,22 +400,23 @@ export const UserRoster = () => {
               sx={{
                 bgcolor: `${theme.palette.primary.main}15`,
                 color: theme.palette.primary.main,
-                fontFamily: theme.typography.mono.fontFamily,
-                fontWeight: 700,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontWeight: 800,
                 fontSize: '0.68rem',
                 letterSpacing: '0.06em',
-                borderRadius: '6px',
+                borderRadius: '8px',
               }}
             />
             <Chip
               label={`${usersData?.meta?.total || 0} Accounts Total`}
               size="small"
               sx={{
-                bgcolor: theme.palette.background.paper,
+                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
                 border: `1px solid ${theme.palette.divider}`,
-                fontFamily: theme.typography.mono.fontFamily,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                 fontSize: '0.72rem',
-                fontWeight: 600,
+                fontWeight: 700,
+                borderRadius: '6px',
               }}
             />
           </Box>
@@ -419,20 +424,20 @@ export const UserRoster = () => {
             variant="h4"
             component="h1"
             sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 600,
-              color: theme.palette.ink[900],
+              fontWeight: 800,
+              color: 'text.primary',
+              letterSpacing: '-0.02em',
               lineHeight: 1.15,
               mb: 0.5,
             }}
           >
-            Users Directory
+            Users Directory &amp; Roster
           </Typography>
           <Typography
             variant="body2"
             sx={{
-              fontFamily: theme.typography.body2.fontFamily,
               color: theme.palette.text.secondary,
+              maxWidth: 680,
             }}
           >
             Manage institutional user accounts, access roles, active sessions, and profile configurations.
@@ -513,7 +518,7 @@ export const UserRoster = () => {
       <Card
         sx={{
           p: 2.5,
-          borderRadius: '12px',
+          borderRadius: '18px',
           bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
           border: `1px solid ${theme.palette.divider}`,
           boxShadow: 'none',
@@ -626,7 +631,7 @@ export const UserRoster = () => {
           sx={{
             border: `1px solid ${theme.palette.divider}`,
             boxShadow: 'none',
-            borderRadius: '12px',
+            borderRadius: '18px',
             overflow: 'hidden',
           }}
         >
@@ -1199,22 +1204,42 @@ export const UserRoster = () => {
               </Box>
             </Box>
 
-            <Box sx={{ mt: 'auto', display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Box
+              sx={{
+                mt: 'auto',
+                pt: 2,
+                borderTop: `1px solid ${theme.palette.divider}`,
+                display: 'flex',
+                gap: 1,
+              }}
+            >
               <Button
+                fullWidth
                 variant="outlined"
                 onClick={() => setViewUser(null)}
-                sx={{ color: theme.palette.text.secondary, borderColor: theme.palette.divider, minWidth: 70 }}
+                sx={{
+                  color: theme.palette.text.secondary,
+                  borderColor: theme.palette.divider,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderRadius: '10px',
+                  flex: 1,
+                }}
               >
                 Close
               </Button>
+
               {canActOnUser(viewUser?.role) && canDelete('USER', viewUser?.role) && (
                 <Button
+                  fullWidth
                   variant="outlined"
                   sx={{
                     color: viewUser?.status === 'INACTIVE' ? theme.palette.signal.success : 'rgb(217, 119, 6)',
                     borderColor: viewUser?.status === 'INACTIVE' ? theme.palette.signal.success : 'rgb(217, 119, 6)',
                     fontWeight: 700,
                     textTransform: 'none',
+                    borderRadius: '10px',
+                    flex: 1,
                   }}
                   startIcon={viewUser?.status === 'INACTIVE' ? <CheckCircleOutlined /> : <BlockOutlined />}
                   onClick={() => {
@@ -1225,8 +1250,10 @@ export const UserRoster = () => {
                   {viewUser?.status === 'INACTIVE' ? 'Reactivate' : 'Deactivate'}
                 </Button>
               )}
+
               {canActOnUser(viewUser?.role) && canDelete('PERMANENT_USER_DELETE', viewUser?.role) && (
                 <Button
+                  fullWidth
                   variant="outlined"
                   color="error"
                   startIcon={<DeleteOutline />}
@@ -1235,27 +1262,9 @@ export const UserRoster = () => {
                     setHardDeleteConfirmText('');
                     setViewUser(null);
                   }}
-                  sx={{ fontWeight: 700, textTransform: 'none' }}
+                  sx={{ fontWeight: 700, textTransform: 'none', borderRadius: '10px', flex: 1 }}
                 >
                   Delete
-                </Button>
-              )}
-              {canActOnUser(viewUser?.role) && (
-                <Button
-                  variant="contained"
-                  onClick={() => {
-                    setEditUser(viewUser);
-                    setViewUser(null);
-                    setEditDrawerOpen(true);
-                  }}
-                  sx={{
-                    background: theme.palette.primary.gradient || theme.palette.primary.main,
-                    color: '#ffffff',
-                    fontWeight: 700,
-                    ml: 'auto',
-                  }}
-                >
-                  Edit Profile
                 </Button>
               )}
             </Box>

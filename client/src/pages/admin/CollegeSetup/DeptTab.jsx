@@ -21,6 +21,8 @@ import {
   useTheme,
   InputAdornment,
   Pagination,
+  Chip,
+  Tooltip,
 } from '@mui/material';
 import { EditOutlined, DeleteOutline, MenuBook, Close, SearchOutlined } from '@mui/icons-material';
 import {
@@ -51,6 +53,7 @@ const deptFormSchema = z.object({
 
 export const DeptTab = ({ setOnAddClick }) => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
 
   // Search & Pagination state
@@ -293,33 +296,63 @@ export const DeptTab = ({ setOnAddClick }) => {
                   key={dept._id}
                   className="staggered-row"
                   style={{ animationDelay: `${index * 25}ms` }}
-                  sx={{ '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' } }}
+                  sx={{
+                    '&:hover': {
+                      bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(79, 70, 229, 0.03)',
+                    },
+                  }}
                 >
-                  <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem', fontWeight: 600 }}>
-                    {dept.code}
+                  <TableCell>
+                    <Chip
+                      label={dept.code}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      sx={{
+                        fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        borderRadius: '6px',
+                        bgcolor: `${theme.palette.primary.main}0D`,
+                      }}
+                    />
                   </TableCell>
-                  <TableCell sx={{ fontFamily: theme.typography.body1.fontFamily, fontSize: '0.88rem', fontWeight: 600 }}>
-                    {dept.name}
+                  <TableCell>
+                    <Typography sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.9rem' }}>
+                      {dept.name}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    {getDeptHodName(dept._id) === 'No HOD Assigned' ? (
+                      <Chip
+                        label="No HOD Assigned"
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          fontSize: '0.72rem',
+                          color: 'text.secondary',
+                          borderStyle: 'dashed',
+                          fontWeight: 600,
+                        }}
+                      />
+                    ) : (
+                      <Chip
+                        label={getDeptHodName(dept._id)}
+                        size="small"
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: '0.74rem',
+                          bgcolor: isDark ? 'rgba(79, 70, 229, 0.15)' : 'rgba(79, 70, 229, 0.08)',
+                          color: 'primary.main',
+                          borderRadius: '8px',
+                        }}
+                      />
+                    )}
                   </TableCell>
                   <TableCell
                     sx={{
-                      fontFamily: theme.typography.body2.fontFamily,
                       fontSize: '0.82rem',
-                      color: getDeptHodName(dept._id) === 'No HOD Assigned' ? theme.palette.text.secondary : theme.palette.text.primary,
-                      fontStyle: getDeptHodName(dept._id) === 'No HOD Assigned' ? 'italic' : 'normal',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                    title={getDeptHodName(dept._id)}
-                  >
-                    {getDeptHodName(dept._id)}
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      fontFamily: theme.typography.body2.fontFamily,
-                      fontSize: '0.85rem',
-                      color: theme.palette.text.secondary,
+                      color: 'text.secondary',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
@@ -329,16 +362,50 @@ export const DeptTab = ({ setOnAddClick }) => {
                     {dept.description || '—'}
                   </TableCell>
                   <TableCell align="right">
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                      <IconButton aria-label="view subjects" size="small" onClick={() => handleOpenSubjects(dept)}>
-                        <MenuBook fontSize="small" sx={{ color: theme.palette.primary.main }} />
-                      </IconButton>
-                      <IconButton aria-label="edit department" size="small" onClick={() => handleOpenEdit(dept)}>
-                        <EditOutlined fontSize="small" sx={{ color: theme.palette.text.secondary }} />
-                      </IconButton>
-                      <IconButton aria-label="delete department" size="small" onClick={() => setDeleteId(dept._id)}>
-                        <DeleteOutline fontSize="small" sx={{ color: theme.palette.signal.error }} />
-                      </IconButton>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.75 }}>
+                      <Tooltip title="View Curriculum Subjects" arrow>
+                        <IconButton
+                          aria-label="view subjects"
+                          size="small"
+                          onClick={() => handleOpenSubjects(dept)}
+                          sx={{
+                            color: 'primary.main',
+                            bgcolor: `${theme.palette.primary.main}10`,
+                            borderRadius: '8px',
+                            '&:hover': { bgcolor: `${theme.palette.primary.main}20` },
+                          }}
+                        >
+                          <MenuBook fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Edit Department" arrow>
+                        <IconButton
+                          aria-label="edit department"
+                          size="small"
+                          onClick={() => handleOpenEdit(dept)}
+                          sx={{
+                            color: 'text.secondary',
+                            borderRadius: '8px',
+                            '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
+                          }}
+                        >
+                          <EditOutlined fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete Department" arrow>
+                        <IconButton
+                          aria-label="delete department"
+                          size="small"
+                          onClick={() => setDeleteId(dept._id)}
+                          sx={{
+                            color: theme.palette.signal?.error || '#ef4444',
+                            borderRadius: '8px',
+                            '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)' },
+                          }}
+                        >
+                          <DeleteOutline fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   </TableCell>
                 </TableRow>
