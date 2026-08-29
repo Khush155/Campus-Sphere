@@ -42,6 +42,7 @@ import {
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { useStudentSession } from '../../contexts/StudentSessionContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
 import {
   useStudentAttendanceQuery,
@@ -75,34 +76,43 @@ export const StudentDashboard = () => {
   const greeting = getGreeting();
 
   const studentId = currentUser?._id || currentUser?.id;
-  const branchObj = currentUser?.branchId;
+  const branchObj = currentUser?.branchId || currentUser?.departmentId;
   const branchId = typeof branchObj === 'object' ? branchObj?._id : branchObj;
   const currentSemester = studentMeta?.semester || currentUser?.semester || 1;
   const courseName = studentMeta?.course || currentUser?.courseId?.name || 'B.Tech';
   const branchName = studentMeta?.branch || currentUser?.branchId?.name || 'Computer Science & Engineering';
   const rollNumber = currentUser?.rollNumber || studentMeta?.rollNumber || '2310993001';
 
+  const { selectedSemester, isArchivedView } = useStudentSession();
+
   // Live Queries
   const { data: attendanceData = [] } = useStudentAttendanceQuery(studentId);
-  const { data: assignmentsData = [] } = useStudentAssignmentsQuery();
+  const { data: assignmentsData = [] } = useStudentAssignmentsQuery({
+    semester: selectedSemester,
+  });
   const { data: noticesData = [] } = useFeedQuery();
   const { data: gpaData } = useStudentGpaQuery(studentId);
   const { data: documentsData = [] } = useStudentDocumentsQuery();
   const { data: liveSubjects = [] } = useSubjectsQuery({
     branchId: branchId || undefined,
-    semester: currentSemester || undefined,
+    semester: selectedSemester || currentSemester || undefined,
   });
 
-  // Calculate dynamic GPA and label
+  // Calculate dynamic GPA and label scoped to selected semester
   const gpaValue = useMemo(() => {
-    if (gpaData?.gpa !== undefined && gpaData?.gpa !== null && Number(gpaData.gpa) > 0) {
+    const semProgression = gpaData?.semesterProgression || [];
+    const currentSemRecord = semProgression.find((s) => Number(s.semester) === Number(selectedSemester));
+    if (currentSemRecord?.sgpa !== undefined && currentSemRecord?.sgpa !== null) {
+      return Number(currentSemRecord.sgpa).toFixed(2);
+    }
+    if (!isArchivedView && gpaData?.gpa !== undefined && gpaData?.gpa !== null && Number(gpaData.gpa) > 0) {
       return Number(gpaData.gpa).toFixed(2);
     }
-    if (currentUser?.cgpa !== undefined && currentUser?.cgpa !== null && Number(currentUser.cgpa) > 0) {
+    if (!isArchivedView && currentUser?.cgpa !== undefined && currentUser?.cgpa !== null && Number(currentUser.cgpa) > 0) {
       return Number(currentUser.cgpa).toFixed(2);
     }
     return null;
-  }, [gpaData, currentUser]);
+  }, [gpaData, currentUser, selectedSemester, isArchivedView]);
 
   const gpaLabelInfo = useMemo(() => {
     if (!gpaValue) return { label: 'Pending', color: 'info' };
@@ -128,8 +138,13 @@ export const StudentDashboard = () => {
     if (!list || list.length === 0) {
       return { percentage: 100, totalClasses: 0, attendedClasses: 0, status: 'GOOD' };
     }
-    const total = list.reduce((acc, curr) => acc + (curr.totalClasses || 0), 0);
-    const attended = list.reduce((acc, curr) => acc + (curr.attendedClasses || 0), 0);
+    const hasSemesterTag = list.some((r) => (r.semester ?? r.subjectId?.semester) !== undefined);
+    const filteredList = hasSemesterTag
+      ? list.filter((r) => Number(r.semester ?? r.subjectId?.semester) === Number(selectedSemester))
+      : list;
+
+    const total = filteredList.reduce((acc, curr) => acc + (curr.totalClasses || 0), 0);
+    const attended = filteredList.reduce((acc, curr) => acc + (curr.attendedClasses || 0), 0);
     const pct = total > 0 ? Math.round((attended / total) * 100) : 100;
     return {
       percentage: pct,
@@ -137,7 +152,7 @@ export const StudentDashboard = () => {
       attendedClasses: attended,
       status: pct >= 75 ? 'GOOD' : 'WARNING',
     };
-  }, [attendanceData]);
+  }, [attendanceData, selectedSemester]);
 
   // Pending Assignments
   const pendingAssignments = useMemo(() => {
@@ -245,7 +260,12 @@ export const StudentDashboard = () => {
                 </Box>
 
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  {courseName} · {branchName} • <strong style={{ color: theme.palette.text.primary }}>Sem {currentSemester}</strong> • Roll: <code style={{ fontFamily: 'monospace' }}>{rollNumber}</code>
+                  {courseName} · {branchName} •{' '}
+                  <strong style={{ color: isArchivedView ? '#f59e0b' : theme.palette.text.primary }}>
+                    Sem {selectedSemester}
+                    {isArchivedView ? ' (Archived)' : ''}
+                  </strong>{' '}
+                  • Roll: <code style={{ fontFamily: 'monospace' }}>{rollNumber}</code>
                 </Typography>
               </Box>
             </Box>

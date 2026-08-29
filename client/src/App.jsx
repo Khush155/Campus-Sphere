@@ -4,6 +4,7 @@ import { CustomThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import QueryProvider from './queries/QueryProvider';
 import { AuthProvider } from './contexts/AuthContext';
+import { StudentSessionProvider } from './contexts/StudentSessionContext';
 import AppRoutes from './routes/AppRoutes';
 
 export default function App() {
@@ -12,9 +13,11 @@ export default function App() {
       <CustomThemeProvider>
         <ToastProvider>
           <AuthProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
+            <StudentSessionProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </StudentSessionProvider>
           </AuthProvider>
         </ToastProvider>
       </CustomThemeProvider>

@@ -102,7 +102,23 @@ const getStudentReceipts = async (studentUserId) => {
 };
 
 const getReceiptById = async (receiptId, actor) => {
-  const user = await User.findById(actor.id)
+  let targetStudentId = actor.id;
+
+  if (actor.role !== 'STUDENT') {
+    // Admin or HOD inspecting student receipt
+    const parts = receiptId ? receiptId.split('-') : [];
+    if (parts.length >= 2) {
+      const studentSuffix = parts[1];
+      const matchedStudent = await User.findOne({
+        _id: { $regex: new RegExp(`${studentSuffix}$`, 'i') },
+      });
+      if (matchedStudent) {
+        targetStudentId = matchedStudent._id;
+      }
+    }
+  }
+
+  const user = await User.findById(targetStudentId)
     .populate('courseId', 'name code')
     .populate('branchId', 'name code');
 
@@ -112,8 +128,13 @@ const getReceiptById = async (receiptId, actor) => {
 
   const receipt = buildReceiptForStudent(user);
 
-  if (!receipt || receipt.receiptId !== receiptId) {
-    throw new AppError('Fee receipt not found or access forbidden.', 404, ERROR_CODES.NOT_FOUND);
+  if (!receipt) {
+    throw new AppError('Fee receipt not found.', 404, ERROR_CODES.NOT_FOUND);
+  }
+
+  // Security guard: Student can only view their own receipt
+  if (actor.role === 'STUDENT' && String(receipt.studentId) !== String(actor.id)) {
+    throw new AppError('Access forbidden to this fee receipt.', 403, ERROR_CODES.FORBIDDEN);
   }
 
   return receipt;

@@ -66,7 +66,7 @@ const getAssignments = asyncHandler(async (req, res, _next) => {
     const User = require('../models/User');
     const student = await User.findById(req.user.id);
     if (student) {
-      if (student.semester) {
+      if (!semester && student.semester) {
         filter.semester = student.semester;
       }
       if (student.group) {

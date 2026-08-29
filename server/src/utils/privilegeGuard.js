@@ -49,7 +49,7 @@ const assertHODDeptBound = (user, departmentId) => {
   }
 
   if (user.role === ROLES.HOD) {
-    const userDeptId = getIdString(user.departmentId);
+    const userDeptId = getIdString(user.departmentId) || getIdString(user.branchId);
     const targetDeptId = getIdString(departmentId);
     if (!targetDeptId || userDeptId !== targetDeptId) {
       throw new AppError('Access denied. You can only manage resources within your own department.', 403, ERROR_CODES.FORBIDDEN);

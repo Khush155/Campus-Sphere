@@ -143,6 +143,7 @@ const calculateStudentGPA = async (studentId) => {
   let totalCredits = 0;
   let weightedPointsSum = 0;
   const gradeBreakdown = [];
+  const semesterMap = {};
 
   for (const result of publishedResults) {
     const exam = result.examId;
@@ -155,20 +156,67 @@ const calculateStudentGPA = async (studentId) => {
       continue;
     }
 
-    const credits = subject.credits;
-    const gradePoint = result.gradePoint;
+    const credits = Number(subject.credits) || 3;
+    const gradePoint = Number(result.gradePoint) || 0;
+    const sem = Number(subject.semester) || 1;
 
     weightedPointsSum += (gradePoint * credits);
     totalCredits += credits;
 
-    gradeBreakdown.push({
+    const item = {
+      subjectId: subject._id,
       subjectName: subject.name,
       subjectCode: subject.code,
+      sequenceNo: subject.sequenceNo,
+      semester: sem,
+      type: subject.type || 'THEORY',
       credits,
-      grade: result.grade,
+      grade: result.grade || 'P',
       gradePoint,
-    });
+      marksObtained: result.marksObtained,
+      maxMarks: exam.maxMarks || 100,
+    };
+
+    gradeBreakdown.push(item);
+
+    if (!semesterMap[sem]) {
+      semesterMap[sem] = {
+        semester: sem,
+        weightedSum: 0,
+        totalCredits: 0,
+        subjects: [],
+      };
+    }
+    semesterMap[sem].weightedSum += (gradePoint * credits);
+    semesterMap[sem].totalCredits += credits;
+    semesterMap[sem].subjects.push(item);
   }
+
+  // Calculate SGPA and Cumulative Progression across semesters
+  const sortedSemesters = Object.keys(semesterMap)
+    .map(Number)
+    .sort((a, b) => a - b);
+
+  let cumulativeWeighted = 0;
+  let cumulativeCredits = 0;
+
+  const semesterProgression = sortedSemesters.map((sem) => {
+    const semData = semesterMap[sem];
+    const sgpa = semData.totalCredits > 0 ? Math.round((semData.weightedSum / semData.totalCredits) * 100) / 100 : 0;
+
+    cumulativeWeighted += semData.weightedSum;
+    cumulativeCredits += semData.totalCredits;
+    const cumulativeGpa = cumulativeCredits > 0 ? Math.round((cumulativeWeighted / cumulativeCredits) * 100) / 100 : 0;
+
+    return {
+      semester: sem,
+      sgpa,
+      cumulativeGpa,
+      totalCredits: semData.totalCredits,
+      subjects: semData.subjects,
+      status: 'PASSED',
+    };
+  });
 
   const gpa = totalCredits > 0 ? (weightedPointsSum / totalCredits) : 0;
   const roundedGPA = Math.round(gpa * 100) / 100;
@@ -182,6 +230,7 @@ const calculateStudentGPA = async (studentId) => {
     gpa: roundedGPA,
     totalCredits,
     gradeBreakdown,
+    semesterProgression,
   };
 };
 

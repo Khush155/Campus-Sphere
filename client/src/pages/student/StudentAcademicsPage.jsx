@@ -18,6 +18,7 @@ import {
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { useStudentSession } from '../../contexts/StudentSessionContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
 import { useSubjectsQuery } from '../../queries/collegeQueries';
 import { computeSubjectCode } from '../../utils/subjectCode';
@@ -27,18 +28,18 @@ export const StudentAcademicsPage = () => {
   const isDark = theme.palette.mode === 'dark';
   const { user } = useAuth();
   const { data: profile } = useMyProfileQuery();
+  const { selectedSemester, isArchivedView } = useStudentSession();
 
   const currentUser = profile?.user || user;
   const studentMeta = profile?.profileMeta || {};
 
-  const branchObj = currentUser?.branchId;
+  const branchObj = currentUser?.branchId || currentUser?.departmentId;
   const branchId = typeof branchObj === 'object' ? branchObj?._id : branchObj;
-  const semesterVal = currentUser?.semester || studentMeta?.semester;
   const admissionYear = currentUser?.admissionYear || 2024;
 
   const { data: liveSubjects, isLoading } = useSubjectsQuery({
     branchId: branchId || undefined,
-    semester: semesterVal || undefined,
+    semester: selectedSemester || undefined,
   });
 
   const subjects = Array.isArray(liveSubjects) ? liveSubjects : [];
@@ -50,12 +51,22 @@ export const StudentAcademicsPage = () => {
     <Container maxWidth="xl" sx={{ py: 3.5 }}>
       {/* Header */}
       <Box sx={{ mb: 3.5 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em', mb: 0.5 }}>
-          My Academic Subjects & Curriculum
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em' }}>
+            My Academic Subjects & Curriculum
+          </Typography>
+          {isArchivedView && (
+            <Chip
+              label={`SEMESTER ${selectedSemester} ARCHIVED`}
+              color="warning"
+              size="small"
+              sx={{ fontWeight: 800 }}
+            />
+          )}
+        </Box>
         <Typography variant="body1" color="text.secondary">
-          Enrolled subject syllabus for Course <strong>{studentMeta?.course || 'B.Tech'}</strong> • Branch{' '}
-          <strong>{studentMeta?.branch || 'CSE'}</strong> (Semester {semesterVal || 'N/A'} · Batch &apos;{String(admissionYear).slice(-2)}).
+          Curriculum syllabus for Course <strong>{studentMeta?.course || 'B.Tech'}</strong> • Branch{' '}
+          <strong>{studentMeta?.branch || 'CSE'}</strong> (Semester {selectedSemester} · Batch &apos;{String(admissionYear).slice(-2)}).
         </Typography>
       </Box>
 
@@ -211,7 +222,7 @@ export const StudentAcademicsPage = () => {
             No Enrolled Subjects Found
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-            No active curriculum subjects are registered for Semester {semesterVal || 'N/A'} in your branch.
+            No active curriculum subjects are registered for Semester {selectedSemester} in your branch.
           </Typography>
         </Paper>
       ) : (

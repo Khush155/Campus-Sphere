@@ -19,6 +19,8 @@ import {
   MenuItem,
   Tooltip,
   Chip,
+  Button,
+  Alert,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -63,14 +65,19 @@ import {
   CardMembership as CardMembershipIcon,
   Assessment as AssessmentIcon,
   CalendarToday as CalendarTodayIcon,
+  Timeline as TimelineIcon,
   MenuBook as BookIcon,
   Refresh as RefreshIcon,
+  Check as CheckIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
+  RateReview as RateReviewIcon,
 } from '@mui/icons-material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { useStudentSession } from '../contexts/StudentSessionContext';
 import CommandPalette from '../components/common/CommandPalette';
 import { useCollegeProfileQuery } from '../queries/collegeProfileQueries';
 import { useActiveSessionQuery } from '../queries/academicSessionQueries';
@@ -134,6 +141,29 @@ export const AppLayout = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  const {
+    isStudent,
+    activeSemester,
+    selectedSemester,
+    setSelectedSemester,
+    isArchivedView,
+    availableSemesters,
+    resetToActive,
+  } = useStudentSession();
+
+  const [sessionAnchorEl, setSessionAnchorEl] = useState(null);
+
+  const handleSessionMenuOpen = (e) => {
+    setSessionAnchorEl(e.currentTarget);
+  };
+  const handleSessionMenuClose = () => {
+    setSessionAnchorEl(null);
+  };
+  const handleSemesterSelect = (semNumber) => {
+    setSelectedSemester(semNumber);
+    handleSessionMenuClose();
+  };
 
   const handlePresetMenuOpen = (event) => {
     setPresetAnchorEl(event.currentTarget);
@@ -219,6 +249,7 @@ export const AppLayout = () => {
         { text: 'Portfolio & Resume', icon: <MenuBookIcon />, path: '/student/portfolio', roles: ['STUDENT'] },
         { text: 'Documents', icon: <FolderIcon />, path: '/student/documents', roles: ['STUDENT'] },
         { text: 'Complaints', icon: <ReportProblemIcon />, path: '/student/complaints', roles: ['STUDENT'] },
+        { text: 'Faculty Feedback', icon: <RateReviewIcon />, path: '/student/feedback', roles: ['STUDENT'] },
         { text: 'Notifications', icon: <NotificationsIcon />, path: '/student/notifications', roles: ['STUDENT'] },
       ]
     : userRole === 'FACULTY'
@@ -419,7 +450,131 @@ export const AppLayout = () => {
                 {menuItems.find((item) => item.path === location.pathname)?.text || 'CampusSphere'}
               </Typography>
 
-              {activeSession && (
+              {isStudent ? (
+                <Box>
+                  <Button
+                    size="small"
+                    onClick={handleSessionMenuOpen}
+                    endIcon={<KeyboardArrowDownIcon sx={{ fontSize: '18px !important' }} />}
+                    startIcon={
+                      isArchivedView ? (
+                        <HistoryIcon sx={{ fontSize: '16px !important', color: '#f59e0b' }} />
+                      ) : (
+                        <DateRangeIcon sx={{ fontSize: '16px !important', color: 'primary.main' }} />
+                      )
+                    }
+                    sx={{
+                      borderRadius: '20px',
+                      textTransform: 'none',
+                      fontWeight: 800,
+                      fontSize: '0.78rem',
+                      px: 1.75,
+                      py: 0.5,
+                      border: `1px solid ${isArchivedView ? '#f59e0b' : `${theme.palette.primary.main}50`}`,
+                      bgcolor: isArchivedView
+                        ? 'rgba(245, 158, 11, 0.1)'
+                        : `${theme.palette.primary.main}10`,
+                      color: isArchivedView ? (mode === 'dark' ? '#fbbf24' : '#b45309') : 'primary.main',
+                      '&:hover': {
+                        bgcolor: isArchivedView
+                          ? 'rgba(245, 158, 11, 0.18)'
+                          : `${theme.palette.primary.main}20`,
+                      },
+                    }}
+                  >
+                    {isArchivedView
+                      ? `Semester ${selectedSemester} (Archived • Read Only)`
+                      : `Semester ${selectedSemester} (Current Active)`}
+                  </Button>
+
+                  <Menu
+                    anchorEl={sessionAnchorEl}
+                    open={Boolean(sessionAnchorEl)}
+                    onClose={handleSessionMenuClose}
+                    transformOrigin={{ horizontal: 'left', vertical: 'top' }}
+                    anchorOrigin={{ horizontal: 'left', vertical: 'bottom' }}
+                    PaperProps={{
+                      sx: {
+                        borderRadius: '16px',
+                        minWidth: 290,
+                        p: 1,
+                        mt: 1,
+                        boxShadow: '0 12px 32px rgba(0,0,0,0.15)',
+                        border: `1px solid ${theme.palette.divider}`,
+                      },
+                    }}
+                  >
+                    <Box sx={{ px: 2, py: 1 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                        Select Academic Semester
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Switch historical session context across modules
+                      </Typography>
+                    </Box>
+                    <Divider sx={{ my: 0.75 }} />
+
+                    {availableSemesters.map((sem) => {
+                      const isSelected = Number(selectedSemester) === Number(sem.semester);
+
+                      return (
+                        <MenuItem
+                          key={sem.semester}
+                          onClick={() => handleSemesterSelect(sem.semester)}
+                          sx={{
+                            borderRadius: '10px',
+                            py: 1,
+                            px: 1.5,
+                            my: 0.5,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            bgcolor: isSelected
+                              ? `${theme.palette.primary.main}15`
+                              : 'transparent',
+                            '&:hover': {
+                              bgcolor: isSelected
+                                ? `${theme.palette.primary.main}25`
+                                : mode === 'dark'
+                                ? 'rgba(255,255,255,0.05)'
+                                : 'rgba(0,0,0,0.03)',
+                            },
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                            {isSelected ? (
+                              <CheckIcon sx={{ color: 'primary.main', fontSize: 18, fontWeight: 800 }} />
+                            ) : (
+                              <Box sx={{ width: 18 }} />
+                            )}
+                            <Box>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: isSelected ? 800 : 600,
+                                  color: isSelected ? 'primary.main' : 'text.primary',
+                                }}
+                              >
+                                {sem.label}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                {sem.subLabel}
+                              </Typography>
+                            </Box>
+                          </Box>
+
+                          <Chip
+                            label={sem.isCurrent ? 'ACTIVE' : 'CLEARED'}
+                            color={sem.isCurrent ? 'primary' : 'success'}
+                            size="small"
+                            sx={{ height: 20, fontSize: '0.62rem', fontWeight: 800 }}
+                          />
+                        </MenuItem>
+                      );
+                    })}
+                  </Menu>
+                </Box>
+              ) : activeSession ? (
                 <Chip
                   label={`${activeSession.academicYear} (${activeSession.semesterType} TERM)`}
                   size="small"
@@ -434,7 +589,7 @@ export const AppLayout = () => {
                     color: theme.palette.primary.main,
                   }}
                 />
-              )}
+              ) : null}
             </Box>
           </Box>
 
@@ -715,6 +870,40 @@ export const AppLayout = () => {
           bgcolor: 'background.default',
         }}
       >
+        {isStudent && isArchivedView && (
+          <Box sx={{ mb: 3 }}>
+            <Alert
+              severity="warning"
+              icon={<HistoryIcon />}
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={resetToActive}
+                  sx={{
+                    fontWeight: 800,
+                    textTransform: 'none',
+                    border: '1px solid currentColor',
+                    borderRadius: '8px',
+                    px: 1.5,
+                  }}
+                >
+                  Return to Active Term (Sem {activeSemester})
+                </Button>
+              }
+              sx={{
+                borderRadius: '16px',
+                fontWeight: 600,
+                border: '1px solid #f59e0b',
+                bgcolor: mode === 'dark' ? 'rgba(245, 158, 11, 0.12)' : '#fffbeb',
+                color: mode === 'dark' ? '#fef3c7' : '#92400e',
+              }}
+            >
+              <strong>Historical Archival View (Read-Only Mode):</strong> You are browsing historical records for{' '}
+              <strong>Semester {selectedSemester}</strong>. Submitting assignments, filing leave, or editing data is disabled for past cleared terms.
+            </Alert>
+          </Box>
+        )}
         <Outlet />
       </Box>
 

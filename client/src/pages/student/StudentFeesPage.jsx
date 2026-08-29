@@ -94,7 +94,7 @@ export const StudentFeesPage = () => {
           </Typography>
           <Typography variant="body1" color="text.secondary">
             Official fee clearance status for Course <strong>{studentMeta?.course || 'B.Tech'}</strong> (Sem{' '}
-            {studentMeta?.semester || 6}).
+            {currentUser?.semester || studentMeta?.semester || 1}).
           </Typography>
         </Box>
 

@@ -17,6 +17,19 @@ export const useStudentAttendanceQuery = (studentId) => {
 };
 
 /**
+ * Fetch detailed date-wise attendance register / logs for student
+ */
+export const useStudentAttendanceLogsQuery = (params = {}) => {
+  return useQuery({
+    queryKey: ['student-attendance-logs', params],
+    queryFn: async () => {
+      const response = await api.get('/attendance', { params: { limit: 200, ...params } });
+      return response.data?.data || [];
+    },
+  });
+};
+
+/**
  * Fetch assignments relevant for student's branch/semester
  */
 export const useStudentAssignmentsQuery = (params = {}) => {
@@ -229,5 +242,36 @@ export const useStudentFeeReceiptQuery = (receiptId) => {
       return response.data?.data || null;
     },
     enabled: Boolean(receiptId),
+  });
+};
+
+/**
+ * Fetch student's course faculty allocations and feedback submission status
+ */
+export const useStudentFeedbackStatusQuery = (params = {}) => {
+  return useQuery({
+    queryKey: ['student-feedback-status', params],
+    queryFn: async () => {
+      const response = await api.get('/feedback/student-status', { params });
+      return response.data?.data || { allocations: [], stats: {} };
+    },
+  });
+};
+
+/**
+ * Mutation for student to submit faculty course feedback
+ */
+export const useSubmitFacultyFeedbackMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => {
+      const response = await api.post('/feedback', payload);
+      return response.data?.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student-feedback-status'] });
+      queryClient.invalidateQueries({ queryKey: ['feedback'] });
+      queryClient.invalidateQueries({ queryKey: ['feedback-analytics'] });
+    },
   });
 };

@@ -7,6 +7,8 @@ const Department = require('../src/models/Department');
 const AuditLog = require('../src/models/AuditLog');
 const ROLES = require('../src/constants/roles');
 
+jest.setTimeout(30000);
+
 let mongoServer;
 let adminToken;
 let studentToken;

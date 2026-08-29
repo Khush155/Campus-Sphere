@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { useStudentSession } from '../../contexts/StudentSessionContext';
 import { useLeaveQuery, useCreateLeaveMutation } from '../../queries/hodQueries';
 import { useToast } from '../../contexts/ToastContext';
 import EmptyState from '../../components/common/EmptyState';
@@ -32,6 +33,7 @@ export const StudentLeavePage = () => {
   const isDark = theme.palette.mode === 'dark';
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { isArchivedView, selectedSemester } = useStudentSession();
 
   const [openModal, setOpenModal] = useState(false);
   const [leaveType, setLeaveType] = useState('CASUAL');
@@ -79,16 +81,29 @@ export const StudentLeavePage = () => {
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3.5, flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em', mb: 0.5 }}>
-            Student Leave Applications Desk
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em' }}>
+              Student Leave Applications Desk
+            </Typography>
+            {isArchivedView && (
+              <Chip
+                label={`SEMESTER ${selectedSemester} ARCHIVED`}
+                color="warning"
+                size="small"
+                sx={{ fontWeight: 800 }}
+              />
+            )}
+          </Box>
           <Typography variant="body1" color="text.secondary">
-            Submit leave requests to your Head of Department (HOD) and track approval status.
+            {isArchivedView
+              ? `Browsing historical leave records for Semester ${selectedSemester}. New leave submissions are restricted.`
+              : 'Submit leave requests to your Head of Department (HOD) and track approval status.'}
           </Typography>
         </Box>
 
         <Button
           variant="contained"
+          disabled={isArchivedView}
           startIcon={<AddIcon />}
           onClick={() => setOpenModal(true)}
           sx={{
@@ -100,7 +115,7 @@ export const StudentLeavePage = () => {
             boxShadow: '0 8px 20px rgba(79, 70, 229, 0.25)',
           }}
         >
-          Apply for Leave
+          {isArchivedView ? 'Leave Restricted (Archived)' : 'Apply for Leave'}
         </Button>
       </Box>
 

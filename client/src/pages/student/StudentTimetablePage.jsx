@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { useStudentSession } from '../../contexts/StudentSessionContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
 import { useTimetableQuery } from '../../queries/timetableQueries';
 import TimetableGrid from '../faculty/timetable/components/TimetableGrid';
@@ -45,6 +46,7 @@ export const StudentTimetablePage = () => {
   const isDark = theme.palette.mode === 'dark';
   const { user } = useAuth();
   const { data: profile } = useMyProfileQuery();
+  const { selectedSemester, isArchivedView } = useStudentSession();
 
   const currentUser = profile?.user || user;
   const studentMeta = profile?.profileMeta || {};
@@ -62,11 +64,16 @@ export const StudentTimetablePage = () => {
     if (!rawTimetableData) return [];
     const list = Array.isArray(rawTimetableData) ? rawTimetableData : (rawTimetableData.data || []);
     return list.filter((slot) => {
+      // Semester filter if slot or subject is tagged with semester
+      const slotSem = slot.semester || slot.subjectId?.semester;
+      if (slotSem !== undefined && slotSem !== null && Number(slotSem) !== Number(selectedSemester)) {
+        return false;
+      }
       if (!group) return true;
       const slotGrp = slot.group || slot.groupId?.name || slot.groupId || '';
       return !slotGrp || slotGrp === 'FULL_BATCH' || slotGrp === 'ALL' || slotGrp === group;
     });
-  }, [rawTimetableData, group]);
+  }, [rawTimetableData, group, selectedSemester]);
 
   // Current real-time info
   const now = new Date();
@@ -218,6 +225,15 @@ export const StudentTimetablePage = () => {
               size="small"
               sx={{ fontWeight: 700, bgcolor: isDark ? 'action.hover' : 'rgba(79, 70, 229, 0.08)', color: 'primary.main' }}
             />
+
+            {isArchivedView && (
+              <Chip
+                label={`SEMESTER ${selectedSemester} ARCHIVED`}
+                color="warning"
+                size="small"
+                sx={{ fontWeight: 800 }}
+              />
+            )}
           </Box>
 
           <Typography variant="body1" color="text.secondary">

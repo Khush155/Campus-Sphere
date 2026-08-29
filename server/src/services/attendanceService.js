@@ -168,6 +168,7 @@ const getStudentAttendanceSummary = async (studentId) => {
         subjectId: '$_id',
         subjectName: '$subjectInfo.name',
         subjectCode: '$subjectInfo.code',
+        semester: '$subjectInfo.semester',
         totalClasses: 1,
         attendedClasses: 1,
         absentClasses: 1,
@@ -312,6 +313,9 @@ const getAttendance = async (queryOptions, actor) => {
   if (actor.role === ROLES.HOD || actor.role === ROLES.FACULTY || actor.role === ROLES.STUDENT) {
     if (actor.role === ROLES.STUDENT) {
       filters.studentId = actor.id;
+      if (subjectId) {
+        filters.subjectId = subjectId;
+      }
     } else {
       // Build student cohort filter
       const studentFilter = { role: 'STUDENT' };
@@ -345,7 +349,7 @@ const getAttendance = async (queryOptions, actor) => {
   return await paginate(Attendance, filters, {
     ...queryOptions,
     populate: [
-      { path: 'subjectId', select: 'name code' },
+      { path: 'subjectId', select: 'name code semester' },
       { path: 'facultyId', select: 'name' },
       { path: 'studentId', select: 'name email group semester branchId' }
     ],

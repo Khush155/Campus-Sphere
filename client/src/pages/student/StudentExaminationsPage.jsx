@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { useStudentSession } from '../../contexts/StudentSessionContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
 import { useStudentGpaQuery, useStudentExaminationsQuery } from '../../queries/studentQueries';
 import { useSubjectsQuery } from '../../queries/collegeQueries';
@@ -35,6 +36,7 @@ export const StudentExaminationsPage = () => {
   const isDark = theme.palette.mode === 'dark';
   const { user } = useAuth();
   const { data: profile } = useMyProfileQuery();
+  const { selectedSemester, isArchivedView } = useStudentSession();
 
   const currentUser = profile?.user || user;
   const studentMeta = profile?.profileMeta || {};
@@ -42,35 +44,58 @@ export const StudentExaminationsPage = () => {
   const studentId = currentUser?._id || currentUser?.id;
   const branchObj = currentUser?.branchId;
   const branchId = typeof branchObj === 'object' ? branchObj?._id : branchObj;
-  const semesterVal = currentUser?.semester || studentMeta?.semester || 1;
 
   const { data: gpaData, isLoading: isGpaLoading } = useStudentGpaQuery(studentId);
   const { isLoading: isExamsLoading } = useStudentExaminationsQuery();
   const { data: enrolledSubjectsData = [] } = useSubjectsQuery({
     branchId: branchId || undefined,
-    semester: semesterVal || undefined,
+    semester: selectedSemester || undefined,
   });
 
   const enrolledSubjects = Array.isArray(enrolledSubjectsData) ? enrolledSubjectsData : [];
   const enrolledCount = enrolledSubjects.length || 5;
 
-  const gradeBreakdown = gpaData?.gradeBreakdown || [];
-  const gpaValue = gpaData?.gpa !== undefined && gpaData?.gpa !== null && Number(gpaData.gpa) > 0 ? Number(gpaData.gpa).toFixed(2) : null;
+  const semesterProgression = gpaData?.semesterProgression || [];
+  const currentSemRecord = semesterProgression.find((s) => Number(s.semester) === Number(selectedSemester));
+
+  const gradeBreakdown = currentSemRecord
+    ? (currentSemRecord.subjects || [])
+    : isArchivedView
+    ? []
+    : (gpaData?.gradeBreakdown || []);
+
+  const gpaValue = currentSemRecord?.sgpa !== undefined && currentSemRecord?.sgpa !== null
+    ? Number(currentSemRecord.sgpa).toFixed(2)
+    : !isArchivedView && gpaData?.gpa !== undefined && gpaData?.gpa !== null && Number(gpaData.gpa) > 0
+    ? Number(gpaData.gpa).toFixed(2)
+    : null;
 
   const resultStatusLabel = useMemo(() => {
-    if (gpaData?.gpa === undefined || gpaData?.gpa === null) return 'EVALUATION PENDING';
-    if (gpaData.gpa >= 8.5) return 'PASSED WITH DISTINCTION';
-    if (gpaData.gpa >= 6.0) return 'PASSED';
-    if (gpaData.gpa > 0) return 'NEED IMPROVEMENT';
+    const targetGpa = currentSemRecord?.sgpa !== undefined
+      ? currentSemRecord.sgpa
+      : !isArchivedView
+      ? gpaData?.gpa
+      : null;
+
+    if (targetGpa === undefined || targetGpa === null) return 'EVALUATION PENDING';
+    if (targetGpa >= 8.5) return 'PASSED WITH DISTINCTION';
+    if (targetGpa >= 6.0) return 'PASSED';
+    if (targetGpa > 0) return 'NEED IMPROVEMENT';
     return 'EVALUATION PENDING';
-  }, [gpaData]);
+  }, [currentSemRecord, isArchivedView, gpaData]);
 
   const resultStatusColor = useMemo(() => {
-    if (gpaData?.gpa === undefined || gpaData?.gpa === null) return 'info';
-    if (gpaData.gpa >= 6.0) return 'success';
-    if (gpaData.gpa > 0) return 'warning';
+    const targetGpa = currentSemRecord?.sgpa !== undefined
+      ? currentSemRecord.sgpa
+      : !isArchivedView
+      ? gpaData?.gpa
+      : null;
+
+    if (targetGpa === undefined || targetGpa === null) return 'info';
+    if (targetGpa >= 6.0) return 'success';
+    if (targetGpa > 0) return 'warning';
     return 'info';
-  }, [gpaData]);
+  }, [currentSemRecord, isArchivedView, gpaData]);
 
   const isLoading = isGpaLoading || isExamsLoading;
 
@@ -79,12 +104,22 @@ export const StudentExaminationsPage = () => {
       {/* Page Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3.5, flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em', mb: 0.5 }}>
-            Examinations & Internal Assessment Gradebook
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em' }}>
+              Examinations & Internal Assessment Gradebook
+            </Typography>
+            {isArchivedView && (
+              <Chip
+                label={`SEMESTER ${selectedSemester} ARCHIVED RESULT`}
+                color="warning"
+                size="small"
+                sx={{ fontWeight: 800 }}
+              />
+            )}
+          </Box>
           <Typography variant="body1" color="text.secondary">
-            Official semester evaluation records for Course <strong>{studentMeta?.course || 'B.Tech'}</strong> (Sem{' '}
-            {studentMeta?.semester || 6}).
+            Official semester evaluation records for Course <strong>{studentMeta?.course || 'B.Tech'}</strong> (Semester{' '}
+            {selectedSemester}).
           </Typography>
         </Box>
 

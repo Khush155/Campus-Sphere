@@ -25,19 +25,23 @@ import {
 
 import { useStudentAssignmentsQuery, useSubmitAssignmentMutation } from '../../queries/studentQueries';
 import { useToast } from '../../contexts/ToastContext';
+import { useStudentSession } from '../../contexts/StudentSessionContext';
 import EmptyState from '../../components/common/EmptyState';
 
 export const StudentAssignmentsPage = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
+  const { selectedSemester, isArchivedView } = useStudentSession();
 
   const [tabIndex, setTabIndex] = useState(0);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [submissionUrl, setSubmissionUrl] = useState('');
   const [submissionNotes, setSubmissionNotes] = useState('');
 
-  const { data: assignmentsList = [], isLoading } = useStudentAssignmentsQuery();
+  const { data: assignmentsList = [], isLoading } = useStudentAssignmentsQuery({
+    semester: selectedSemester,
+  });
   const submitMutation = useSubmitAssignmentMutation();
 
   const pendingAssignments = useMemo(() => {
@@ -86,11 +90,23 @@ export const StudentAssignmentsPage = () => {
     <Container maxWidth="xl" sx={{ py: 3.5 }}>
       {/* Page Header */}
       <Box sx={{ mb: 3.5 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em', mb: 0.5 }}>
-          Coursework & Assignments
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em' }}>
+            Coursework & Assignments
+          </Typography>
+          {isArchivedView && (
+            <Chip
+              label={`SEMESTER ${selectedSemester} ARCHIVED`}
+              color="warning"
+              size="small"
+              sx={{ fontWeight: 800 }}
+            />
+          )}
+        </Box>
         <Typography variant="body1" color="text.secondary">
-          Review subject coursework deadlines, upload submissions, and view faculty evaluation feedback.
+          {isArchivedView
+            ? `Viewing archived coursework records for Semester ${selectedSemester}. Submissions are disabled.`
+            : 'Review subject coursework deadlines, upload submissions, and view faculty evaluation feedback.'}
         </Typography>
       </Box>
 
@@ -302,11 +318,12 @@ export const StudentAssignmentsPage = () => {
 
                     <Button
                       variant="contained"
+                      disabled={isArchivedView}
                       startIcon={<UploadIcon />}
                       onClick={() => handleOpenSubmit(assignment)}
                       sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 800 }}
                     >
-                      Submit Work
+                      {isArchivedView ? 'Closed (Archived)' : 'Submit Work'}
                     </Button>
                   </Box>
                 </Paper>

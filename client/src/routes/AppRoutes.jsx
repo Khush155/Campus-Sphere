@@ -77,6 +77,7 @@ import StudentPortfolioPage from '../pages/student/StudentPortfolioPage';
 import StudentHallTicketPage from '../pages/student/StudentHallTicketPage';
 import StudentFeeReceiptPage from '../pages/student/StudentFeeReceiptPage';
 import StudentNoticeHub from '../pages/student/StudentNoticeHub';
+import StudentFeedbackPage from '../pages/student/StudentFeedbackPage';
 
 // Newly added Expanded Faculty pages
 import MaterialsPage from '../pages/faculty/materials/MaterialsPage';
@@ -420,6 +421,7 @@ export const AppRoutes = () => {
         <Route path="student/portfolio" element={<RoleRoute allowedRoles={['STUDENT']}><StudentPortfolioPage /></RoleRoute>} />
         <Route path="student/documents" element={<RoleRoute allowedRoles={['STUDENT']}><StudentDocumentsPage /></RoleRoute>} />
         <Route path="student/complaints" element={<RoleRoute allowedRoles={['STUDENT']}><StudentComplaintsPage /></RoleRoute>} />
+        <Route path="student/feedback" element={<RoleRoute allowedRoles={['STUDENT']}><StudentFeedbackPage /></RoleRoute>} />
         <Route path="student/notifications" element={<RoleRoute allowedRoles={['STUDENT']}><StudentNotificationsPage /></RoleRoute>} />
       </Route>
 
