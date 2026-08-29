@@ -101,7 +101,13 @@ export const StudentFeesPage = () => {
         <Button
           variant="contained"
           startIcon={<DownloadIcon />}
-          onClick={() => window.print()}
+          onClick={() => {
+            if (receipts && receipts.length > 0 && receipts[0].receiptId) {
+              navigate(`/student/fees/receipt/${receipts[0].receiptId}`);
+            } else {
+              window.print();
+            }
+          }}
           sx={{
             borderRadius: '12px',
             px: 3,
