@@ -38,6 +38,7 @@ export const StudentAssignmentsPage = () => {
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [submissionUrl, setSubmissionUrl] = useState('');
   const [submissionNotes, setSubmissionNotes] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const { data: assignmentsList = [], isLoading } = useStudentAssignmentsQuery({
     semester: selectedSemester,
@@ -60,16 +61,18 @@ export const StudentAssignmentsPage = () => {
     setSelectedAssignment(assignment);
     setSubmissionUrl(assignment.mySubmission?.submissionUrl || '');
     setSubmissionNotes(assignment.mySubmission?.notes || '');
+    setSelectedFile(null);
   };
 
   const handleCloseSubmit = () => {
     setSelectedAssignment(null);
+    setSelectedFile(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!submissionUrl) {
-      showToast('Please provide a valid submission URL / document link.', { severity: 'error' });
+    if (!submissionUrl && !selectedFile) {
+      showToast('Please attach a submission file (PDF/ZIP) or provide a document URL.', { severity: 'error' });
       return;
     }
 
@@ -78,6 +81,7 @@ export const StudentAssignmentsPage = () => {
         assignmentId: selectedAssignment._id,
         submissionUrl,
         notes: submissionNotes,
+        file: selectedFile,
       });
       showToast('Assignment submitted successfully!');
       handleCloseSubmit();
@@ -426,14 +430,44 @@ export const StudentAssignmentsPage = () => {
             Submit Coursework: {selectedAssignment?.title}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2.5 }}>
-            Paste Google Drive, GitHub, or Cloud PDF URL of your submission below.
+            Attach a coursework file (PDF, ZIP, DOC) or provide a submission URL below.
           </Typography>
 
           <form onSubmit={handleSubmit}>
+            <Box sx={{ mb: 2.5 }}>
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<UploadIcon />}
+                sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 700 }}
+              >
+                {selectedFile ? `Selected: ${selectedFile.name}` : 'Attach Submission File (PDF / ZIP)'}
+                <input
+                  type="file"
+                  hidden
+                  accept=".pdf,.zip,.rar,.doc,.docx,.txt"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setSelectedFile(e.target.files[0]);
+                    }
+                  }}
+                />
+              </Button>
+
+              {selectedFile && (
+                <Chip
+                  label={`${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`}
+                  size="small"
+                  color="primary"
+                  onDelete={() => setSelectedFile(null)}
+                  sx={{ ml: 1.5, fontWeight: 700 }}
+                />
+              )}
+            </Box>
+
             <TextField
               fullWidth
-              required
-              label="Submission Document / Repository Link"
+              label="Submission Document / Repository Link (Optional if file attached)"
               placeholder="https://drive.google.com/... or https://github.com/..."
               value={submissionUrl}
               onChange={(e) => setSubmissionUrl(e.target.value)}

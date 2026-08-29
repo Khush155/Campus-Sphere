@@ -318,7 +318,7 @@ export const FacultyNoticeHub = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
               <Chip
                 icon={<CampaignOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
-                label="FACULTY NOTICE BOARD & OFFICIAL BROADCAST DESK"
+                label={isStudent ? "STUDENT NOTICE BOARD & ANNOUNCEMENT RADAR" : "FACULTY NOTICE BOARD & OFFICIAL BROADCAST DESK"}
                 size="small"
                 sx={{
                   bgcolor: `${theme.palette.primary.main}15`,
@@ -334,7 +334,9 @@ export const FacultyNoticeHub = () => {
               Notice Board & Broadcast Feed
             </Typography>
             <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
-              Publish official class circulars, issue urgent academic alerts, and read department notifications.
+              {isStudent
+                ? "Read official institutional announcements, department circulars, and academic broadcast notifications."
+                : "Publish official class circulars, issue urgent academic alerts, and read department notifications."}
             </Typography>
           </Box>
 

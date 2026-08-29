@@ -64,16 +64,18 @@ export const StudentExaminationsPage = () => {
     ? []
     : (gpaData?.gradeBreakdown || []);
 
+  const hasPublishedResults = Boolean(currentSemRecord ? (currentSemRecord.subjects?.length > 0) : gpaData && (gpaData.gradeBreakdown?.length > 0 || gpaData.gpa !== undefined));
+
   const gpaValue = currentSemRecord?.sgpa !== undefined && currentSemRecord?.sgpa !== null
     ? Number(currentSemRecord.sgpa).toFixed(2)
-    : !isArchivedView && gpaData?.gpa !== undefined && gpaData?.gpa !== null && Number(gpaData.gpa) > 0
+    : !isArchivedView && hasPublishedResults && gpaData?.gpa !== undefined && gpaData?.gpa !== null
     ? Number(gpaData.gpa).toFixed(2)
     : null;
 
   const resultStatusLabel = useMemo(() => {
     const targetGpa = currentSemRecord?.sgpa !== undefined
       ? currentSemRecord.sgpa
-      : !isArchivedView
+      : !isArchivedView && hasPublishedResults
       ? gpaData?.gpa
       : null;
 
@@ -81,21 +83,21 @@ export const StudentExaminationsPage = () => {
     if (targetGpa >= 8.5) return 'PASSED WITH DISTINCTION';
     if (targetGpa >= 6.0) return 'PASSED';
     if (targetGpa > 0) return 'NEED IMPROVEMENT';
-    return 'EVALUATION PENDING';
-  }, [currentSemRecord, isArchivedView, gpaData]);
+    return 'FAILED';
+  }, [currentSemRecord, isArchivedView, hasPublishedResults, gpaData]);
 
   const resultStatusColor = useMemo(() => {
     const targetGpa = currentSemRecord?.sgpa !== undefined
       ? currentSemRecord.sgpa
-      : !isArchivedView
+      : !isArchivedView && hasPublishedResults
       ? gpaData?.gpa
       : null;
 
     if (targetGpa === undefined || targetGpa === null) return 'info';
     if (targetGpa >= 6.0) return 'success';
     if (targetGpa > 0) return 'warning';
-    return 'info';
-  }, [currentSemRecord, isArchivedView, gpaData]);
+    return 'error';
+  }, [currentSemRecord, isArchivedView, hasPublishedResults, gpaData]);
 
   const isLoading = isGpaLoading || isExamsLoading;
 
@@ -168,7 +170,7 @@ export const StudentExaminationsPage = () => {
             </Box>
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
-                {gpaValue !== null && Number(gpaValue) > 0 ? `${gpaValue} / 10.0` : 'Pending'}
+                {gpaValue !== null ? `${gpaValue} / 10.0` : 'Evaluation Pending'}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Cumulative grading scale

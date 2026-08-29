@@ -16,6 +16,10 @@ import {
   Avatar,
   Button,
   Skeleton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   useTheme,
 } from '@mui/material';
 import {
@@ -27,16 +31,24 @@ import {
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
-import { useStudentFeeReceiptsQuery } from '../../queries/studentQueries';
+import {
+  useStudentFeeReceiptsQuery,
+  usePayStudentFeeMutation,
+} from '../../queries/studentQueries';
 
 export const StudentFeesPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const isDark = theme.palette.mode === 'dark';
   const { user: authUser } = useAuth();
   const { data: profile, isLoading } = useMyProfileQuery();
   const { data: receipts = [], isLoading: isReceiptsLoading } = useStudentFeeReceiptsQuery();
+  const payMutation = usePayStudentFeeMutation();
+
+  const [openPayModal, setOpenPayModal] = React.useState(false);
 
   const currentUser = profile?.user || authUser;
   const studentMeta = profile?.profileMeta || {};
@@ -61,14 +73,15 @@ export const StudentFeesPage = () => {
   const clearanceColor =
     totalDues > 0 ? (feeStatus === 'OVERDUE' ? 'error' : 'warning') : 'success';
 
-  const totalPaidAmount = Math.max(0, 63000 - totalDues);
-
   const baseFeeStructure = [
     { key: 'tuition', head: 'Semester Tuition Fee', baseAmount: 45000 },
     { key: 'lab', head: 'Laboratory & Computer Facility Fee', baseAmount: 8500 },
     { key: 'library', head: 'Library & Learning Resources Fee', baseAmount: 3000 },
     { key: 'hostel', head: 'Hostel & Residential Accommodation Fee', baseAmount: 6500 },
   ];
+
+  const totalBaseFee = receipts?.[0]?.totalBaseFee || baseFeeStructure.reduce((acc, item) => acc + item.baseAmount, 0);
+  const totalPaidAmount = receipts?.[0]?.totalPaid !== undefined ? receipts[0].totalPaid : Math.max(0, totalBaseFee - totalDues);
 
   const feeItems = baseFeeStructure.map((item) => {
     const due = Number(feeDues[item.key] || 0);
@@ -98,27 +111,47 @@ export const StudentFeesPage = () => {
           </Typography>
         </Box>
 
-        <Button
-          variant="contained"
-          startIcon={<DownloadIcon />}
-          onClick={() => {
-            if (receipts && receipts.length > 0 && receipts[0].receiptId) {
-              navigate(`/student/fees/receipt/${receipts[0].receiptId}`);
-            } else {
-              window.print();
-            }
-          }}
-          sx={{
-            borderRadius: '12px',
-            px: 3,
-            py: 1.25,
-            fontWeight: 800,
-            textTransform: 'none',
-            boxShadow: '0 8px 20px rgba(79, 70, 229, 0.25)',
-          }}
-        >
-          Download Fee Receipt
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          {totalDues > 0 && (
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<FeeIcon />}
+              onClick={() => setOpenPayModal(true)}
+              sx={{
+                borderRadius: '12px',
+                px: 3,
+                py: 1.25,
+                fontWeight: 800,
+                textTransform: 'none',
+                boxShadow: '0 8px 20px rgba(34, 197, 94, 0.25)',
+              }}
+            >
+              Pay Dues Online (₹ {totalDues.toLocaleString('en-IN')})
+            </Button>
+          )}
+
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={() => {
+              if (receipts && receipts.length > 0 && receipts[0].receiptId) {
+                navigate(`/student/fees/receipt/${receipts[0].receiptId}`);
+              } else {
+                window.print();
+              }
+            }}
+            sx={{
+              borderRadius: '12px',
+              px: 3,
+              py: 1.25,
+              fontWeight: 800,
+              textTransform: 'none',
+            }}
+          >
+            Download Fee Receipt
+          </Button>
+        </Box>
       </Box>
 
       {/* KPI Cards (4 Roster-Style Top-Bordered Cards) */}
@@ -427,6 +460,77 @@ export const StudentFeesPage = () => {
           </TableContainer>
         )}
       </Paper>
+
+      {/* Payment Checkout Modal */}
+      <Dialog
+        open={openPayModal}
+        onClose={() => setOpenPayModal(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '24px', p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          Institutional Online Fee Payment Gateway
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 2 }}>
+            Simulated secure checkout for Course <strong>{studentMeta?.course || 'B.Tech'}</strong> (Sem {studentMeta?.semester || 6}).
+          </Typography>
+
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: '16px', bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', mb: 3 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, display: 'block', mb: 1 }}>
+              OUTSTANDING FEE HEAD BREAKDOWN
+            </Typography>
+            {baseFeeStructure.map((item) => {
+              const due = Number(feeDues[item.key] || 0);
+              if (due === 0) return null;
+              return (
+                <Box key={item.key} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{item.head}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 800, color: 'error.main' }}>
+                    ₹ {due.toLocaleString('en-IN')}
+                  </Typography>
+                </Box>
+              );
+            })}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 1.5, mt: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>TOTAL PAYABLE AMOUNT</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'primary.main' }}>
+                ₹ {totalDues.toLocaleString('en-IN')}
+              </Typography>
+            </Box>
+          </Paper>
+
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>
+            PAYMENT METHOD SIMULATION
+          </Typography>
+          <Chip label="ONLINE ERP GATEWAY (INSTANT CLEARANCE)" color="primary" sx={{ fontWeight: 800, mt: 1 }} />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setOpenPayModal(false)} sx={{ fontWeight: 700 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            disabled={payMutation.isPending}
+            onClick={() => {
+              payMutation.mutate(undefined, {
+                onSuccess: () => {
+                  showToast('Fee payment of ₹' + totalDues.toLocaleString('en-IN') + ' completed successfully!');
+                  setOpenPayModal(false);
+                },
+                onError: (err) => {
+                  showToast(err.response?.data?.message || err.message || 'Payment failed', { severity: 'error' });
+                },
+              });
+            }}
+            sx={{ borderRadius: '12px', fontWeight: 800, px: 3 }}
+          >
+            {payMutation.isPending ? 'Processing Payment...' : `Confirm & Pay ₹ ${totalDues.toLocaleString('en-IN')}`}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

@@ -11,6 +11,11 @@ import {
   Divider,
   Tabs,
   Tab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
   useTheme,
 } from '@mui/material';
 import {
@@ -26,25 +31,69 @@ import {
   ContactPhoneOutlined as EmergencyIcon,
   CheckCircleOutlineOutlined as CheckIcon,
   FactCheckOutlined as AttendanceIcon,
+  EditOutlined as EditIcon,
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
 import CollegiateIdCard from '../../components/common/CollegiateIdCard';
+import { useUpdateStudentProfileMutation } from '../../queries/studentQueries';
 
 export const StudentProfilePage = () => {
   const theme = useTheme();
+  const { showToast } = useToast();
   const isDark = theme.palette.mode === 'dark';
   const { user } = useAuth();
   const { data: profile } = useMyProfileQuery();
+  const updateProfileMutation = useUpdateStudentProfileMutation();
 
   const currentUser = profile?.user || profile || user;
   const studentMeta = profile?.profileMeta || currentUser?.profileMeta || {};
 
   const [activeTab, setActiveTab] = useState(0);
+  const [openEditModal, setOpenEditModal] = useState(false);
 
-  const phone = currentUser?.phone || 'N/A';
-  const emergencyContact = studentMeta?.emergencyContact || currentUser?.emergencyContact || 'N/A';
+  const phoneVal = currentUser?.phone || currentUser?.phoneNumber || '';
+  const emergencyVal = currentUser?.emergencyContact || currentUser?.emergencyContactPhone || '';
+  const addressVal = currentUser?.address || '';
+  const photoVal = currentUser?.profilePicUrl || '';
+
+  const [formPhone, setFormPhone] = useState(phoneVal);
+  const [formEmergency, setFormEmergency] = useState(emergencyVal);
+  const [formAddress, setFormAddress] = useState(addressVal);
+  const [formPhoto, setFormPhoto] = useState(photoVal);
+
+  const handleOpenEdit = () => {
+    setFormPhone(currentUser?.phone || currentUser?.phoneNumber || '');
+    setFormEmergency(currentUser?.emergencyContact || currentUser?.emergencyContactPhone || '');
+    setFormAddress(currentUser?.address || '');
+    setFormPhoto(currentUser?.profilePicUrl || '');
+    setOpenEditModal(true);
+  };
+
+  const handleSaveProfile = (e) => {
+    e.preventDefault();
+    const payload = {
+      phone: formPhone.trim(),
+      emergencyContact: formEmergency.trim(),
+      address: formAddress.trim(),
+      profilePicUrl: formPhoto.trim(),
+    };
+
+    updateProfileMutation.mutate(payload, {
+      onSuccess: () => {
+        showToast('Profile contact details updated successfully!');
+        setOpenEditModal(false);
+      },
+      onError: (err) => {
+        showToast(err.response?.data?.message || err.message || 'Profile update failed', { severity: 'error' });
+      },
+    });
+  };
+
+  const phone = currentUser?.phone || currentUser?.phoneNumber || 'N/A';
+  const emergencyContact = currentUser?.emergencyContact || currentUser?.emergencyContactPhone || 'N/A';
   const address = currentUser?.address || 'N/A';
 
   const shift = studentMeta?.shift || currentUser?.shift || 'MORNING';
@@ -124,7 +173,16 @@ export const StudentProfilePage = () => {
             </Grid>
 
             <Grid item xs={12} sm={4} sx={{ textAlign: { xs: 'left', sm: 'right' }, mb: 0.5 }}>
-              <Box sx={{ display: 'flex', gap: 1.5, justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
+              <Box sx={{ display: 'flex', gap: 1.5, justifyContent: { xs: 'flex-start', sm: 'flex-end' }, flexWrap: 'wrap' }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<EditIcon />}
+                  onClick={handleOpenEdit}
+                  sx={{ borderRadius: '12px', fontWeight: 800, textTransform: 'none', px: 2.5 }}
+                >
+                  Edit Profile Details
+                </Button>
+
                 <Button
                   variant="contained"
                   startIcon={<DownloadIcon />}
@@ -461,6 +519,72 @@ export const StudentProfilePage = () => {
           />
         </Box>
       )}
+
+      {/* Edit Profile Modal */}
+      <Dialog open={openEditModal} onClose={() => setOpenEditModal(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '24px', p: 1 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          Edit Profile Contact Information
+        </DialogTitle>
+        <form onSubmit={handleSaveProfile}>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 3 }}>
+              Update your personal contact details. Academic fields (roll number, semester, department, CGPA) remain admin-managed.
+            </Typography>
+
+            <Grid container spacing={2.5}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Contact Phone Number"
+                  value={formPhone}
+                  onChange={(e) => setFormPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Emergency Contact Number"
+                  value={formEmergency}
+                  onChange={(e) => setFormEmergency(e.target.value)}
+                  placeholder="+91 98765 00000"
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  label="Residential Address"
+                  value={formAddress}
+                  onChange={(e) => setFormAddress(e.target.value)}
+                  placeholder="Street, City, State, Pincode"
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Profile Picture URL / Avatar Image Link"
+                  value={formPhoto}
+                  onChange={(e) => setFormPhoto(e.target.value)}
+                  placeholder="https://..."
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setOpenEditModal(false)} sx={{ fontWeight: 700 }}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained" color="primary" disabled={updateProfileMutation.isPending} sx={{ borderRadius: '12px', fontWeight: 800, px: 3 }}>
+              {updateProfileMutation.isPending ? 'Saving...' : 'Save Profile Changes'}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </Container>
   );
 };

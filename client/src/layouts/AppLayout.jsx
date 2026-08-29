@@ -45,6 +45,7 @@ import {
   Work as WorkIcon,
   EventNote as EventNoteIcon,
   ReportProblem as ReportProblemIcon,
+  RateReview as RateReviewIcon,
   Folder as FolderIcon,
   Person as PersonIcon,
   Assignment as AssignmentIcon,
@@ -70,7 +71,6 @@ import {
   Refresh as RefreshIcon,
   Check as CheckIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
-  RateReview as RateReviewIcon,
 } from '@mui/icons-material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useThemeContext } from '../contexts/ThemeContext';
@@ -242,6 +242,7 @@ export const AppLayout = () => {
         { text: 'Examinations', icon: <ArticleIcon />, path: '/student/examinations', roles: ['STUDENT'] },
         { text: 'Fees', icon: <ReceiptLongIcon />, path: '/student/fees', roles: ['STUDENT'] },
         { text: 'Notices', icon: <CampaignIcon />, path: '/student/notices', roles: ['STUDENT'] },
+        { text: 'Faculty Feedback', icon: <RateReviewIcon />, path: '/student/feedback', roles: ['STUDENT'] },
         { text: 'Projects', icon: <FolderIcon />, path: '/student/projects', roles: ['STUDENT'] },
         { text: 'Placements', icon: <WorkIcon />, path: '/student/placements', roles: ['STUDENT'] },
         { text: 'Library', icon: <LocalLibraryIcon />, path: '/student/library', roles: ['STUDENT'] },

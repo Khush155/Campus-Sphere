@@ -701,9 +701,12 @@ const updateMyProfile = async (userId, data) => {
 
   const {
     name,
+    phone,
     phoneNumber,
     profilePicUrl,
     bio,
+    address,
+    emergencyContact,
     officeRoom,
     officeHours,
     qualification,
@@ -733,8 +736,11 @@ const updateMyProfile = async (userId, data) => {
 
   if (name !== undefined) { user.name = name.trim(); }
   if (phoneNumber !== undefined) { user.phoneNumber = phoneNumber.trim(); }
+  if (phone !== undefined) { user.phone = phone.trim(); user.phoneNumber = phone.trim(); }
   if (profilePicUrl !== undefined) { user.profilePicUrl = profilePicUrl; }
   if (bio !== undefined) { user.bio = bio.trim(); }
+  if (address !== undefined) { user.address = address.trim(); }
+  if (emergencyContact !== undefined) { user.emergencyContact = emergencyContact.trim(); user.emergencyContactPhone = emergencyContact.trim(); }
   if (officeRoom !== undefined) { user.officeRoom = officeRoom.trim(); }
   if (officeHours !== undefined) { user.officeHours = officeHours.trim(); }
   if (qualification !== undefined) { user.qualification = qualification.trim(); }

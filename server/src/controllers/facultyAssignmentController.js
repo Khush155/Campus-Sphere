@@ -209,10 +209,13 @@ const deleteAssignment = asyncHandler(async (req, res, next) => {
  * @access  Private/Student
  */
 const submitAssignment = asyncHandler(async (req, res, next) => {
-  const { submissionUrl, notes = '' } = req.body;
+  let fileUrl = req.body.submissionUrl ? req.body.submissionUrl.trim() : '';
+  if (req.file) {
+    fileUrl = `/uploads/${req.file.filename}`;
+  }
 
-  if (!submissionUrl || !submissionUrl.trim()) {
-    return next(new AppError('Submission URL or file link is required', 400, ERROR_CODES.VALIDATION_ERROR));
+  if (!fileUrl) {
+    return next(new AppError('Submission file or URL link is required', 400, ERROR_CODES.VALIDATION_ERROR));
   }
 
   const assignment = await Assignment.findById(req.params.id);
@@ -238,8 +241,8 @@ const submitAssignment = asyncHandler(async (req, res, next) => {
 
   const submissionData = {
     studentId,
-    submissionUrl: submissionUrl.trim(),
-    notes: notes ? notes.trim() : '',
+    submissionUrl: fileUrl,
+    notes: req.body.notes ? req.body.notes.trim() : '',
     submittedAt: new Date(),
     status: isLate ? 'LATE' : 'SUBMITTED',
   };

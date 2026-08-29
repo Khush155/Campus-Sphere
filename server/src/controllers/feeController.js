@@ -12,7 +12,13 @@ const getReceiptById = asyncHandler(async (req, res) => {
   return successResponse(res, 200, 'Fee receipt retrieved successfully', receipt);
 });
 
+const payStudentFee = asyncHandler(async (req, res) => {
+  const receipt = await feeService.payStudentFee(req.user);
+  return successResponse(res, 200, 'Fee payment processed successfully', receipt);
+});
+
 module.exports = {
   getStudentReceipts,
   getReceiptById,
+  payStudentFee,
 };

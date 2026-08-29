@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
+const ROLES = require('../constants/roles');
 
 const buildReceiptForStudent = (user) => {
   const studentId = user._id || user.id;
@@ -102,31 +103,34 @@ const getStudentReceipts = async (studentUserId) => {
 };
 
 const getReceiptById = async (receiptId, actor) => {
-  let targetStudentId = actor.id;
+  let targetUser;
 
-  if (actor.role !== 'STUDENT') {
-    // Admin or HOD inspecting student receipt
-    const parts = receiptId ? receiptId.split('-') : [];
-    if (parts.length >= 2) {
-      const studentSuffix = parts[1];
-      const matchedStudent = await User.findOne({
-        _id: { $regex: new RegExp(`${studentSuffix}$`, 'i') },
-      });
-      if (matchedStudent) {
-        targetStudentId = matchedStudent._id;
-      }
+  if (actor.role === ROLES.STUDENT) {
+    targetUser = await User.findById(actor.id)
+      .populate('courseId', 'name code')
+      .populate('branchId', 'name code');
+  } else {
+    // For ADMIN / HOD, locate the student whose receipt matches receiptId
+    const students = await User.find({ role: ROLES.STUDENT })
+      .populate('courseId', 'name code')
+      .populate('branchId', 'name code');
+
+    targetUser = students.find((s) => {
+      const r = buildReceiptForStudent(s);
+      return r && r.receiptId === receiptId;
+    });
+
+    if (targetUser && actor.role === ROLES.HOD) {
+      const { assertHODDeptBound } = require('../utils/privilegeGuard');
+      assertHODDeptBound(actor, targetUser.departmentId);
     }
   }
 
-  const user = await User.findById(targetStudentId)
-    .populate('courseId', 'name code')
-    .populate('branchId', 'name code');
-
-  if (!user) {
+  if (!targetUser) {
     throw new AppError('Student record not found.', 404, ERROR_CODES.NOT_FOUND);
   }
 
-  const receipt = buildReceiptForStudent(user);
+  const receipt = buildReceiptForStudent(targetUser);
 
   if (!receipt) {
     throw new AppError('Fee receipt not found.', 404, ERROR_CODES.NOT_FOUND);
@@ -140,7 +144,52 @@ const getReceiptById = async (receiptId, actor) => {
   return receipt;
 };
 
+const payStudentFee = async (actor) => {
+  const user = await User.findById(actor.id);
+  if (!user) {
+    throw new AppError('Student account not found.', 404, ERROR_CODES.NOT_FOUND);
+  }
+
+  const feeDues = user.feeDues || { tuition: 0, hostel: 0, library: 0, lab: 0 };
+  const totalDues =
+    Number(feeDues.tuition || 0) +
+    Number(feeDues.hostel || 0) +
+    Number(feeDues.library || 0) +
+    Number(feeDues.lab || 0);
+
+  if (totalDues === 0 && user.feeStatus === 'CLEARED') {
+    throw new AppError('No outstanding fee dues to pay.', 400, ERROR_CODES.BAD_REQUEST);
+  }
+
+  user.feeDues = { tuition: 0, hostel: 0, library: 0, lab: 0 };
+  user.feeStatus = 'CLEARED';
+  user.noDuesIssuedAt = new Date();
+
+  await user.save();
+
+  try {
+    const { createNotification } = require('./notificationService');
+    await createNotification({
+      recipientId: user._id,
+      title: '💳 Online Fee Payment Successful',
+      message: `Your semester fee payment of ₹${totalDues.toLocaleString('en-IN')} has been processed successfully. Official clearance receipt generated.`,
+      category: 'FEE_PAYMENT',
+      link: '/student/fees',
+      senderId: user._id,
+    });
+  } catch (err) {
+    // Non-blocking notification error
+  }
+
+  const updatedUser = await User.findById(user._id)
+    .populate('courseId', 'name code')
+    .populate('branchId', 'name code');
+
+  return buildReceiptForStudent(updatedUser);
+};
+
 module.exports = {
   getStudentReceipts,
   getReceiptById,
+  payStudentFee,
 };

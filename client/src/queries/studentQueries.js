@@ -48,11 +48,22 @@ export const useStudentAssignmentsQuery = (params = {}) => {
 export const useSubmitAssignmentMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ assignmentId, submissionUrl, notes }) => {
-      const response = await api.post(`/faculty-assignments/${assignmentId}/submit`, {
-        submissionUrl,
-        notes,
-      });
+    mutationFn: async ({ assignmentId, submissionUrl, notes, file }) => {
+      let response;
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        if (submissionUrl) formData.append('submissionUrl', submissionUrl);
+        if (notes) formData.append('notes', notes);
+        response = await api.post(`/faculty-assignments/${assignmentId}/submit`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        response = await api.post(`/faculty-assignments/${assignmentId}/submit`, {
+          submissionUrl,
+          notes,
+        });
+      }
       return response.data?.data;
     },
     onSuccess: () => {
@@ -259,6 +270,19 @@ export const useStudentFeedbackStatusQuery = (params = {}) => {
 };
 
 /**
+ * Fetch feedback submitted by student
+ */
+export const useStudentFeedbackQuery = () => {
+  return useQuery({
+    queryKey: ['student-feedback'],
+    queryFn: async () => {
+      const response = await api.get('/feedback');
+      return response.data?.data || [];
+    },
+  });
+};
+
+/**
  * Mutation for student to submit faculty course feedback
  */
 export const useSubmitFacultyFeedbackMutation = () => {
@@ -270,8 +294,59 @@ export const useSubmitFacultyFeedbackMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['student-feedback-status'] });
+      queryClient.invalidateQueries({ queryKey: ['student-feedback'] });
       queryClient.invalidateQueries({ queryKey: ['feedback'] });
       queryClient.invalidateQueries({ queryKey: ['feedback-analytics'] });
+    },
+  });
+};
+
+/**
+ * Submit faculty / course feedback
+ */
+export const useSubmitFeedbackMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const response = await api.post('/feedback', data);
+      return response.data?.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student-feedback'] });
+      queryClient.invalidateQueries({ queryKey: ['student-feedback-status'] });
+    },
+  });
+};
+
+/**
+ * Simulate student online fee payment
+ */
+export const usePayStudentFeeMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/fees/pay');
+      return response.data?.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student-fee-receipts'] });
+      queryClient.invalidateQueries({ queryKey: ['myProfile'] });
+    },
+  });
+};
+
+/**
+ * Update student profile (phone, address, emergency contact, profilePicUrl)
+ */
+export const useUpdateStudentProfileMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const response = await api.put('/users/me', data);
+      return response.data?.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myProfile'] });
     },
   });
 };
