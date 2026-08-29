@@ -125,82 +125,140 @@ export const StudentPlacementsPage = () => {
         </Alert>
       )}
 
-      {/* KPI Cards Row */}
-      <Grid container spacing={3} sx={{ mb: 3.5 }}>
-        <Grid item xs={12} sm={4}>
+      {/* KPI Cards Row (4 Roster-Style Top-Bordered Cards) */}
+      <Grid container spacing={2.5} sx={{ mb: 3.5 }}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #4f46e5',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main, width: 48, height: 48 }}>
-                <CompanyIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Recruitment Drives
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(79, 70, 229, 0.12)', color: '#4f46e5', width: 40, height: 40, borderRadius: '10px' }}>
+                <CompanyIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  ACTIVE RECRUITMENT DRIVES
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                  {totalDrives}
-                </Typography>
-              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {totalDrives}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Active hiring campaigns
+              </Typography>
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #06b6d4',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.info.main}15`, color: theme.palette.info.main, width: 48, height: 48 }}>
-                <WorkIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Applications Sent
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(6, 182, 212, 0.12)', color: '#06b6d4', width: 40, height: 40, borderRadius: '10px' }}>
+                <WorkIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  SUBMITTED APPLICATIONS
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'info.main' }}>
-                  {totalApplied}
-                </Typography>
-              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {totalApplied}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Submitted profiles
+              </Typography>
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #10b981',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.success.main}15`, color: theme.palette.success.main, width: 48, height: 48 }}>
-                <SelectedIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Offers &amp; Selections
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', width: 40, height: 40, borderRadius: '10px' }}>
+                <SelectedIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  JOB OFFERS / SELECTIONS
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'success.main' }}>
-                  {totalSelected}
-                </Typography>
-              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'success.main', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {totalSelected}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Confirmed corporate offers
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #f59e0b',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Shortlisted / In Review
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', width: 40, height: 40, borderRadius: '10px' }}>
+                <PendingIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'warning.main', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {applications.filter((a) => a.status === 'SHORTLISTED' || a.status === 'WAITLISTED').length}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Ongoing interview rounds
+              </Typography>
             </Box>
           </Paper>
         </Grid>

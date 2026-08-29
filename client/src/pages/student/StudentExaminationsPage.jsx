@@ -106,80 +106,142 @@ export const StudentExaminationsPage = () => {
         </Button>
       </Box>
 
-      {/* Summary KPI Row */}
-      <Grid container spacing={3} sx={{ mb: 3.5 }}>
-        <Grid item xs={12} sm={4}>
+      {/* Summary KPI Row (4 Roster-Style Top-Bordered Cards) */}
+      <Grid container spacing={2.5} sx={{ mb: 3.5 }}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #4f46e5',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main, width: 48, height: 48 }}>
-                <GradeIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Semester GPA
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(79, 70, 229, 0.12)', color: '#4f46e5', width: 40, height: 40, borderRadius: '10px' }}>
+                <GradeIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  CURRENT SEMESTER GPA
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                  {gpaValue !== null && Number(gpaValue) > 0 ? `${gpaValue} / 10.0` : 'Evaluation Pending'}
-                </Typography>
-              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {gpaValue !== null && Number(gpaValue) > 0 ? `${gpaValue} / 10.0` : 'Pending'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Cumulative grading scale
+              </Typography>
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #10b981',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.success.main}15`, color: theme.palette.success.main, width: 48, height: 48 }}>
-                <PassIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Academic Standing
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', width: 40, height: 40, borderRadius: '10px' }}>
+                <PassIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  ACADEMIC RESULT STATUS
-                </Typography>
-                <Chip label={resultStatusLabel} color={resultStatusColor} sx={{ fontWeight: 800, mt: 0.5 }} />
-              </Box>
+            </Box>
+            <Box>
+              <Chip label={resultStatusLabel} color={resultStatusColor} sx={{ fontWeight: 800, borderRadius: '6px' }} />
+              <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.75 }}>
+                Official university status
+              </Typography>
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #06b6d4',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.info.main}15`, color: theme.palette.info.main, width: 48, height: 48 }}>
-                <ExamIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Evaluated Courses
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(6, 182, 212, 0.12)', color: '#06b6d4', width: 40, height: 40, borderRadius: '10px' }}>
+                <ExamIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  EVALUATED SUBJECTS
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                  {gradeBreakdown.length} / {enrolledCount}
-                </Typography>
-              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {gradeBreakdown.length} <Typography component="span" variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>/ {enrolledCount}</Typography>
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Graded subjects in portal
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            onClick={() => navigate('/student/hall-ticket')}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #f59e0b',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              transition: 'transform 0.2s',
+              '&:hover': { transform: 'translateY(-2px)' },
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Hall Ticket / Admit Card
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', width: 40, height: 40, borderRadius: '10px' }}>
+                <HallTicketIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#f59e0b' }}>
+                Available to Download →
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Click to view verified hall ticket
+              </Typography>
             </Box>
           </Paper>
         </Grid>

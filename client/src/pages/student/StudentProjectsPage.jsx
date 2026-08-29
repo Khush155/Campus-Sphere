@@ -19,6 +19,7 @@ import {
   CheckCircleOutlineOutlined as CompletedIcon,
   HourglassEmptyOutlined as InProgressIcon,
   SchoolOutlined as AcademicIcon,
+  SupervisorAccountOutlined as SupervisorIcon,
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -81,82 +82,140 @@ export const StudentProjectsPage = () => {
         </Typography>
       </Box>
 
-      {/* KPI Cards Row */}
-      <Grid container spacing={3} sx={{ mb: 3.5 }}>
-        <Grid item xs={12} sm={4}>
+      {/* KPI Cards Row (4 Roster-Style Top-Bordered Cards) */}
+      <Grid container spacing={2.5} sx={{ mb: 3.5 }}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #4f46e5',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main, width: 48, height: 48 }}>
-                <ProjectIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Assigned Projects
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(79, 70, 229, 0.12)', color: '#4f46e5', width: 40, height: 40, borderRadius: '10px' }}>
+                <ProjectIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  ASSIGNED PROJECTS
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                  {totalCount}
-                </Typography>
-              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {totalCount}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Minor, major &amp; capstone
+              </Typography>
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #f59e0b',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.info.main}15`, color: theme.palette.info.main, width: 48, height: 48 }}>
-                <InProgressIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Active / In-Progress
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', width: 40, height: 40, borderRadius: '10px' }}>
+                <InProgressIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  ACTIVE / IN-PROGRESS
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'info.main' }}>
-                  {activeCount}
-                </Typography>
-              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'warning.main', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {activeCount}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Under active development
+              </Typography>
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #10b981',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.success.main}15`, color: theme.palette.success.main, width: 48, height: 48 }}>
-                <CompletedIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Completed &amp; Defended
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', width: 40, height: 40, borderRadius: '10px' }}>
+                <CompletedIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  COMPLETED PROJECTS
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'success.main' }}>
-                  {completedCount}
-                </Typography>
-              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'success.main', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {completedCount}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Evaluated by panel
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #06b6d4',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Faculty Guide
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(6, 182, 212, 0.12)', color: '#06b6d4', width: 40, height: 40, borderRadius: '10px' }}>
+                <SupervisorIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {projects.filter((p) => p.mentor || p.guide).length > 0 ? 'Assigned' : 'Review'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Department mentor allocation
+              </Typography>
             </Box>
           </Paper>
         </Grid>

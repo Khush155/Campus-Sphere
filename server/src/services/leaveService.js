@@ -37,9 +37,11 @@ const createLeaveRequest = async (leaveData, actor) => {
     throw new AppError('You already have an active leave request overlapping with these dates.', 409, ERROR_CODES.DUPLICATE_ENTRY);
   }
 
+  const targetDeptId = actor.departmentId || leaveData.departmentId || actor.branchId;
+
   const leave = await LeaveRequest.create({
     userId: actor.id,
-    departmentId: actor.departmentId,
+    departmentId: targetDeptId,
     leaveType,
     startDate: start,
     endDate: end,
@@ -50,7 +52,9 @@ const createLeaveRequest = async (leaveData, actor) => {
 
   // Notify Department HOD
   try {
-    const hods = await User.find({ role: ROLES.HOD, departmentId: actor.departmentId }).select('_id');
+    const hods = targetDeptId
+      ? await User.find({ role: ROLES.HOD, $or: [{ departmentId: targetDeptId }, { branchId: targetDeptId }] }).select('_id')
+      : await User.find({ role: ROLES.HOD }).select('_id');
     const hodIds = hods.map((h) => h._id);
     await createBulkNotifications(hodIds, {
       title: `🌴 Leave Request Submitted: ${actor.name || 'Applicant'}`,

@@ -115,80 +115,146 @@ export const StudentFeesPage = () => {
         </Button>
       </Box>
 
-      {/* KPI Cards */}
-      <Grid container spacing={3} sx={{ mb: 3.5 }}>
-        <Grid item xs={12} sm={4}>
+      {/* KPI Cards (4 Roster-Style Top-Bordered Cards) */}
+      <Grid container spacing={2.5} sx={{ mb: 3.5 }}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #10b981',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.success.main}15`, color: theme.palette.success.main, width: 48, height: 48 }}>
-                <VerifiedIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Clearance Status
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', width: 40, height: 40, borderRadius: '10px' }}>
+                <VerifiedIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  CLEARANCE STATUS
-                </Typography>
-                <Chip label={clearanceLabel} color={clearanceColor} sx={{ fontWeight: 800, mt: 0.5 }} />
-              </Box>
+            </Box>
+            <Box>
+              <Chip label={clearanceLabel} color={clearanceColor} sx={{ fontWeight: 800, borderRadius: '6px' }} />
+              <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.75 }}>
+                {totalDues === 0 ? 'No pending dues on record' : 'Payment required'}
+              </Typography>
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #4f46e5',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main, width: 48, height: 48 }}>
-                <FeeIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Total Fees Paid
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(79, 70, 229, 0.12)', color: '#4f46e5', width: 40, height: 40, borderRadius: '10px' }}>
+                <FeeIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  TOTAL FEES PAID
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                  ₹ {totalPaidAmount.toLocaleString('en-IN')}
-                </Typography>
-              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                ₹ {totalPaidAmount.toLocaleString('en-IN')}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Cumulative settled installments
+              </Typography>
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: totalDues > 0 ? '4px solid #ef4444' : '4px solid #06b6d4',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: totalDues > 0 ? `${theme.palette.error.main}15` : `${theme.palette.info.main}15`, color: totalDues > 0 ? theme.palette.error.main : theme.palette.info.main, width: 48, height: 48 }}>
-                <FeeIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Outstanding Dues
+              </Typography>
+              <Avatar
+                sx={{
+                  bgcolor: totalDues > 0 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(6, 182, 212, 0.12)',
+                  color: totalDues > 0 ? '#ef4444' : '#06b6d4',
+                  width: 40,
+                  height: 40,
+                  borderRadius: '10px',
+                }}
+              >
+                <FeeIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  OUTSTANDING DUES
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: totalDues > 0 ? 'error.main' : 'success.main' }}>
-                  ₹ {totalDues.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </Typography>
-              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: totalDues > 0 ? 'error.main' : 'success.main', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                ₹ {totalDues.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {totalDues > 0 ? 'Due for clearance' : 'Full balance cleared'}
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #f59e0b',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Issued Receipts
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', width: 40, height: 40, borderRadius: '10px' }}>
+                <FeeIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {receipts.length}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Downloadable verified vouchers
+              </Typography>
             </Box>
           </Paper>
         </Grid>

@@ -76,6 +76,7 @@ import StudentPlacementsPage from '../pages/student/StudentPlacementsPage';
 import StudentPortfolioPage from '../pages/student/StudentPortfolioPage';
 import StudentHallTicketPage from '../pages/student/StudentHallTicketPage';
 import StudentFeeReceiptPage from '../pages/student/StudentFeeReceiptPage';
+import StudentNoticeHub from '../pages/student/StudentNoticeHub';
 
 // Newly added Expanded Faculty pages
 import MaterialsPage from '../pages/faculty/materials/MaterialsPage';
@@ -412,7 +413,7 @@ export const AppRoutes = () => {
         <Route path="student/leave" element={<RoleRoute allowedRoles={['STUDENT']}><StudentLeavePage /></RoleRoute>} />
         <Route path="student/fees" element={<RoleRoute allowedRoles={['STUDENT']}><StudentFeesPage /></RoleRoute>} />
         <Route path="student/fees/receipt/:receiptId" element={<RoleRoute allowedRoles={['STUDENT']}><StudentFeeReceiptPage /></RoleRoute>} />
-        <Route path="student/notices" element={<RoleRoute allowedRoles={['STUDENT']}><FacultyNoticeHub /></RoleRoute>} />
+        <Route path="student/notices" element={<RoleRoute allowedRoles={['STUDENT']}><StudentNoticeHub /></RoleRoute>} />
         <Route path="student/projects" element={<RoleRoute allowedRoles={['STUDENT']}><StudentProjectsPage /></RoleRoute>} />
         <Route path="student/placements" element={<RoleRoute allowedRoles={['STUDENT']}><StudentPlacementsPage /></RoleRoute>} />
         <Route path="student/library" element={<RoleRoute allowedRoles={['STUDENT']}><StudentLibraryPage /></RoleRoute>} />

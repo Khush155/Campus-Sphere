@@ -38,8 +38,8 @@ export const StudentProfilePage = () => {
   const { user } = useAuth();
   const { data: profile } = useMyProfileQuery();
 
-  const currentUser = profile || user;
-  const studentMeta = currentUser?.profileMeta || {};
+  const currentUser = profile?.user || profile || user;
+  const studentMeta = profile?.profileMeta || currentUser?.profileMeta || {};
 
   const [activeTab, setActiveTab] = useState(0);
 

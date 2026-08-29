@@ -81,90 +81,145 @@ export const StudentAttendancePage = () => {
         </Alert>
       )}
 
-      {/* Overview Cards */}
-      <Grid container spacing={3} sx={{ mb: 3.5 }}>
-        <Grid item xs={12} sm={4}>
+      {/* Overview Cards (4 Roster-Style Top-Bordered Cards) */}
+      <Grid container spacing={2.5} sx={{ mb: 3.5 }}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #4f46e5',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1.5 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main, width: 48, height: 48 }}>
-                <AttendanceIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Overall Aggregate
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(79, 70, 229, 0.12)', color: '#4f46e5', width: 40, height: 40, borderRadius: '10px' }}>
+                <AttendanceIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  OVERALL AGGREGATE
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                  {overallStats.pct}%
-                </Typography>
-              </Box>
             </Box>
-            <LinearProgress
-              variant="determinate"
-              value={overallStats.pct}
-              color={overallStats.pct >= 75 ? 'primary' : 'warning'}
-              sx={{ height: 8, borderRadius: 4 }}
-            />
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} sm={4}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: '20px',
-              border: `1px solid ${theme.palette.divider}`,
-              bgcolor: isDark ? 'background.paper' : '#ffffff',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.success.main}15`, color: theme.palette.success.main, width: 48, height: 48 }}>
-                <VerifiedIcon />
-              </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  TOTAL LECTURES ATTENDED
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                  {overallStats.attended} / {overallStats.total}
-                </Typography>
-              </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', mb: 1, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {overallStats.pct}%
+              </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={overallStats.pct}
+                color={overallStats.pct >= 75 ? 'primary' : 'warning'}
+                sx={{ height: 6, borderRadius: 3 }}
+              />
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #10b981',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.info.main}15`, color: theme.palette.info.main, width: 48, height: 48 }}>
-                <AttendanceIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Lectures Attended
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', width: 40, height: 40, borderRadius: '10px' }}>
+                <VerifiedIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  EXAM ELIGIBILITY STATUS
-                </Typography>
-                <Chip
-                  label={overallStats.pct >= 75 ? 'ELIGIBLE' : 'CONDITIONAL'}
-                  color={overallStats.pct >= 75 ? 'success' : 'warning'}
-                  sx={{ fontWeight: 800, mt: 0.5 }}
-                />
-              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {overallStats.attended} <Typography component="span" variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>/ {overallStats.total}</Typography>
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Total scheduled sessions
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #f59e0b',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Missed Lectures
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', width: 40, height: 40, borderRadius: '10px' }}>
+                <WarningIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {Math.max(0, overallStats.total - overallStats.attended)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Absent / Uncredited sessions
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #06b6d4',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Exam Clearance
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(6, 182, 212, 0.12)', color: '#06b6d4', width: 40, height: 40, borderRadius: '10px' }}>
+                <AttendanceIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Chip
+                label={overallStats.pct >= 75 ? 'ELIGIBLE' : 'CONDITIONAL'}
+                color={overallStats.pct >= 75 ? 'success' : 'warning'}
+                sx={{ fontWeight: 800, borderRadius: '6px' }}
+              />
+              <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.75 }}>
+                {overallStats.pct >= 75 ? 'Hall ticket cleared' : 'Requires HOD waiver'}
+              </Typography>
             </Box>
           </Paper>
         </Grid>

@@ -12,15 +12,20 @@ import {
   Modal,
   TextField,
   Divider,
+  Avatar,
   useTheme,
 } from '@mui/material';
 import {
   CloudUploadOutlined as UploadIcon,
   CheckCircleOutlineOutlined as DoneIcon,
+  AssignmentOutlined as AssignmentIcon,
+  HourglassEmptyOutlined as PendingIcon,
+  VerifiedUserOutlined as QualityIcon,
 } from '@mui/icons-material';
 
 import { useStudentAssignmentsQuery, useSubmitAssignmentMutation } from '../../queries/studentQueries';
 import { useToast } from '../../contexts/ToastContext';
+import EmptyState from '../../components/common/EmptyState';
 
 export const StudentAssignmentsPage = () => {
   const theme = useTheme();
@@ -89,8 +94,147 @@ export const StudentAssignmentsPage = () => {
         </Typography>
       </Box>
 
+      {/* Roster-Style 4-Color Top-Bordered KPI Grid */}
+      <Grid container spacing={2.5} sx={{ mb: 3.5 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #4f46e5',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Total Assignments
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(79, 70, 229, 0.12)', color: '#4f46e5', width: 40, height: 40, borderRadius: '10px' }}>
+                <AssignmentIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {assignmentsList.length}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Published term coursework
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #10b981',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Completed & Graded
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', width: 40, height: 40, borderRadius: '10px' }}>
+                <DoneIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {submittedAssignments.length}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Submitted to faculty
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #f59e0b',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Pending Submissions
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', width: 40, height: 40, borderRadius: '10px' }}>
+                <PendingIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {pendingAssignments.length}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Awaiting student action
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #06b6d4',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Submission Rate
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(6, 182, 212, 0.12)', color: '#06b6d4', width: 40, height: 40, borderRadius: '10px' }}>
+                <QualityIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {assignmentsList.length > 0 ? Math.round((submittedAssignments.length / assignmentsList.length) * 100) : 100}%
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Course completion index
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
+
       {/* Tabs */}
-      <Paper elevation={0} sx={{ borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, mb: 3.5, bgcolor: isDark ? 'background.paper' : '#ffffff' }}>
+      <Paper elevation={0} sx={{ borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, mb: 3.5, bgcolor: isDark ? 'background.paper' : '#ffffff' }}>
         <Tabs
           value={tabIndex}
           onChange={(_, val) => setTabIndex(val)}
@@ -110,14 +254,11 @@ export const StudentAssignmentsPage = () => {
             </Grid>
           ) : pendingAssignments.length === 0 ? (
             <Grid item xs={12}>
-              <Paper elevation={0} sx={{ p: 6, textAlign: 'center', borderRadius: '24px', border: `1px solid ${theme.palette.divider}` }}>
-                <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  No pending assignments due! 🎉
-                </Typography>
-                <Typography variant="caption" color="text.disabled">
-                  You are all caught up with your academic submissions.
-                </Typography>
-              </Paper>
+              <EmptyState
+                type="assignments"
+                title="No Pending Assignments Due"
+                description="You are all caught up! There are no outstanding coursework assignments due at this time."
+              />
             </Grid>
           ) : (
             pendingAssignments.map((assignment) => (

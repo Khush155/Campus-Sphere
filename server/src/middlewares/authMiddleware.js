@@ -69,8 +69,12 @@ const authMiddleware = async (req, res, next) => {
         name: currentUser.name,
         email: currentUser.email,
         role: currentUser.role,
-        departmentId: currentUser.departmentId,
+        departmentId: currentUser.departmentId || currentUser.branchId,
+        branchId: currentUser.branchId,
+        courseId: currentUser.courseId,
         semester: currentUser.semester,
+        group: currentUser.group,
+        rollNumber: currentUser.rollNumber,
       };
     }
 
