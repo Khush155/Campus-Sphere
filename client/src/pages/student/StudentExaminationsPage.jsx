@@ -46,7 +46,10 @@ export const StudentExaminationsPage = () => {
   const branchId = typeof branchObj === 'object' ? branchObj?._id : branchObj;
 
   const { data: gpaData, isLoading: isGpaLoading } = useStudentGpaQuery(studentId);
-  const { isLoading: isExamsLoading } = useStudentExaminationsQuery();
+  const { isLoading: isExamsLoading } = useStudentExaminationsQuery({
+    branchId: branchId || undefined,
+    semester: selectedSemester || undefined,
+  });
   const { data: enrolledSubjectsData = [] } = useSubjectsQuery({
     branchId: branchId || undefined,
     semester: selectedSemester || undefined,

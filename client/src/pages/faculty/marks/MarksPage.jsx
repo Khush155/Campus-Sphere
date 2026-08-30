@@ -146,6 +146,8 @@ export const MarksPage = () => {
   const { data: studentsResponse, isLoading: isStudentsLoading } = useUsersQuery({
     role: 'STUDENT',
     departmentId: cleanDeptId,
+    branchId: currentSubject?.branchId,
+    semester: currentSubject?.semester,
     group: selectedSectionId !== 'ALL' ? selectedSectionId : undefined,
     limit: 200,
   });

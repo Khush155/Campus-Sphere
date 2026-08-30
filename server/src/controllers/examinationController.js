@@ -20,14 +20,18 @@ const computeGrade = (percentage, isAbsent) => {
 // POOR_GRADES that trigger remedial class requirement
 const POOR_GRADES = new Set(['F', 'C', 'AB']);
 
+const Subject = require('../models/Subject');
+const User = require('../models/User');
+
 /**
  * POST /api/v1/examinations
- * Create a new examination with syllabus and datesheet fields.
+ * Create a new examination with course, branch, semester, syllabus and datesheet fields.
  */
 exports.createExamination = async (req, res) => {
   const {
     title, type, subjectId, date, totalMarks, passingMarks,
     venue, duration, syllabus, datesheetSlot, reportingTime, instructions,
+    courseId, branchId, semester, academicYear,
   } = req.body;
 
   let { datesheetPdfUrl, seatingPlanPdfUrl } = req.body;
@@ -51,20 +55,35 @@ exports.createExamination = async (req, res) => {
     throw new AppError('Passing marks must be less than total marks.', 400);
   }
 
+  // Lookup subject to validate existence and auto-derive academic hierarchy if omitted
+  const subject = await Subject.findById(subjectId).populate('branchId');
+  if (!subject) {
+    throw new AppError('The specified subject does not exist.', 404);
+  }
+
+  const resolvedBranchId = branchId || subject.branchId?._id || subject.branchId;
+  const resolvedCourseId = courseId || subject.branchId?.courseId;
+  const resolvedSemester = semester ? Number(semester) : subject.semester;
+
   // Handle syllabus array since frontend might send syllabus or syllabus[] depending on FormData handling
   const syllabusArray = req.body['syllabus[]'] ? 
     (Array.isArray(req.body['syllabus[]']) ? req.body['syllabus[]'] : [req.body['syllabus[]']]) : 
     (Array.isArray(syllabus) ? syllabus : []);
 
   const exam = await Examination.create({
-    title, type,
+    title,
+    type,
     departmentId: req.user.departmentId,
+    courseId: resolvedCourseId,
+    branchId: resolvedBranchId,
+    semester: resolvedSemester,
+    academicYear: academicYear || '2025-2026',
     subjectId,
     date: new Date(date),
     totalMarks: parsedTotalMarks,
     passingMarks: parsedPassingMarks,
     venue,
-    duration,
+    duration: duration ? Number(duration) : undefined,
     syllabus: syllabusArray,
     datesheetSlot,
     reportingTime,
@@ -73,25 +92,79 @@ exports.createExamination = async (req, res) => {
     seatingPlanPdfUrl,
   });
 
+  await AuditLog.create({
+    actorId: req.user.id,
+    action: 'EXAM_SCHEDULED',
+    targetId: exam._id,
+    targetModel: 'Examination',
+    after: { title: exam.title, date: exam.date, subjectId: exam.subjectId },
+    ipAddress: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
+
   res.status(201).json({ success: true, data: exam });
 };
 
 /**
  * GET /api/v1/examinations
- * List exams with pagination.
+ * List exams with filters and pagination.
  */
 exports.getExaminations = async (req, res) => {
-  const { departmentId, status, type, page = 1, limit = 20 } = req.query;
+  const {
+    departmentId, courseId, branchId, semester, academicYear,
+    status, type, subjectId, page = 1, limit = 50,
+  } = req.query;
+
   const filters = {};
-  if (departmentId) {filters.departmentId = departmentId;}
-  else if (req.user.departmentId) {filters.departmentId = req.user.departmentId;}
-  if (status) {filters.status = status;}
-  if (type) {filters.type = type;}
+
+  if (departmentId) {
+    filters.departmentId = departmentId;
+  } else if (req.user.departmentId && req.user.role !== 'STUDENT') {
+    filters.departmentId = req.user.departmentId;
+  }
+
+  // Academic hierarchy filters
+  if (courseId) {
+    filters.courseId = courseId;
+  }
+  if (branchId) {
+    filters.branchId = branchId;
+  }
+  if (semester) {
+    filters.semester = Number(semester);
+  }
+  if (academicYear) {
+    filters.academicYear = academicYear;
+  }
+  if (subjectId) {
+    filters.subjectId = subjectId;
+  }
+  if (status && status !== 'ALL') {
+    filters.status = status;
+  }
+  if (type && type !== 'ALL') {
+    filters.type = type;
+  }
+
+  // For students, auto-filter to their enrolled branch and semester if set
+  if (req.user.role === 'STUDENT') {
+    if (req.user.departmentId) {
+      filters.departmentId = req.user.departmentId;
+    }
+    if (req.user.branchId) {
+      filters.branchId = req.user.branchId;
+    }
+    if (req.user.semester) {
+      filters.semester = req.user.semester;
+    }
+  }
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const [exams, total] = await Promise.all([
     Examination.find(filters)
-      .populate('subjectId', 'name code credits semester')
+      .populate('subjectId', 'name code credits semester type')
+      .populate('courseId', 'name code durationYears')
+      .populate('branchId', 'name code')
       .sort({ date: -1 })
       .skip(skip)
       .limit(parseInt(limit)),
@@ -308,5 +381,105 @@ exports.toggleMarksEntryPermission = async (req, res) => {
     success: true,
     message: `Marks entry permission updated to ${exam.marksEntryEnabled ? 'UNLOCKED' : 'LOCKED'}`,
     data: exam,
+  });
+};
+
+/**
+ * DELETE /api/v1/examinations/:examId
+ * HOD / Admin deletes an examination and cascades deletion of its results.
+ */
+exports.deleteExamination = async (req, res) => {
+  const { examId } = req.params;
+
+  const exam = await Examination.findById(examId);
+  if (!exam) {
+    throw new AppError('Examination not found.', 404);
+  }
+
+  // Enforce HOD department boundary
+  if (req.user.role === 'HOD' && exam.departmentId.toString() !== req.user.departmentId.toString()) {
+    throw new AppError('Access denied. This examination does not belong to your department.', 403);
+  }
+
+  // Cascade delete results
+  await Result.deleteMany({ examinationId: exam._id });
+  await Examination.findByIdAndDelete(examId);
+
+  await AuditLog.create({
+    actorId: req.user.id,
+    action: 'EXAM_DELETED',
+    targetId: exam._id,
+    targetModel: 'Examination',
+    before: { title: exam.title, date: exam.date, subjectId: exam.subjectId },
+    ipAddress: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Examination and associated evaluation records deleted successfully.',
+  });
+};
+
+/**
+ * GET /api/v1/examinations/:examId/students
+ * Retrieves enrolled student roster for this exam's cohort along with any existing grades.
+ */
+exports.getExamStudentsForGrading = async (req, res) => {
+  const { examId } = req.params;
+
+  const exam = await Examination.findById(examId)
+    .populate('subjectId', 'name code credits semester')
+    .populate('courseId', 'name code')
+    .populate('branchId', 'name code');
+
+  if (!exam) {
+    throw new AppError('Examination not found.', 404);
+  }
+
+  // Find enrolled students in this branch/department and semester
+  const studentFilter = { role: 'STUDENT' };
+  if (exam.branchId) {
+    studentFilter.branchId = exam.branchId._id || exam.branchId;
+  } else if (exam.departmentId) {
+    studentFilter.departmentId = exam.departmentId;
+  }
+  if (exam.semester) {
+    studentFilter.semester = exam.semester;
+  }
+
+  const [students, existingResults] = await Promise.all([
+    User.find(studentFilter).select('name email rollNumber group branchId semester').sort({ rollNumber: 1, name: 1 }),
+    Result.find({ examinationId: exam._id }),
+  ]);
+
+  const resultMap = new Map(existingResults.map((r) => [r.studentId.toString(), r]));
+
+  const roster = students.map((s) => {
+    const resRec = resultMap.get(s._id.toString());
+    return {
+      studentId: s._id,
+      name: s.name,
+      email: s.email,
+      rollNumber: s.rollNumber || 'N/A',
+      group: s.group || 'A',
+      marksObtained: resRec ? resRec.marksObtained : '',
+      isAbsent: resRec ? Boolean(resRec.isAbsent) : false,
+      percentage: resRec ? resRec.percentage : null,
+      grade: resRec ? resRec.grade : null,
+      gradePoint: resRec ? resRec.gradePoint : null,
+      status: resRec ? resRec.status : null,
+      requiresRemedialClass: resRec ? Boolean(resRec.requiresRemedialClass) : false,
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      examination: exam,
+      students: roster,
+      totalEnrolled: roster.length,
+      evaluatedCount: existingResults.length,
+    },
   });
 };

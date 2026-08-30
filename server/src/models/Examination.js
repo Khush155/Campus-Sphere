@@ -4,6 +4,10 @@ const examinationSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   type: { type: String, enum: ['INTERNAL', 'EXTERNAL', 'PRACTICAL', 'VIVA'], required: true },
   departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: true },
+  courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
+  semester: { type: Number, min: 1, max: 12 },
+  academicYear: { type: String, trim: true }, // e.g. "2025-2026"
   subjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject', required: true },
   date: { type: Date, required: true },
   totalMarks: { type: Number, required: true, min: 1 },
@@ -28,5 +32,6 @@ const examinationSchema = new mongoose.Schema({
 
 examinationSchema.index({ departmentId: 1, status: 1 });
 examinationSchema.index({ subjectId: 1, date: -1 });
+examinationSchema.index({ departmentId: 1, courseId: 1, branchId: 1, semester: 1 });
 
 module.exports = mongoose.model('Examination', examinationSchema);

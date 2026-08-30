@@ -269,6 +269,71 @@ const submitAssignment = asyncHandler(async (req, res, next) => {
   return successResponse(res, 200, 'Assignment submitted successfully', mySub);
 });
 
+/**
+ * @desc    Get all submissions for an assignment
+ * @route   GET /api/v1/faculty-assignments/:id/submissions
+ * @access  Private/Faculty/Admin
+ */
+const getAssignmentSubmissions = asyncHandler(async (req, res, next) => {
+  const assignment = await Assignment.findById(req.params.id)
+    .populate('subjectId', 'name code')
+    .populate({
+      path: 'submissions.studentId',
+      select: 'name email rollNumber group',
+    });
+
+  if (!assignment) {
+    return next(new AppError('Assignment not found', 404, ERROR_CODES.NOT_FOUND));
+  }
+
+  return successResponse(res, 200, 'Assignment submissions retrieved successfully', {
+    assignment: {
+      id: assignment._id,
+      title: assignment.title,
+      dueDate: assignment.dueDate,
+      maxMarks: assignment.maxMarks,
+      subject: assignment.subjectId,
+    },
+    submissions: assignment.submissions || [],
+  });
+});
+
+/**
+ * @desc    Grade a student assignment submission
+ * @route   PATCH /api/v1/faculty-assignments/:id/submissions/:submissionId/grade
+ * @access  Private/Faculty/Admin
+ */
+const gradeSubmission = asyncHandler(async (req, res, next) => {
+  const { marksObtained, feedback } = req.body;
+  const assignment = await Assignment.findById(req.params.id);
+
+  if (!assignment) {
+    return next(new AppError('Assignment not found', 404, ERROR_CODES.NOT_FOUND));
+  }
+
+  const sub = assignment.submissions.id(req.params.submissionId);
+  if (!sub) {
+    return next(new AppError('Submission not found', 404, ERROR_CODES.NOT_FOUND));
+  }
+
+  if (marksObtained !== undefined && marksObtained !== null) {
+    const numericMarks = Number(marksObtained);
+    if (numericMarks < 0 || numericMarks > assignment.maxMarks) {
+      return next(new AppError(`Marks must be between 0 and ${assignment.maxMarks}`, 400, ERROR_CODES.VALIDATION_ERROR));
+    }
+    sub.marksObtained = numericMarks;
+    sub.status = 'GRADED';
+  }
+
+  if (feedback !== undefined) {
+    sub.feedback = String(feedback).trim();
+  }
+
+  await assignment.save();
+
+  return successResponse(res, 200, 'Submission graded successfully', sub);
+});
+
 module.exports = {
   createAssignment,
   getAssignments,
@@ -276,4 +341,6 @@ module.exports = {
   updateAssignmentStatus,
   deleteAssignment,
   submitAssignment,
+  getAssignmentSubmissions,
+  gradeSubmission,
 };

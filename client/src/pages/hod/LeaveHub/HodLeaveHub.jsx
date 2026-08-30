@@ -157,6 +157,7 @@ export const HodLeaveHub = () => {
   const [selectedLeave, setSelectedLeave] = useState(null);
   const [remarks, setRemarks] = useState('');
 
+  const [applicantRoleFilter, setApplicantRoleFilter] = useState('FACULTY');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -168,6 +169,7 @@ export const HodLeaveHub = () => {
   }, [search]);
 
   const { data: leaves = [], isLoading, isError, refetch } = useLeaveQuery({
+    role: applicantRoleFilter === 'ALL' ? undefined : applicantRoleFilter,
     status: statusFilter || undefined,
     leaveType: typeFilter || undefined,
   });
@@ -203,7 +205,7 @@ export const HodLeaveHub = () => {
     updateStatusMutation.mutate(
       { id: selectedLeave._id || selectedLeave.id, status: 'APPROVED', remarks },
       {
-        onSuccess: () => { showToast(`Leave approved for ${selectedLeave.userId?.name || 'Faculty Member'}.`); setApproveModalOpen(false); setSelectedLeave(null); refetch(); },
+        onSuccess: () => { showToast(`Leave approved for ${selectedLeave.userId?.name || 'Applicant'}.`); setApproveModalOpen(false); setSelectedLeave(null); refetch(); },
         onError: (err) => showToast(err.response?.data?.message || 'Failed to approve leave', { severity: 'error' }),
       }
     );
@@ -214,7 +216,7 @@ export const HodLeaveHub = () => {
     updateStatusMutation.mutate(
       { id: selectedLeave._id || selectedLeave.id, status: 'REJECTED', remarks },
       {
-        onSuccess: () => { showToast(`Leave rejected for ${selectedLeave.userId?.name || 'Faculty Member'}.`); setRejectModalOpen(false); setSelectedLeave(null); refetch(); },
+        onSuccess: () => { showToast(`Leave rejected for ${selectedLeave.userId?.name || 'Applicant'}.`); setRejectModalOpen(false); setSelectedLeave(null); refetch(); },
         onError: (err) => showToast(err.response?.data?.message || 'Failed to reject leave', { severity: 'error' }),
       }
     );
@@ -237,15 +239,23 @@ export const HodLeaveHub = () => {
 
   const columns = [
     {
-      id: 'faculty',
-      label: 'Faculty Member',
+      id: 'applicant',
+      label: 'Applicant Details',
       render: (row) => {
         const urgent = isLeaveUrgent(row.startDate) && row.status === 'PENDING';
+        const isFaculty = row.userId?.role === 'FACULTY';
         return (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Box sx={{ position: 'relative', flexShrink: 0 }}>
-              <Avatar sx={{ width: 36, height: 36, bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main, fontWeight: 700, fontSize: 15 }}>
-                {row.userId?.name?.charAt(0) || 'F'}
+              <Avatar sx={{
+                width: 36,
+                height: 36,
+                bgcolor: isFaculty ? `${theme.palette.primary.main}15` : `${theme.palette.info?.main || '#0288d1'}15`,
+                color: isFaculty ? theme.palette.primary.main : (theme.palette.info?.main || '#0288d1'),
+                fontWeight: 700,
+                fontSize: 14,
+              }}>
+                {row.userId?.name?.charAt(0) || (isFaculty ? 'F' : 'S')}
               </Avatar>
               {urgent && (
                 <Box
@@ -263,15 +273,24 @@ export const HodLeaveHub = () => {
               )}
             </Box>
             <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
                 <Typography variant="body2" sx={{ fontWeight: 800, color: theme.palette.ink?.[900] || '#1a1a1a' }}>
-                  {row.userId?.name || 'Faculty Member'}
+                  {row.userId?.name || (isFaculty ? 'Faculty Member' : 'Student')}
                 </Typography>
+                <Chip
+                  label={isFaculty ? 'FACULTY' : 'STUDENT'}
+                  size="small"
+                  color={isFaculty ? 'primary' : 'info'}
+                  variant="outlined"
+                  sx={{ height: 18, fontSize: '0.58rem', fontWeight: 800 }}
+                />
                 {urgent && (
-                  <Chip label="URGENT" size="small" color="error" sx={{ height: 16, fontSize: '0.55rem', fontWeight: 800 }} />
+                  <Chip label="URGENT" size="small" color="error" sx={{ height: 18, fontSize: '0.55rem', fontWeight: 800 }} />
                 )}
               </Box>
-              <Typography variant="caption" color="text.secondary">{row.userId?.email || '—'}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {row.userId?.rollNumber ? `Roll No: ${row.userId.rollNumber} • ` : ''}{row.userId?.email || '—'}
+              </Typography>
             </Box>
           </Box>
         );
@@ -479,16 +498,27 @@ export const HodLeaveHub = () => {
         {/* Filter Toolbar */}
         <Box sx={{ px: 3, pt: 2.5, pb: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={5}>
+            <Grid item xs={12} sm={6} md={3.5}>
               <TextField
                 fullWidth size="small"
-                placeholder="Search faculty name, email, or reason..."
+                placeholder="Search name, email, or reason..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 InputProps={{ startAdornment: <InputAdornment position="start"><SearchOutlined sx={{ color: 'text.secondary', fontSize: 18 }} /></InputAdornment> }}
               />
             </Grid>
-            <Grid item xs={12} sm={3.5}>
+            <Grid item xs={12} sm={6} md={2.5}>
+              <TextField
+                select fullWidth size="small" label="Applicant Type"
+                value={applicantRoleFilter} onChange={(e) => setApplicantRoleFilter(e.target.value)}
+                SelectProps={{ displayEmpty: true }} InputLabelProps={{ shrink: true }}
+              >
+                <MenuItem value="FACULTY">👨‍🏫 Faculty & Staff Only</MenuItem>
+                <MenuItem value="STUDENT">🎓 Students Only</MenuItem>
+                <MenuItem value="ALL">🌐 All Applicants</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
               <TextField
                 select fullWidth size="small" label="Leave Status"
                 value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
@@ -500,7 +530,7 @@ export const HodLeaveHub = () => {
                 <MenuItem value="REJECTED">❌ Rejected Only</MenuItem>
               </TextField>
             </Grid>
-            <Grid item xs={12} sm={3.5}>
+            <Grid item xs={12} sm={6} md={3}>
               <TextField
                 select fullWidth size="small" label="Leave Category"
                 value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
@@ -520,13 +550,13 @@ export const HodLeaveHub = () => {
           </Grid>
 
           {/* Active filter info */}
-          {(statusFilter || typeFilter || search) && (
+          {(statusFilter || typeFilter || search || applicantRoleFilter !== 'FACULTY') && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.5 }}>
               <Typography variant="caption" color="text.secondary">
                 Showing <strong>{filteredLeaves.length}</strong> of {leaves.length} results
               </Typography>
-              <Button size="small" sx={{ fontSize: '0.68rem', textTransform: 'none', py: 0 }} onClick={() => { setStatusFilter(''); setTypeFilter(''); setSearch(''); }}>
-                Clear all filters
+              <Button size="small" sx={{ fontSize: '0.68rem', textTransform: 'none', py: 0 }} onClick={() => { setApplicantRoleFilter('FACULTY'); setStatusFilter(''); setTypeFilter(''); setSearch(''); }}>
+                Reset filters
               </Button>
             </Box>
           )}

@@ -72,7 +72,7 @@ const createLeaveRequest = async (leaveData, actor) => {
 };
 
 const getLeaveRequests = async (queryOptions, actor) => {
-  const { departmentId, userId, status, leaveType } = queryOptions;
+  const { departmentId, userId, status, leaveType, role } = queryOptions;
   const filters = {};
 
   if (departmentId) {
@@ -95,13 +95,24 @@ const getLeaveRequests = async (queryOptions, actor) => {
     filters.userId = actor.id;
   }
 
+  // Filter by applicant role (e.g. FACULTY vs STUDENT)
+  if (role) {
+    const userRoleQuery = { role };
+    if (filters.departmentId) {
+      userRoleQuery.departmentId = filters.departmentId;
+    }
+    const matchingUsers = await User.find(userRoleQuery).select('_id');
+    const matchingUserIds = matchingUsers.map((u) => u._id);
+    filters.userId = { $in: matchingUserIds };
+  }
+
   return await paginate(LeaveRequest, filters, {
     ...queryOptions,
     populate: [
-      { path: 'userId', select: 'name email role' },
-      { path: 'approvedBy', select: 'name email' }
+      { path: 'userId', select: 'name email role rollNumber officeRoom' },
+      { path: 'approvedBy', select: 'name email' },
     ],
-    sort: { createdAt: -1 }
+    sort: { createdAt: -1 },
   });
 };
 

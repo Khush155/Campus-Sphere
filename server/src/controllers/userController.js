@@ -11,12 +11,12 @@ const ROLES = require('../constants/roles');
 const getUsers = async (req, res, _next) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 20;
-  const { role, department, status, search, course, branch, semester, group } = req.query;
+  const { role, department, departmentId, status, search, course, courseId, branch, branchId, semester, group } = req.query;
 
   // Security Rule: HODs default to their own department, but can query target department faculty for cross-dept requests
   const isHod = req.user.role === ROLES.HOD;
-  let targetDepartmentId = department;
-  if (isHod && (role !== 'FACULTY' || !department)) {
+  let targetDepartmentId = department || departmentId;
+  if (isHod && (role !== 'FACULTY' || !targetDepartmentId)) {
     targetDepartmentId = req.user.departmentId;
   }
 
@@ -27,8 +27,8 @@ const getUsers = async (req, res, _next) => {
     departmentId: targetDepartmentId,
     status,
     search,
-    courseId: course,
-    branchId: branch,
+    courseId: course || courseId,
+    branchId: branch || branchId,
     semester: semester ? parseInt(semester, 10) : undefined,
     group: group,
   }, req.user.role);

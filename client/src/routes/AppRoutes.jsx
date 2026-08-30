@@ -80,8 +80,6 @@ import StudentFeedbackPage from '../pages/student/StudentFeedbackPage';
 // Newly added Expanded Faculty pages
 import MaterialsPage from '../pages/faculty/materials/MaterialsPage';
 import AnalyticsPage from '../pages/faculty/analytics/AnalyticsPage';
-import NotificationPage from '../pages/faculty/notifications/NotificationPage';
-import SettingsPage from '../pages/faculty/settings/SettingsPage';
 import FacultyNoticeHub from '../pages/faculty/notices/FacultyNoticeHub';
 
 // Guard for authenticated sections

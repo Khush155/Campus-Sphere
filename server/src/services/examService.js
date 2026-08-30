@@ -1,5 +1,6 @@
 const Exam = require('../models/Exam');
 const ExamResult = require('../models/ExamResult');
+const Result = require('../models/Result');
 const Subject = require('../models/Subject');
 const User = require('../models/User');
 const { assertFacultyAssigned } = require('../utils/privilegeGuard');
@@ -123,6 +124,13 @@ const calculateStudentGPA = async (studentId) => {
     throw new AppError('Student not found', 404, ERROR_CODES.NOT_FOUND);
   }
 
+  // 1. Fetch official published examination results from Result model
+  const officialResults = await Result.find({ studentId }).populate({
+    path: 'examinationId',
+    populate: { path: 'subjectId' },
+  });
+
+  // 2. Fetch legacy or faculty test results from ExamResult model
   const publishedResults = await ExamResult.find({
     studentId,
     isPublished: true,
@@ -131,7 +139,7 @@ const calculateStudentGPA = async (studentId) => {
     populate: { path: 'subjectId' },
   });
 
-  if (publishedResults.length === 0) {
+  if (officialResults.length === 0 && publishedResults.length === 0) {
     return {
       student: { name: student.name, email: student.email },
       gpa: 0,
@@ -144,15 +152,63 @@ const calculateStudentGPA = async (studentId) => {
   let weightedPointsSum = 0;
   const gradeBreakdown = [];
   const semesterMap = {};
+  const processedSubjectIds = new Set();
 
-  for (const result of publishedResults) {
-    const exam = result.examId;
-    if (!exam) {
+  // Process official examination results first
+  for (const res of officialResults) {
+    const exam = res.examinationId;
+    if (!exam || !exam.subjectId) {
       continue;
     }
-
     const subject = exam.subjectId;
-    if (!subject) {
+
+    const credits = Number(subject.credits) || 3;
+    const gradePoint = Number(res.gradePoint) || 0;
+    const sem = Number(exam.semester || subject.semester) || 1;
+
+    weightedPointsSum += (gradePoint * credits);
+    totalCredits += credits;
+    processedSubjectIds.add(subject._id.toString());
+
+    const item = {
+      subjectId: subject._id,
+      subjectName: subject.name,
+      subjectCode: subject.code,
+      sequenceNo: subject.sequenceNo,
+      semester: sem,
+      type: subject.type || exam.type || 'THEORY',
+      credits,
+      grade: res.grade || (res.status === 'PASS' ? 'P' : 'F'),
+      gradePoint,
+      marksObtained: res.marksObtained,
+      maxMarks: exam.totalMarks || 100,
+    };
+
+    gradeBreakdown.push(item);
+
+    if (!semesterMap[sem]) {
+      semesterMap[sem] = {
+        semester: sem,
+        weightedSum: 0,
+        totalCredits: 0,
+        subjects: [],
+      };
+    }
+    semesterMap[sem].weightedSum += (gradePoint * credits);
+    semesterMap[sem].totalCredits += credits;
+    semesterMap[sem].subjects.push(item);
+  }
+
+  // Then process any other published tests from ExamResult not already included
+  for (const result of publishedResults) {
+    const exam = result.examId;
+    if (!exam || !exam.subjectId) {
+      continue;
+    }
+    const subject = exam.subjectId;
+
+    // Skip if already evaluated by official examination
+    if (processedSubjectIds.has(subject._id.toString())) {
       continue;
     }
 
@@ -162,6 +218,7 @@ const calculateStudentGPA = async (studentId) => {
 
     weightedPointsSum += (gradePoint * credits);
     totalCredits += credits;
+    processedSubjectIds.add(subject._id.toString());
 
     const item = {
       subjectId: subject._id,

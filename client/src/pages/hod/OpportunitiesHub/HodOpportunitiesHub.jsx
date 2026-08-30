@@ -20,6 +20,8 @@ import {
   MenuItem,
   FormControlLabel,
   Switch,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   OpenInNew,
@@ -30,8 +32,13 @@ import {
   AddOutlined,
   RefreshOutlined,
   EmojiEventsOutlined,
+  DeleteOutline,
 } from '@mui/icons-material';
-import { useOpportunitiesQuery } from '../../../queries/opportunityQueries';
+import {
+  useOpportunitiesQuery,
+  useCreateOpportunityMutation,
+  useDeleteOpportunityMutation,
+} from '../../../queries/opportunityQueries';
 import EmptyState from '../../../components/common/EmptyState';
 import { useToast } from '../../../contexts/ToastContext';
 
@@ -88,11 +95,11 @@ export const HodOpportunitiesHub = () => {
   const { showToast } = useToast();
 
   const { data: rawOpportunities, isLoading, isError, refetch } = useOpportunitiesQuery();
+  const createOpportunityMutation = useCreateOpportunityMutation();
+  const deleteOpportunityMutation = useDeleteOpportunityMutation();
+
   const [tabIndex, setTabIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Local Custom Opportunities State
-  const [customOpps, setCustomOpps] = useState([]);
   const [openPostModal, setOpenPostModal] = useState(false);
   const [postForm, setPostForm] = useState({
     title: '',
@@ -105,9 +112,8 @@ export const HodOpportunitiesHub = () => {
   });
 
   const allOpportunities = useMemo(() => {
-    const apiData = Array.isArray(rawOpportunities) ? rawOpportunities : [];
-    return [...customOpps, ...apiData];
-  }, [rawOpportunities, customOpps]);
+    return Array.isArray(rawOpportunities) ? rawOpportunities : [];
+  }, [rawOpportunities]);
 
   const handleTabChange = (event, newValue) => {
     setTabIndex(newValue);
@@ -151,29 +157,47 @@ export const HodOpportunitiesHub = () => {
       return;
     }
 
-    const newOpp = {
-      id: `custom-${Date.now()}`,
+    const payload = {
       title: postForm.title,
       organization: postForm.organization,
       type: postForm.type,
-      location: postForm.location || 'Remote',
+      location: postForm.location || 'Remote / Hybrid',
       deadline: postForm.deadline || new Date(Date.now() + 14 * 86400000).toISOString(),
       url: postForm.url,
       featured: postForm.featured,
       source: 'Department Faculty Desk',
     };
 
-    setCustomOpps([newOpp, ...customOpps]);
-    showToast(`Posted opportunity "${newOpp.title}" for department students!`);
-    setOpenPostModal(false);
-    setPostForm({
-      title: '',
-      organization: '',
-      type: 'INTERNSHIP',
-      location: 'Remote / Hybrid',
-      deadline: '',
-      url: '',
-      featured: false,
+    createOpportunityMutation.mutate(payload, {
+      onSuccess: (data) => {
+        showToast(`Posted opportunity "${data.title}" for department students!`);
+        setOpenPostModal(false);
+        setPostForm({
+          title: '',
+          organization: '',
+          type: 'INTERNSHIP',
+          location: 'Remote / Hybrid',
+          deadline: '',
+          url: '',
+          featured: false,
+        });
+        refetch();
+      },
+      onError: (err) => {
+        showToast(err.response?.data?.message || 'Failed to post opportunity', { severity: 'error' });
+      },
+    });
+  };
+
+  const handleDeleteOpportunity = (oppId) => {
+    deleteOpportunityMutation.mutate(oppId, {
+      onSuccess: () => {
+        showToast('Opportunity removed successfully.');
+        refetch();
+      },
+      onError: (err) => {
+        showToast(err.response?.data?.message || 'Failed to remove opportunity', { severity: 'error' });
+      },
     });
   };
 
@@ -417,7 +441,7 @@ export const HodOpportunitiesHub = () => {
                     </Typography>
                   </CardContent>
 
-                  <Box sx={{ p: 3, pt: 0 }}>
+                  <Box sx={{ p: 3, pt: 0, display: 'flex', gap: 1 }}>
                     <Button
                       variant="contained"
                       fullWidth
@@ -435,6 +459,23 @@ export const HodOpportunitiesHub = () => {
                     >
                       View & Apply Link
                     </Button>
+                    {opp.isCustom && (
+                      <Tooltip title="Delete Opportunity">
+                        <IconButton
+                          color="error"
+                          onClick={() => handleDeleteOpportunity(opp.id || opp._id)}
+                          sx={{
+                            border: `1px solid ${theme.palette.error.main}30`,
+                            bgcolor: `${theme.palette.error.main}08`,
+                            borderRadius: '8px',
+                            p: 0.8,
+                            '&:hover': { bgcolor: `${theme.palette.error.main}20` },
+                          }}
+                        >
+                          <DeleteOutline sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </Box>
                 </Card>
               </Grid>

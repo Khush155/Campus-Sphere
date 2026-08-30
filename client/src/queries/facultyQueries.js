@@ -247,3 +247,32 @@ export const useUpdateFacultyAssignmentStatusMutation = () => {
     },
   });
 };
+
+export const useAssignmentSubmissionsQuery = (assignmentId) => {
+  return useQuery({
+    queryKey: ['assignment-submissions', assignmentId],
+    queryFn: async () => {
+      if (!assignmentId) return null;
+      const response = await api.get(`/faculty-assignments/${assignmentId}/submissions`);
+      return response.data.data;
+    },
+    enabled: Boolean(assignmentId),
+  });
+};
+
+export const useGradeSubmissionMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ assignmentId, submissionId, marksObtained, feedback }) => {
+      const response = await api.patch(`/faculty-assignments/${assignmentId}/submissions/${submissionId}/grade`, {
+        marksObtained,
+        feedback,
+      });
+      return response.data.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['assignment-submissions', variables.assignmentId] });
+      queryClient.invalidateQueries({ queryKey: ['faculty-assignments'] });
+    },
+  });
+};

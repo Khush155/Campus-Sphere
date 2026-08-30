@@ -54,4 +54,18 @@ router.patch(
   asyncHandler(examinationController.toggleMarksEntryPermission)
 );
 
+// Get student roster for grading this examination
+router.get(
+  '/:examId/students',
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD, ROLES.FACULTY),
+  asyncHandler(examinationController.getExamStudentsForGrading)
+);
+
+// Delete an examination
+router.delete(
+  '/:examId',
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  asyncHandler(examinationController.deleteExamination)
+);
+
 module.exports = router;

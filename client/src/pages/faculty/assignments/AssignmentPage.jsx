@@ -24,6 +24,7 @@ import AssignmentFilters from './components/AssignmentFilters';
 import AssignmentList from './components/AssignmentList';
 import CreateAssignmentDialog from './components/CreateAssignmentDialog';
 import EditAssignmentDialog from './components/EditAssignmentDialog';
+import GradeSubmissionsDialog from './components/GradeSubmissionsDialog';
 import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
 
 // Backend hooks
@@ -51,6 +52,7 @@ export const AssignmentPage = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
+  const [gradingAssignment, setGradingAssignment] = useState(null);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
 
   // 1. Fetch dashboard stats for assigned subjects list
@@ -522,7 +524,7 @@ export const AssignmentPage = () => {
             onPublish={(id) => handleStatusChange(id, 'PUBLISHED')}
             onCloseAssignment={(id) => handleStatusChange(id, 'CLOSED')}
             onArchive={(id) => handleStatusChange(id, 'ARCHIVED')}
-            onView={() => showToast(`Submissions for this assignment are actively being tracked.`)}
+            onView={(asg) => setGradingAssignment(asg)}
             onCreateNew={() => setIsCreateOpen(true)}
           />
         )
@@ -568,7 +570,16 @@ export const AssignmentPage = () => {
         />
       )}
 
-      {/* ── 7. Confirm Delete Modal ── */}
+      {/* ── 7. Grade Submissions Dialog ── */}
+      {gradingAssignment && (
+        <GradeSubmissionsDialog
+          open={Boolean(gradingAssignment)}
+          assignment={gradingAssignment}
+          onClose={() => setGradingAssignment(null)}
+        />
+      )}
+
+      {/* ── 8. Confirm Delete Modal ── */}
       <ConfirmDeleteModal
         open={Boolean(deleteTargetId)}
         onClose={() => setDeleteTargetId(null)}

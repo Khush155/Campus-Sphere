@@ -32,6 +32,18 @@ router.patch(
   facultyAssignmentController.updateAssignmentStatus
 );
 
+router.get(
+  '/:id/submissions',
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.FACULTY),
+  facultyAssignmentController.getAssignmentSubmissions
+);
+
+router.patch(
+  '/:id/submissions/:submissionId/grade',
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.FACULTY),
+  facultyAssignmentController.gradeSubmission
+);
+
 const multer = require('multer');
 const path = require('path');
 const storage = multer.diskStorage({

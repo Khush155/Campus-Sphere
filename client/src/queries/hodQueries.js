@@ -75,9 +75,31 @@ export const useBatchPublishResultsMutation = () => {
   return useMutation({
     mutationFn: async ({ examId, results }) =>
       (await api.post(`/examinations/${examId}/results/batch`, { results })).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['examinations'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['examinations'] });
+      queryClient.invalidateQueries({ queryKey: ['exam-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['exam-students-grading'] });
+      queryClient.invalidateQueries({ queryKey: ['exams'] });
+    },
   });
 };
+
+export const useDeleteExaminationMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (examId) => (await api.delete(`/examinations/${examId}`)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['examinations'] });
+      queryClient.invalidateQueries({ queryKey: ['exams'] });
+    },
+  });
+};
+
+export const useExamStudentsForGradingQuery = (examId) => useQuery({
+  queryKey: ['exam-students-grading', examId],
+  queryFn: async () => (await api.get(`/examinations/${examId}/students`)).data.data,
+  enabled: Boolean(examId),
+});
 
 // ─── Placements ───────────────────────────────────────────────────────────────
 export const usePlacementsQuery = () => useQuery({

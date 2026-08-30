@@ -40,25 +40,27 @@ export const HodDashboard = () => {
 
   const isDark = theme.palette.mode === 'dark';
 
+  const deptId = user?.departmentId?._id || user?.departmentId || user?.department?._id || user?.department;
+
   // Queries
   const { data: facultyData, isLoading: loadingFaculty, refetch: refetchFaculty } = useUsersQuery({
     role: 'FACULTY',
-    department: user?.departmentId,
+    department: deptId,
     limit: 1,
   });
   const { data: studentData, isLoading: loadingStudents, refetch: refetchStudents } = useUsersQuery({
     role: 'STUDENT',
-    department: user?.departmentId,
+    department: deptId,
     limit: 1,
   });
   const { data: subjectData, isLoading: loadingSubjects, refetch: refetchSubjects } = useSubjectsQuery({
-    department: user?.departmentId,
+    department: deptId,
   });
   const { data: depts } = useDepartmentsQuery();
   const { data: activeSession } = useActiveSessionQuery();
   const { data: recentNotices, isLoading: loadingNotices } = useRecentNoticesQuery();
 
-  const deptInfo = depts?.find((d) => String(d._id) === String(user?.departmentId));
+  const deptInfo = depts?.find((d) => String(d._id) === String(deptId));
 
   const totalFaculty = facultyData?.meta?.total ?? facultyData?.data?.length ?? 0;
   const totalStudents = studentData?.meta?.total ?? studentData?.data?.length ?? 0;

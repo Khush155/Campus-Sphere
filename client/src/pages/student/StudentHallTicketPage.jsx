@@ -36,15 +36,20 @@ export const StudentHallTicketPage = () => {
 
   const currentUser = profile?.user || user;
   const studentMeta = profile?.profileMeta || {};
+  const branchObj = currentUser?.branchId;
+  const branchId = typeof branchObj === 'object' ? branchObj?._id : branchObj;
+  const semesterNum = currentUser?.semester || studentMeta?.semester || 6;
+  const sectionGroup = currentUser?.group || 'A1';
 
-  const { data: examsData = [], isLoading: isExamsLoading } = useStudentExaminationsQuery();
+  const { data: examsData = [], isLoading: isExamsLoading } = useStudentExaminationsQuery({
+    branchId: branchId || undefined,
+    semester: semesterNum || undefined,
+  });
 
   const studentName = currentUser?.name || 'Student Candidate';
   const rollNumber = currentUser?.rollNumber || studentMeta?.rollNumber || 'N/A';
   const courseName = studentMeta?.course || currentUser?.courseId?.name || 'B.Tech';
   const branchName = studentMeta?.branch || currentUser?.branchId?.name || 'Computer Science & Engineering';
-  const semesterNum = currentUser?.semester || studentMeta?.semester || 6;
-  const sectionGroup = currentUser?.group || 'A1';
 
   // Filter or sort scheduled examinations
   const scheduledExams = Array.isArray(examsData) ? examsData : [];

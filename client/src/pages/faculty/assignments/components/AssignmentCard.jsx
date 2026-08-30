@@ -245,7 +245,7 @@ export const AssignmentCard = ({
           variant="contained"
           size="small"
           startIcon={<SubmissionsIcon />}
-          onClick={() => onView(assignment.id)}
+          onClick={() => onView(assignment)}
           disabled={assignment.status === 'DRAFT'} // Drafts can't have submissions
           sx={{
             textTransform: 'none',

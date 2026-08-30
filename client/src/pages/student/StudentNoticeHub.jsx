@@ -18,11 +18,7 @@ import {
   useTheme,
 } from '@mui/material';
 import {
-  CampaignOutlined as NoticeIcon,
   SearchOutlined as SearchIcon,
-  SchoolOutlined as AcademicIcon,
-  EventOutlined as EventIcon,
-  PriorityHighOutlined as UrgentIcon,
   Close as CloseIcon,
   CalendarTodayOutlined as DateIcon,
   PersonOutline as AuthorIcon,
@@ -46,15 +42,6 @@ export const StudentNoticeHub = () => {
     return responseData.data || [];
   }, [responseData]);
 
-  // Dynamic KPI calculations
-  const stats = useMemo(() => {
-    const total = notices.length;
-    const academic = notices.filter((n) => n.category === 'ACADEMIC' || n.category === 'EXAMINATION').length;
-    const events = notices.filter((n) => n.category === 'EVENT' || n.category === 'GENERAL').length;
-    const urgent = notices.filter((n) => n.priority === 'HIGH' || n.priority === 'URGENT').length;
-    return { total, academic, events, urgent };
-  }, [notices]);
-
   // Filtered notices
   const filteredNotices = useMemo(() => {
     return notices.filter((item) => {
@@ -75,13 +62,6 @@ export const StudentNoticeHub = () => {
     });
   }, [notices, search, selectedCategory]);
 
-  const kpiItems = [
-    { title: 'Total Notices', value: stats.total, color: '#4f46e5', icon: <NoticeIcon fontSize="small" /> },
-    { title: 'Academic & Exams', value: stats.academic, color: '#10b981', icon: <AcademicIcon fontSize="small" /> },
-    { title: 'Events & Campus', value: stats.events, color: '#f59e0b', icon: <EventIcon fontSize="small" /> },
-    { title: 'Urgent Circulars', value: stats.urgent, color: '#ef4444', icon: <UrgentIcon fontSize="small" /> },
-  ];
-
   return (
     <Container maxWidth="xl" sx={{ py: 3.5 }}>
       {/* ── 1. Page Header ── */}
@@ -94,52 +74,7 @@ export const StudentNoticeHub = () => {
         </Typography>
       </Box>
 
-      {/* ── 2. Top KPI Cards (Roster-Style 4-Color Grids) ── */}
-      <Grid container spacing={2.5} sx={{ mb: 3 }}>
-        {kpiItems.map((kpi) => (
-          <Grid item xs={12} sm={6} md={3} key={kpi.title}>
-            <Card
-              elevation={0}
-              sx={{
-                p: 2.5,
-                borderRadius: '14px',
-                border: `1px solid ${theme.palette.divider}`,
-                borderTop: `4px solid ${kpi.color}`,
-                bgcolor: theme.palette.background.paper,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                height: '100%',
-              }}
-            >
-              <Box>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  {kpi.title}
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, mt: 0.5, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
-                  {isLoading ? <Skeleton width={50} /> : kpi.value}
-                </Typography>
-              </Box>
-              <Box
-                sx={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: '10px',
-                  bgcolor: `${kpi.color}15`,
-                  color: kpi.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {kpi.icon}
-              </Box>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {/* ── 3. Filter Bar ── */}
+      {/* ── 2. Filter Bar ── */}
       <Card elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, bgcolor: theme.palette.background.paper }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} md={5}>

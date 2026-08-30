@@ -94,15 +94,17 @@ export const AttendancePage = () => {
     ? user?.departmentId?._id
     : (user?.departmentId || user?.department?._id || user?.department || currentSubject?.departmentId);
 
-  // 2. Fetch students for the selected subject's department/group
+  // 2. Fetch students for the selected subject's branch/semester and group
   const userQueryParams = useMemo(() => {
     const params = { role: 'STUDENT', limit: 200 };
     if (cleanDeptId) params.departmentId = cleanDeptId;
+    if (currentSubject?.branchId) params.branchId = currentSubject.branchId;
+    if (currentSubject?.semester) params.semester = currentSubject.semester;
     if (selectedSectionId && selectedSectionId !== 'ALL') {
       params.group = selectedSectionId;
     }
     return params;
-  }, [cleanDeptId, selectedSectionId]);
+  }, [cleanDeptId, currentSubject, selectedSectionId]);
 
   const { data: studentsResponse } = useUsersQuery(userQueryParams);
   const rawStudents = useMemo(() => {

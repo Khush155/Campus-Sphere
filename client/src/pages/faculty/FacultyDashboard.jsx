@@ -17,7 +17,6 @@ import { useNavigate } from 'react-router-dom';
 // Faculty dashboard components
 import WelcomeCard from './components/WelcomeCard';
 import StatCard from './components/StatCard';
-import ProfileCard from './components/ProfileCard';
 import AssignedSubjects from './components/AssignedSubjects';
 import TodaysSchedule from './components/TodaysSchedule';
 import NoticesAndEvents from './components/NoticesAndEvents';
@@ -135,20 +134,17 @@ export const FacultyDashboard = () => {
 
       {/* ── 4. Main Dashboard Body: Balanced 2-Column Split (6:6) ── */}
       <Grid container spacing={3}>
-        {/* Left Column (6 Units) — Faculty Profile & Weekly Matrix */}
-        <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {/* Faculty Profile Card */}
-          <ProfileCard profile={data.profile} />
-
-          {/* Weekly Timetable Matrix Preview */}
-          <WeeklySchedule schedule={data.weeklySchedule || {}} />
-        </Grid>
-
-        {/* Right Column (6 Units) — Today's Schedule, Assigned Subjects, Notices */}
+        {/* Left Column (6 Units) — Teaching Schedules (Today & Weekly) */}
         <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {/* Today's Teaching Schedule */}
           <TodaysSchedule classes={data.todaysClasses || []} />
 
+          {/* Weekly Timetable Matrix Preview */}
+          <WeeklySchedule schedule={data.weeklySchedule || []} />
+        </Grid>
+
+        {/* Right Column (6 Units) — Assigned Subjects & Notices */}
+        <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {/* Assigned Subjects Roster */}
           <AssignedSubjects subjects={data.assignedSubjects || []} />
 
