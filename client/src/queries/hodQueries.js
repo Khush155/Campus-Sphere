@@ -79,29 +79,6 @@ export const useBatchPublishResultsMutation = () => {
   });
 };
 
-// ─── Projects ─────────────────────────────────────────────────────────────────
-export const useProjectsQuery = () => useQuery({
-  queryKey: ['projects'],
-  queryFn: async () => (await api.get('/projects')).data.data || [],
-});
-
-export const useCreateProjectsMutation = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (data) => (await api.post('/projects', data)).data.data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
-  });
-};
-
-export const useUpdateProjectStatusMutation = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, status }) =>
-      (await api.patch(`/projects/${id}/status`, { status })).data.data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
-  });
-};
-
 // ─── Placements ───────────────────────────────────────────────────────────────
 export const usePlacementsQuery = () => useQuery({
   queryKey: ['placements'],
@@ -113,6 +90,17 @@ export const useCreatePlacementsMutation = () => {
   return useMutation({
     mutationFn: async (data) => (await api.post('/placements/drives', data)).data.data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['placements'] }),
+  });
+};
+
+export const useDeletePlacementDriveMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (driveId) => (await api.delete(`/placements/drives/${driveId}`)).data.data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['placements'] });
+      queryClient.invalidateQueries({ queryKey: ['placement-applications'] });
+    },
   });
 };
 
@@ -134,7 +122,10 @@ export const useUpdateApplicationRoundMutation = () => {
   return useMutation({
     mutationFn: async ({ appId, ...roundData }) =>
       (await api.patch(`/placements/applications/${appId}/round`, roundData)).data.data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['placements'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['placements'] });
+      queryClient.invalidateQueries({ queryKey: ['placement-applications'] });
+    },
   });
 };
 
@@ -143,7 +134,10 @@ export const useFinalizeApplicationMutation = () => {
   return useMutation({
     mutationFn: async ({ appId, finalStatus, offerPackageLPA }) =>
       (await api.patch(`/placements/applications/${appId}/finalize`, { finalStatus, offerPackageLPA })).data.data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['placements'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['placements'] });
+      queryClient.invalidateQueries({ queryKey: ['placement-applications'] });
+    },
   });
 };
 

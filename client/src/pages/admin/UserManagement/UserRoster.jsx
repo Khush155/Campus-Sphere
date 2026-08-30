@@ -1292,6 +1292,7 @@ export const UserRoster = () => {
             branches={branches}
             allHods={allHods?.data}
             theme={theme}
+            currentUser={currentUser}
           />
         )}
       </Drawer>
@@ -1391,7 +1392,7 @@ export const UserRoster = () => {
 /**
  * Subcomponent to handle Edit User Form state, validation, cascading selects and loader skeleton.
  */
-const EditUserForm = ({ userId, onClose, onSaveSuccess, depts, courses, branches, theme }) => {
+const EditUserForm = ({ userId, onClose, onSaveSuccess, depts, courses, branches, theme, currentUser }) => {
   const { data: user, isLoading } = useUserQuery(userId);
   const updateUser = useUpdateUserMutation();
 
@@ -1509,8 +1510,8 @@ const EditUserForm = ({ userId, onClose, onSaveSuccess, depts, courses, branches
                     <MenuItem value="STUDENT">Student</MenuItem>
                     <MenuItem value="FACULTY">Faculty</MenuItem>
                     <MenuItem value="HOD">HOD</MenuItem>
-                    <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>
-                    <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
+                    {currentUser?.role !== 'COLLEGE_ADMIN' && <MenuItem value="COLLEGE_ADMIN">College Admin</MenuItem>}
+                    {currentUser?.role !== 'COLLEGE_ADMIN' && <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>}
                   </TextField>
                 )}
               />

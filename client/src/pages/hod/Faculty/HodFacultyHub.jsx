@@ -332,16 +332,23 @@ export const HodFacultyHub = () => {
     );
   };
 
+  const isDark = theme.palette.mode === 'dark';
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       {/* ── 1. Hero Banner ─────────────────────────────────────────────────── */}
       <Card
         sx={{
           p: { xs: 2.5, md: 3.5 },
-          borderRadius: '16px',
-          border: `1px solid ${theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}12 0%, ${theme.palette.primary.main}04 100%)`,
-          boxShadow: 'none',
+          borderRadius: '22px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.14) 0%, rgba(184, 134, 62, 0.08) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: isDark
+            ? '0 18px 40px -15px rgba(0,0,0,0.5)'
+            : '0 18px 40px -15px rgba(79, 70, 229, 0.08)',
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -363,10 +370,10 @@ export const HodFacultyHub = () => {
               />
             </Box>
             <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], letterSpacing: '-0.02em' }}>
-              Faculty Staff Directory
+              Staff & Faculty Directory
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5, maxWidth: 620 }}>
-              Manage your department&apos;s teaching staff, view course subject workloads, inspect faculty credentials, and register new professors.
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5, maxWidth: 650 }}>
+              Manage professor rosters, designations, contact credentials, and course allocations across the department.
             </Typography>
           </Box>
 
@@ -375,7 +382,7 @@ export const HodFacultyHub = () => {
               variant="outlined"
               startIcon={<RefreshOutlined />}
               onClick={() => refetch()}
-              sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 2.5 }}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
             >
               Refresh Roster
             </Button>
@@ -384,10 +391,12 @@ export const HodFacultyHub = () => {
               startIcon={<AddOutlined />}
               onClick={handleOpen}
               sx={{
-                borderRadius: '10px',
+                borderRadius: '8px',
                 textTransform: 'none',
                 fontWeight: 700,
                 px: 2.5,
+                background: theme.palette.primary.gradient || theme.palette.primary.main,
+                color: '#ffffff',
                 boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
               }}
             >
@@ -403,20 +412,27 @@ export const HodFacultyHub = () => {
           <Card
             sx={{
               p: 2.5,
-              borderRadius: '14px',
-              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
               borderTop: `4px solid ${theme.palette.primary.main}`,
-              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.primary.main,
+              },
             }}
           >
             <Box>
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
                 TOTAL PROFESSORS
               </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 0.5 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 0.5, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
                 {isLoading ? <CircularProgress size={22} /> : totalFaculty}
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
@@ -433,20 +449,27 @@ export const HodFacultyHub = () => {
           <Card
             sx={{
               p: 2.5,
-              borderRadius: '14px',
-              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
               borderTop: `4px solid ${theme.palette.success.main}`,
-              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.success.main,
+              },
             }}
           >
             <Box>
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
                 ACTIVE FACULTY
               </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.success.main, mt: 0.5 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.success.main, mt: 0.5, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
                 {isLoading ? <CircularProgress size={22} /> : activeFaculty}
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
@@ -463,20 +486,27 @@ export const HodFacultyHub = () => {
           <Card
             sx={{
               p: 2.5,
-              borderRadius: '14px',
-              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
               borderTop: `4px solid ${theme.palette.info.main}`,
-              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.info.main,
+              },
             }}
           >
             <Box>
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
                 ALLOCATED TEACHERS
               </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 0.5 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 0.5, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
                 {isLoading ? <CircularProgress size={22} /> : allocatedFaculty}
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
@@ -493,20 +523,27 @@ export const HodFacultyHub = () => {
           <Card
             sx={{
               p: 2.5,
-              borderRadius: '14px',
-              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
               borderTop: `4px solid ${theme.palette.warning.main}`,
-              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.warning.main,
+              },
             }}
           >
             <Box>
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
                 UNASSIGNED POOL
               </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 0.5 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 0.5, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
                 {isLoading ? <CircularProgress size={22} /> : unassignedFaculty}
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>

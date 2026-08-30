@@ -37,6 +37,7 @@ import {
   AutorenewOutlined,
   SpeedOutlined,
   HubOutlined,
+  PersonAddOutlined,
 } from '@mui/icons-material';
 import {
   ResponsiveContainer,
@@ -482,21 +483,39 @@ export const AdminDashboard = () => {
         </Box>
 
         <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Button
-            variant="contained"
-            startIcon={<AddOutlined />}
-            onClick={() => navigate('/admin/users?register=true')}
-            sx={{
-              fontWeight: 800,
-              px: 2.75,
-              py: 1.15,
-              borderRadius: '12px',
-              textTransform: 'none',
-              boxShadow: `0 4px 18px ${theme.palette.primary.main}40`,
-            }}
-          >
-            Register User
-          </Button>
+          {isSuperAdmin ? (
+            <Button
+              variant="contained"
+              startIcon={<AddOutlined />}
+              onClick={() => navigate('/admin/users?register=true')}
+              sx={{
+                fontWeight: 800,
+                px: 2.75,
+                py: 1.15,
+                borderRadius: '12px',
+                textTransform: 'none',
+                boxShadow: `0 4px 18px ${theme.palette.primary.main}40`,
+              }}
+            >
+              Register User
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              startIcon={<PersonAddOutlined />}
+              onClick={() => navigate('/admin/admissions')}
+              sx={{
+                fontWeight: 800,
+                px: 2.75,
+                py: 1.15,
+                borderRadius: '12px',
+                textTransform: 'none',
+                boxShadow: `0 4px 18px ${theme.palette.primary.main}40`,
+              }}
+            >
+              Student Admissions
+            </Button>
+          )}
 
           <Button
             variant="outlined"

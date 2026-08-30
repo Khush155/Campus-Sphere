@@ -16,7 +16,6 @@ import AccountSettingsPage from '../pages/settings/AccountSettingsPage';
 import { useDepartmentsQuery } from '../queries/collegeQueries';
 import HodDashboard from '../pages/hod/HodDashboard';
 import AssignmentHub from '../pages/hod/FacultyAssignment/AssignmentHub';
-import RosterHub from '../pages/hod/Roster/RosterHub';
 import ReportsHub from '../pages/hod/Reports/ReportsHub';
 import TimetableHub from '../pages/hod/Timetable/TimetableHub';
 import RequestHub from '../pages/hod/CrossDeptRequests/RequestHub';
@@ -322,7 +321,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/college-profile"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <CollegeProfile />
               </AdminSetupGuard>
@@ -344,7 +343,7 @@ export const AppRoutes = () => {
         <Route
           path="admin/bulk-promotion"
           element={
-            <RoleRoute allowedRoles={['SUPER_ADMIN']}>
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <BulkPromotion />
               </AdminSetupGuard>

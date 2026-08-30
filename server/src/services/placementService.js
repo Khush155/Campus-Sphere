@@ -41,6 +41,9 @@ const getDrives = async (queryOptions, actor) => {
 
   return await paginate(PlacementDrive, filters, {
     ...queryOptions,
+    populate: [
+      { path: 'eligibleBranches', select: 'name code' }
+    ],
     sort: { driveDate: -1 }
   });
 };
@@ -48,7 +51,7 @@ const getDrives = async (queryOptions, actor) => {
 const applyForDrive = async (driveId, actor) => {
   const [drive, student] = await Promise.all([
     PlacementDrive.findById(driveId),
-    User.findById(actor.id),
+    User.findById(actor.id).populate('courseId branchId'),
   ]);
 
   if (!drive) {
@@ -61,6 +64,54 @@ const applyForDrive = async (driveId, actor) => {
   // Check application deadline
   if (drive.applicationDeadline && new Date() > drive.applicationDeadline) {
     throw new AppError('Application deadline has passed.', 400, ERROR_CODES.BAD_REQUEST);
+  }
+
+  // Enforce branch eligibility (if specific branches configured)
+  if (drive.eligibleBranches && drive.eligibleBranches.length > 0) {
+    const studentBranchId = student.branchId?._id ? student.branchId._id.toString() : student.branchId?.toString();
+    const isBranchAllowed = drive.eligibleBranches.some(bId => bId.toString() === studentBranchId);
+    if (!isBranchAllowed) {
+      throw new AppError('Eligibility not met: This recruitment drive is not open for your academic branch.', 403, ERROR_CODES.FORBIDDEN);
+    }
+  }
+
+  // Enforce academic standing based on dynamic course duration
+  if (drive.eligibleStanding && drive.eligibleStanding !== 'ALL_YEARS') {
+    const durationYears = student.courseId?.durationYears || 4;
+    const totalSemesters = durationYears * 2;
+    const studentSem = student.semester || 1;
+
+    const isFinalYear = studentSem >= (totalSemesters - 1);
+    const isPreFinalYear = studentSem >= (totalSemesters - 3) && studentSem < (totalSemesters - 1);
+
+    if (drive.eligibleStanding === 'FINAL_YEAR' && !isFinalYear) {
+      throw new AppError(
+        `Eligibility not met: This drive is restricted to Final Year graduating students (Current semester: ${studentSem}, required: ${totalSemesters - 1} or ${totalSemesters}).`,
+        403,
+        ERROR_CODES.FORBIDDEN
+      );
+    }
+
+    if (drive.eligibleStanding === 'PRE_FINAL_YEAR' && !isPreFinalYear) {
+      throw new AppError(
+        `Eligibility not met: This drive is restricted to Pre-Final Year students for internships (Current semester: ${studentSem}, required: ${totalSemesters - 3} or ${totalSemesters - 2}).`,
+        403,
+        ERROR_CODES.FORBIDDEN
+      );
+    }
+  }
+
+  // Enforce graduating batch year (if specified)
+  if (drive.graduatingBatchYear) {
+    const durationYears = student.courseId?.durationYears || 4;
+    const expectedGraduationYear = student.admissionYear ? student.admissionYear + durationYears : null;
+    if (expectedGraduationYear && expectedGraduationYear !== drive.graduatingBatchYear) {
+      throw new AppError(
+        `Eligibility not met: This recruitment drive is reserved for the Class of ${drive.graduatingBatchYear}.`,
+        403,
+        ERROR_CODES.FORBIDDEN
+      );
+    }
   }
 
   // Enforce eligibility criteria
@@ -259,6 +310,39 @@ const issueNoc = async (appId, actor, req) => {
   return app;
 };
 
+const deleteDrive = async (driveId, actor, req) => {
+  const drive = await PlacementDrive.findById(driveId);
+  if (!drive) {
+    throw new AppError('Placement drive not found.', 404, ERROR_CODES.NOT_FOUND);
+  }
+
+  // Enforce HOD department boundaries
+  if (actor.role === ROLES.HOD) {
+    const isDeptMatched = drive.departmentIds.some(id => id.toString() === actor.departmentId.toString());
+    if (!isDeptMatched) {
+      throw new AppError('Access denied. This placement drive does not belong to your department.', 403, ERROR_CODES.FORBIDDEN);
+    }
+  }
+
+  const before = drive.toObject();
+  await PlacementDrive.findByIdAndDelete(driveId);
+
+  // Also cascade delete associated applications
+  await PlacementApplication.deleteMany({ driveId });
+
+  // Audit Log
+  await logAuditEvent({
+    actorId: actor.id,
+    action: 'PLACEMENT_DRIVE_DELETED',
+    targetId: drive._id,
+    targetModel: 'PlacementDrive',
+    before,
+    req
+  });
+
+  return { message: 'Placement drive deleted successfully.' };
+};
+
 module.exports = {
   createDrive,
   getDrives,
@@ -266,5 +350,6 @@ module.exports = {
   updateApplicationRound,
   finalizeApplication,
   getApplications,
-  issueNoc
+  issueNoc,
+  deleteDrive,
 };

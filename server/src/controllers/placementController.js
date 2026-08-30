@@ -82,6 +82,16 @@ const issueNoc = asyncHandler(async (req, res) => {
   return successResponse(res, 200, 'NOC issued successfully', app);
 });
 
+/**
+ * @desc    HOD / Admin deletes placement drive
+ * @route   DELETE /api/v1/placements/drives/:driveId
+ * @access  Private/SuperAdmin/HOD
+ */
+const deleteDrive = asyncHandler(async (req, res) => {
+  const result = await placementService.deleteDrive(req.params.driveId, req.user, req);
+  return successResponse(res, 200, 'Placement drive deleted successfully', result);
+});
+
 module.exports = {
   createDrive,
   getDrives,
@@ -90,4 +100,5 @@ module.exports = {
   finalizeApplication,
   getApplications,
   issueNoc,
+  deleteDrive,
 };

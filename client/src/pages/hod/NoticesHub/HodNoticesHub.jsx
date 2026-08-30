@@ -256,16 +256,28 @@ export const HodNoticesHub = () => {
     },
   ];
 
+  const isDark = theme.palette.mode === 'dark';
+
+  const totalNotices = noticesData.length;
+  const urgentCount = noticesData.filter((n) => n.priority === 'URGENT').length;
+  const importantCount = noticesData.filter((n) => n.priority === 'IMPORTANT').length;
+  const normalCount = noticesData.filter((n) => n.priority === 'NORMAL' || !n.priority).length;
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
       {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
       <Card
         sx={{
-          p: 3.5,
-          borderRadius: '16px',
+          p: { xs: 2.5, md: 3.5 },
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
-          boxShadow: 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.14) 0%, rgba(184, 134, 62, 0.08) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: isDark
+            ? '0 18px 40px -15px rgba(0,0,0,0.5)'
+            : '0 18px 40px -15px rgba(79, 70, 229, 0.08)',
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
@@ -279,13 +291,13 @@ export const HodNoticesHub = () => {
                   bgcolor: `${theme.palette.primary.main}15`,
                   color: theme.palette.primary.main,
                   fontWeight: 800,
-                  fontFamily: theme.typography.mono.fontFamily,
+                  fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                   letterSpacing: '0.05em',
                   fontSize: '0.7rem',
                 }}
               />
             </Box>
-            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1?.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
               Department Notices & Circulars
             </Typography>
             <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
@@ -319,6 +331,125 @@ export const HodNoticesHub = () => {
           </Box>
         </Box>
       </Card>
+
+      {/* ── 2. KPI Summary Cards ─────────────────────────────────────────── */}
+      <Grid container spacing={2.5}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            sx={{
+              p: 2.5,
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.primary.main,
+              },
+            }}
+          >
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+              TOTAL BROADCASTS
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 0.5, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+              {isLoading ? <CircularProgress size={22} /> : totalNotices}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              All department circulars
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            sx={{
+              p: 2.5,
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.error.main}`,
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.error.main,
+              },
+            }}
+          >
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+              URGENT ALERTS
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.error.main, mt: 0.5, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+              {isLoading ? <CircularProgress size={22} /> : urgentCount}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              Immediate priority notices
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            sx={{
+              p: 2.5,
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.warning.main}`,
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.warning.main,
+              },
+            }}
+          >
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+              IMPORTANT NOTICES
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 0.5, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+              {isLoading ? <CircularProgress size={22} /> : importantCount}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              High-priority announcements
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            sx={{
+              p: 2.5,
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.info.main}`,
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.info.main,
+              },
+            }}
+          >
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+              GENERAL CIRCULARS
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 0.5, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+              {isLoading ? <CircularProgress size={22} /> : normalCount}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
+              Routine academic broadcasts
+            </Typography>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* ── 2. Filters & Directory Table ────────────────────────────────── */}
       <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>

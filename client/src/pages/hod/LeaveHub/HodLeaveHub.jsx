@@ -110,12 +110,23 @@ const DateRangeBar = ({ startDate, endDate }) => {
 
 const KpiCard = ({ label, value, sublabel, accentColor, icon }) => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   return (
     <Card
       sx={{
-        p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`,
-        borderTop: `4px solid ${accentColor}`, boxShadow: 'none',
+        p: 2.5,
+        borderRadius: '18px',
+        border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+        borderTop: `4px solid ${accentColor}`,
+        bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+        boxShadow: theme.custom?.elevation?.raised || 'none',
         height: '100%',
+        transition: 'all 0.25s ease',
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+          borderColor: accentColor,
+        },
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -124,7 +135,7 @@ const KpiCard = ({ label, value, sublabel, accentColor, icon }) => {
         </Typography>
         <Box sx={{ color: accentColor, opacity: 0.75 }}>{icon}</Box>
       </Box>
-      <Typography variant="h3" sx={{ fontWeight: 900, color: accentColor, mt: 1, fontFamily: 'monospace', lineHeight: 1.1 }}>
+      <Typography variant="h3" sx={{ fontWeight: 900, color: accentColor, mt: 1, fontFamily: theme.typography.mono?.fontFamily || 'monospace', lineHeight: 1.1 }}>
         {value}
       </Typography>
       {sublabel && (
@@ -365,15 +376,23 @@ export const HodLeaveHub = () => {
     },
   ];
 
+  const isDark = theme.palette.mode === 'dark';
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       {/* ── 1. Hero Banner ─────────────────────────────────────────────────── */}
       <Card
         sx={{
-          p: 3.5, borderRadius: '16px',
+          p: { xs: 2.5, md: 3.5 },
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}08 100%)`,
-          boxShadow: 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.14) 0%, rgba(184, 134, 62, 0.08) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: isDark
+            ? '0 18px 40px -15px rgba(0,0,0,0.5)'
+            : '0 18px 40px -15px rgba(79, 70, 229, 0.08)',
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
@@ -409,7 +428,7 @@ export const HodLeaveHub = () => {
                 onClick={() => setBulkApproveOpen(true)}
                 sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700 }}
               >
-                Approve All Pending ({stats.pending})
+                Approve All Pending
               </Button>
             )}
             <Button

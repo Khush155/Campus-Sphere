@@ -22,6 +22,12 @@ router.get(
   placementController.getDrives
 );
 
+router.delete(
+  '/drives/:driveId',
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  placementController.deleteDrive
+);
+
 router.post(
   '/drives/:driveId/apply',
   roleMiddleware(ROLES.STUDENT),

@@ -30,6 +30,7 @@ import {
   AssignmentTurnedInOutlined as ApplyIcon,
   CancelOutlined as RejectedIcon,
   DescriptionOutlined as NocIcon,
+  WarningAmberOutlined,
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -85,6 +86,69 @@ export const StudentPlacementsPage = () => {
   const appliedDriveIds = new Set(
     applications.map((app) => (typeof app.driveId === 'object' ? app.driveId?._id : app.driveId))
   );
+
+  const checkEligibility = (drive) => {
+    // 1. Branch check
+    if (drive.eligibleBranches && drive.eligibleBranches.length > 0) {
+      const studentBranchId = currentUser?.branchId?._id || currentUser?.branchId?.id || currentUser?.branchId;
+      const isBranchAllowed = drive.eligibleBranches.some(
+        (b) => String(b._id || b.id || b) === String(studentBranchId)
+      );
+      if (!isBranchAllowed) {
+        const allowedCodes = drive.eligibleBranches.map((b) => b.code || b.name).join(', ');
+        return { eligible: false, reason: `Branch Restricted: Open for ${allowedCodes}` };
+      }
+    }
+
+    // 2. Dynamic Course Duration & Academic Standing check
+    if (drive.eligibleStanding && drive.eligibleStanding !== 'ALL_YEARS') {
+      const durationYears = currentUser?.courseId?.durationYears || studentMeta?.durationYears || 4;
+      const totalSemesters = durationYears * 2;
+      const studentSem = currentUser?.semester || 1;
+
+      const isFinalYear = studentSem >= totalSemesters - 1;
+      const isPreFinalYear = studentSem >= totalSemesters - 3 && studentSem < totalSemesters - 1;
+
+      if (drive.eligibleStanding === 'FINAL_YEAR' && !isFinalYear) {
+        return {
+          eligible: false,
+          reason: `Reserved for Final Year (Sem ${totalSemesters - 1}–${totalSemesters}) • You are in Sem ${studentSem}`,
+        };
+      }
+      if (drive.eligibleStanding === 'PRE_FINAL_YEAR' && !isPreFinalYear) {
+        return {
+          eligible: false,
+          reason: `Reserved for Pre-Final Year (Sem ${totalSemesters - 3}–${totalSemesters - 2}) • You are in Sem ${studentSem}`,
+        };
+      }
+    }
+
+    // 3. Graduating Batch Year check (if specified)
+    if (drive.graduatingBatchYear) {
+      const durationYears = currentUser?.courseId?.durationYears || studentMeta?.durationYears || 4;
+      const studentBatch = currentUser?.admissionYear ? currentUser.admissionYear + durationYears : null;
+      if (studentBatch && studentBatch !== drive.graduatingBatchYear) {
+        return {
+          eligible: false,
+          reason: `Reserved for Class of ${drive.graduatingBatchYear} • Your batch is ${studentBatch}`,
+        };
+      }
+    }
+
+    // 4. CGPA Cutoff
+    const minCgpa = drive.eligibilityCriteria?.cgpa;
+    if (minCgpa && (currentUser?.cgpa || 0) < minCgpa) {
+      return { eligible: false, reason: `CGPA Cutoff: Requires ≥ ${minCgpa} (Your CGPA: ${currentUser?.cgpa ?? 'N/A'})` };
+    }
+
+    // 5. Backlogs Cutoff
+    const maxBacklogs = drive.eligibilityCriteria?.backlogs;
+    if (maxBacklogs !== undefined && (currentUser?.activeBacklogs || 0) > maxBacklogs) {
+      return { eligible: false, reason: `Backlogs Cutoff: Max allowed is ${maxBacklogs} (You have ${currentUser?.activeBacklogs || 0})` };
+    }
+
+    return { eligible: true, reason: 'You meet all eligibility requirements' };
+  };
 
   const handleApply = (driveId) => {
     setFeedback({ type: '', message: '' });
@@ -308,6 +372,7 @@ export const StudentPlacementsPage = () => {
 
                 const minCgpa = drive.eligibilityCriteria?.cgpa;
                 const maxBacklogs = drive.eligibilityCriteria?.backlogs;
+                const eligibility = checkEligibility(drive);
 
                 return (
                   <Grid item xs={12} md={6} key={drive._id}>
@@ -374,9 +439,35 @@ export const StudentPlacementsPage = () => {
                             mb: 2,
                           }}
                         >
-                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 1 }}>
                             ELIGIBILITY & WORKFLOW
                           </Typography>
+
+                          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 1 }}>
+                            <Chip
+                              label={
+                                drive.eligibleStanding === 'ALL_YEARS'
+                                  ? 'Open to All Years'
+                                  : drive.eligibleStanding === 'PRE_FINAL_YEAR'
+                                  ? `Pre-Final Year (${drive.graduatingBatchYear ? `Class of ${drive.graduatingBatchYear}` : 'Interns'})`
+                                  : `Final Year (${drive.graduatingBatchYear ? `Class of ${drive.graduatingBatchYear}` : 'Graduating'})`
+                              }
+                              size="small"
+                              color={drive.eligibleStanding === 'PRE_FINAL_YEAR' ? 'secondary' : 'primary'}
+                              sx={{ fontWeight: 800, fontSize: '0.65rem', height: 22 }}
+                            />
+                            <Chip
+                              label={
+                                drive.eligibleBranches && drive.eligibleBranches.length > 0
+                                  ? `Target: ${drive.eligibleBranches.map((b) => b.code || b.name).join(', ')}`
+                                  : 'All Dept Branches'
+                              }
+                              size="small"
+                              variant="outlined"
+                              sx={{ fontWeight: 700, fontSize: '0.65rem', height: 22 }}
+                            />
+                          </Box>
+
                           <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>
                             Min CGPA: <strong>{minCgpa ? minCgpa : 'No Cutoff'}</strong> • Max Active Backlogs:{' '}
                             <strong>{maxBacklogs !== undefined ? maxBacklogs : 'Allowed'}</strong>
@@ -386,6 +477,26 @@ export const StudentPlacementsPage = () => {
                               Process: {drive.selectionProcess}
                             </Typography>
                           )}
+
+                          <Box sx={{ mt: 1.5, pt: 1.25, borderTop: `1px dashed ${theme.palette.divider}` }}>
+                            {eligibility.eligible ? (
+                              <Chip
+                                icon={<SelectedIcon sx={{ fontSize: '0.85rem !important' }} />}
+                                label="You Are Eligible to Apply"
+                                color="success"
+                                size="small"
+                                sx={{ fontWeight: 800, fontSize: '0.68rem', height: 24 }}
+                              />
+                            ) : (
+                              <Chip
+                                icon={<WarningAmberOutlined sx={{ fontSize: '0.85rem !important' }} />}
+                                label={eligibility.reason}
+                                color="warning"
+                                size="small"
+                                sx={{ fontWeight: 700, fontSize: '0.65rem', whiteSpace: 'normal', height: 'auto', py: 0.4 }}
+                              />
+                            )}
+                          </Box>
                         </Box>
                       </Box>
 
@@ -408,12 +519,18 @@ export const StudentPlacementsPage = () => {
                         <Button
                           fullWidth
                           variant={isApplied ? 'outlined' : 'contained'}
-                          color={isApplied ? 'success' : 'primary'}
-                          disabled={isApplied || isDeadlinePassed || isCompleted || applyMutation.isPending}
+                          color={isApplied ? 'success' : eligibility.eligible ? 'primary' : 'inherit'}
+                          disabled={isApplied || !eligibility.eligible || isDeadlinePassed || isCompleted || applyMutation.isPending}
                           onClick={() => handleApply(drive._id)}
                           sx={{ borderRadius: '12px', fontWeight: 800, textTransform: 'none', py: 1 }}
                         >
-                          {isApplied ? 'Application Submitted' : isDeadlinePassed ? 'Deadline Passed' : 'Apply for Drive'}
+                          {isApplied
+                            ? 'Application Submitted'
+                            : isDeadlinePassed
+                            ? 'Deadline Passed'
+                            : !eligibility.eligible
+                            ? 'Ineligible to Apply'
+                            : 'Apply for Drive'}
                         </Button>
                       </Box>
                     </Paper>
