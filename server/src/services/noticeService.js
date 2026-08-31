@@ -9,9 +9,14 @@ const logger = require('../utils/logger');
  * A notice is visible if it is PUBLISHED, active (not expired), and targeted to the user's role, dept, and semester.
  */
 const buildVisibilityQuery = (user) => {
+  let userDeptId = user.departmentId;
+  if (!userDeptId && user.branchId) {
+    userDeptId = user.branchId.hostingDepartmentId || user.branchId.departmentId;
+  }
+
   const andQuery = [
     { $or: [{ targetRoles: { $size: 0 } }, { targetRoles: user.role }] },
-    { $or: [{ targetDepartments: { $size: 0 } }, { targetDepartments: user.departmentId }] },
+    { $or: [{ targetDepartments: { $size: 0 } }, { targetDepartments: userDeptId }] },
   ];
 
   if (user.role === 'STUDENT') {
@@ -25,7 +30,7 @@ const buildVisibilityQuery = (user) => {
 };
 
 const User = require('../models/User');
-const { createBulkNotifications } = require('./notificationService');
+const { createNotification } = require('./notificationService');
 
 const notifyNoticeRecipients = async (notice, authorId) => {
   if (notice.status !== 'PUBLISHED') {
@@ -37,20 +42,47 @@ const notifyNoticeRecipients = async (notice, authorId) => {
       filter.role = { $in: notice.targetRoles };
     }
     if (notice.targetDepartments && notice.targetDepartments.length > 0) {
-      filter.departmentId = { $in: notice.targetDepartments };
+      const Branch = require('../models/Branch');
+      const hostedBranches = await Branch.find({
+        $or: [
+          { hostingDepartmentId: { $in: notice.targetDepartments } },
+          { departmentId: { $in: notice.targetDepartments } },
+        ],
+      }).select('_id');
+      const hostedBranchIds = hostedBranches.map((b) => b._id);
+
+      if (hostedBranchIds.length > 0) {
+        filter.$or = [
+          { departmentId: { $in: notice.targetDepartments } },
+          { branchId: { $in: hostedBranchIds } },
+        ];
+      } else {
+        filter.departmentId = { $in: notice.targetDepartments };
+      }
     }
 
-    const users = await User.find(filter).select('_id');
-    const recipientIds = users.map((u) => u._id);
+    const users = await User.find(filter).select('_id role');
 
-    await createBulkNotifications(recipientIds, {
-      title: `📢 Notice: ${notice.title}`,
-      message: notice.content ? notice.content.substring(0, 120) : 'A new notice has been published on the board.',
-      category: 'NOTICE',
-      link: '/student/notices',
-      senderId: authorId,
-      metadata: { noticeId: notice._id },
-    });
+    for (const u of users) {
+      let link = '/notices';
+      if (u.role === 'STUDENT') {
+        link = '/student/notices';
+      } else if (u.role === 'HOD') {
+        link = '/hod/notices';
+      } else if (u.role === 'SUPER_ADMIN' || u.role === 'COLLEGE_ADMIN') {
+        link = '/admin/notices';
+      }
+
+      await createNotification({
+        recipientId: u._id,
+        title: `📢 Notice: ${notice.title}`,
+        message: notice.content ? notice.content.substring(0, 120) : 'A new notice has been published on the board.',
+        category: 'NOTICE',
+        link,
+        senderId: authorId,
+        metadata: { noticeId: notice._id },
+      });
+    }
   } catch (err) {
     logger.error(`Failed to dispatch notice notifications: ${err.message}`);
   }

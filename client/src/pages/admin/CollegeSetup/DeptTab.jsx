@@ -174,7 +174,7 @@ export const DeptTab = ({ setOnAddClick }) => {
   const getDeptHodName = (deptId) => {
     if (!hodsData?.data) return 'No HOD Assigned';
     const matches = hodsData.data.filter(
-      (h) => String(h.departmentId) === String(deptId) && h.status === 'ACTIVE'
+      (h) => String(h.departmentId?._id || h.departmentId) === String(deptId) && h.status === 'ACTIVE'
     );
     if (matches.length === 0) return 'No HOD Assigned';
     return matches
@@ -189,13 +189,15 @@ export const DeptTab = ({ setOnAddClick }) => {
   // Dependency Guard calculation for active deletion item
   const getDeleteWarningMessage = () => {
     if (!deleteId) return null;
-    const linkedHod = hodsData?.data?.find(h => String(h.departmentId) === String(deleteId));
+    const linkedHod = hodsData?.data?.find(h => String(h.departmentId?._id || h.departmentId) === String(deleteId));
     const linkedSubs = allSubjects?.filter(s => String(s.departmentId?._id || s.departmentId) === String(deleteId));
+    const linkedBranches = branches?.filter(b => String(b.hostingDepartmentId?._id || b.hostingDepartmentId) === String(deleteId));
 
-    if (linkedHod || (linkedSubs && linkedSubs.length > 0)) {
+    if (linkedHod || (linkedSubs && linkedSubs.length > 0) || (linkedBranches && linkedBranches.length > 0)) {
       const parts = [];
       if (linkedHod) parts.push(`HOD (${linkedHod.name})`);
       if (linkedSubs?.length > 0) parts.push(`${linkedSubs.length} linked subject(s)`);
+      if (linkedBranches?.length > 0) parts.push(`${linkedBranches.length} hosted branch(es)`);
       return `⚠️ Warning: This department currently has ${parts.join(' and ')} associated with it. Deleting it may impact system data.`;
     }
     return null;

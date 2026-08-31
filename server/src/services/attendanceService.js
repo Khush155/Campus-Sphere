@@ -246,6 +246,31 @@ const bulkMarkAttendance = async (attendanceData, actor, req) => {
 
   const result = await Attendance.bulkWrite(ops);
 
+  // Check low attendance (< 75%) for updated students
+  try {
+    const studentIds = records.map((r) => r.studentId);
+    for (const studentId of studentIds) {
+      const studentLogs = await Attendance.find({ studentId, subjectId });
+      if (studentLogs.length >= 3) {
+        const attendedCount = studentLogs.filter((l) => l.status === 'PRESENT' || l.status === 'LATE').length;
+        const pct = Math.round((attendedCount / studentLogs.length) * 100);
+        if (pct < 75) {
+          await createNotification({
+            recipientId: studentId,
+            title: `⚠️ Low Attendance Warning: ${subject.name || 'Subject'}`,
+            message: `Your attendance in ${subject.name || 'this subject'} is currently ${pct}%, which is below the 75% requirement.`,
+            category: 'ATTENDANCE_LOW',
+            link: '/student/attendance',
+            senderId: actor.id,
+            metadata: { subjectId, percentage: pct },
+          });
+        }
+      }
+    }
+  } catch (err) {
+    // Non-blocking
+  }
+
   // Audit Log
   await logAuditEvent({
     actorId: actor.id,
@@ -253,7 +278,7 @@ const bulkMarkAttendance = async (attendanceData, actor, req) => {
     targetId: subjectId,
     targetModel: 'Subject',
     after: { count: records.length, date: attendanceDate, sessionType },
-    req
+    req,
   });
 
   return {

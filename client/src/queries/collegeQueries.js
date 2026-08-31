@@ -23,7 +23,7 @@ export const useCreateDeptMutation = () => {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['departments']);
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
     },
   });
 };
@@ -36,7 +36,7 @@ export const useUpdateDeptMutation = () => {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['departments']);
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
     },
   });
 };
@@ -49,7 +49,7 @@ export const useDeleteDeptMutation = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['departments']);
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
     },
   });
 };
@@ -76,7 +76,7 @@ export const useCreateCourseMutation = () => {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['courses']);
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
     },
   });
 };
@@ -89,7 +89,7 @@ export const useUpdateCourseMutation = () => {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['courses']);
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
     },
   });
 };
@@ -102,7 +102,7 @@ export const useDeleteCourseMutation = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['courses']);
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
     },
   });
 };
@@ -129,7 +129,7 @@ export const useCreateBranchMutation = () => {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['branches']);
+      queryClient.invalidateQueries({ queryKey: ['branches'] });
     },
   });
 };
@@ -142,7 +142,7 @@ export const useUpdateBranchMutation = () => {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['branches']);
+      queryClient.invalidateQueries({ queryKey: ['branches'] });
     },
   });
 };
@@ -155,7 +155,7 @@ export const useDeleteBranchMutation = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['branches']);
+      queryClient.invalidateQueries({ queryKey: ['branches'] });
     },
   });
 };
@@ -196,7 +196,8 @@ export const useCreateSubjectMutation = () => {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['subjects']);
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      queryClient.invalidateQueries({ queryKey: ['subjects-paginated'] });
     },
   });
 };
@@ -209,7 +210,8 @@ export const useCreateBulkSubjectsMutation = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['subjects']);
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      queryClient.invalidateQueries({ queryKey: ['subjects-paginated'] });
     },
   });
 };
@@ -222,7 +224,8 @@ export const useUpdateSubjectMutation = () => {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['subjects']);
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      queryClient.invalidateQueries({ queryKey: ['subjects-paginated'] });
     },
   });
 };
@@ -235,7 +238,8 @@ export const useDeleteSubjectMutation = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['subjects']);
+      queryClient.invalidateQueries({ queryKey: ['subjects'] });
+      queryClient.invalidateQueries({ queryKey: ['subjects-paginated'] });
     },
   });
 };

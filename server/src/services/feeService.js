@@ -113,7 +113,10 @@ const getReceiptById = async (receiptId, actor) => {
     // For ADMIN / HOD, locate the student whose receipt matches receiptId
     const students = await User.find({ role: ROLES.STUDENT })
       .populate('courseId', 'name code')
-      .populate('branchId', 'name code');
+      .populate({
+        path: 'branchId',
+        select: 'name code hostingDepartmentId departmentId',
+      });
 
     targetUser = students.find((s) => {
       const r = buildReceiptForStudent(s);
@@ -122,7 +125,11 @@ const getReceiptById = async (receiptId, actor) => {
 
     if (targetUser && actor.role === ROLES.HOD) {
       const { assertHODDeptBound } = require('../utils/privilegeGuard');
-      assertHODDeptBound(actor, targetUser.departmentId);
+      const studentDeptId =
+        targetUser.departmentId ||
+        targetUser.branchId?.hostingDepartmentId ||
+        targetUser.branchId?.departmentId;
+      assertHODDeptBound(actor, studentDeptId);
     }
   }
 

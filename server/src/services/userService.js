@@ -67,7 +67,19 @@ const getUsersList = async ({ page = 1, limit = 20, role, departmentId, status, 
   }
 
   if (departmentId) {
-    filter.departmentId = departmentId;
+    const hostedBranches = await Branch.find({
+      $or: [{ hostingDepartmentId: departmentId }, { departmentId: departmentId }],
+    }).select('_id');
+    const hostedBranchIds = hostedBranches.map((b) => b._id);
+
+    if (hostedBranchIds.length > 0) {
+      filter.$or = [
+        { departmentId: departmentId },
+        { branchId: { $in: hostedBranchIds } },
+      ];
+    } else {
+      filter.departmentId = departmentId;
+    }
   }
 
   if (status) {
@@ -507,7 +519,10 @@ const getUserDetails = async (userId, actorRole) => {
     .select('-password -refreshTokens -resetPasswordToken -resetPasswordExpire')
     .populate('departmentId', 'name code')
     .populate('courseId', 'name code')
-    .populate('branchId', 'name code');
+    .populate({
+      path: 'branchId',
+      select: 'name code hostingDepartmentId departmentId',
+    });
   
   if (!u) {
     throw new AppError('User not found.', 404, ERROR_CODES.NOT_FOUND);
@@ -521,13 +536,17 @@ const getUserDetails = async (userId, actorRole) => {
     );
   }
 
+  const resolvedDepartmentId = u.departmentId
+    ? u.departmentId._id
+    : u.branchId?.hostingDepartmentId || u.branchId?.departmentId || null;
+
   return {
     id: u._id,
     name: u.name,
     email: u.email,
     role: u.role,
     department: u.departmentId ? u.departmentId.name : null,
-    departmentId: u.departmentId ? u.departmentId._id : null,
+    departmentId: resolvedDepartmentId,
     course: u.courseId ? u.courseId.name : null,
     courseId: u.courseId ? u.courseId._id : null,
     branch: u.branchId ? u.branchId.name : null,
@@ -637,7 +656,7 @@ const importStudents = async (fileBuffer, actorId, req) => {
         email: email.toLowerCase(),
         password,
         role: 'STUDENT',
-        departmentId: actor?.departmentId || null,
+        departmentId: actor?.departmentId || branch.hostingDepartmentId || branch.departmentId || null,
         courseId: branch.courseId?._id || branch.courseId,
         branchId: branch._id,
         semester,

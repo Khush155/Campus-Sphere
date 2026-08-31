@@ -1,13 +1,16 @@
 import React from 'react';
 import { Box, Pagination as MuiPagination, Typography, useTheme } from '@mui/material';
 
-export const Pagination = ({ page, totalPages, total, limit, onPageChange }) => {
+export const Pagination = ({ page = 1, totalPages = 1, total = 0, limit = 10, onPageChange }) => {
   const theme = useTheme();
 
   if (totalPages <= 1) return null;
 
-  const startEntry = (page - 1) * limit + 1;
-  const endEntry = Math.min(page * limit, total);
+  const validPage = Math.max(1, page || 1);
+  const startEntry = Math.min((validPage - 1) * limit + 1, total);
+  const endEntry = Math.min(validPage * limit, total);
+
+  const monoFont = theme.typography.mono?.fontFamily || 'monospace';
 
   return (
     <Box
@@ -25,7 +28,7 @@ export const Pagination = ({ page, totalPages, total, limit, onPageChange }) => 
       <Typography
         variant="caption"
         sx={{
-          fontFamily: theme.typography.mono.fontFamily,
+          fontFamily: monoFont,
           color: theme.palette.text.secondary,
         }}
       >
@@ -33,13 +36,13 @@ export const Pagination = ({ page, totalPages, total, limit, onPageChange }) => 
       </Typography>
       <MuiPagination
         count={totalPages}
-        page={page}
+        page={validPage}
         onChange={(e, value) => onPageChange(value)}
         shape="rounded"
         size="small"
         sx={{
           '& .MuiPaginationItem-root': {
-            fontFamily: theme.typography.mono.fontFamily,
+            fontFamily: monoFont,
             '&.Mui-selected': {
               bgcolor: theme.palette.primary.main,
               color: '#ffffff',

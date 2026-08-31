@@ -102,18 +102,18 @@ const seedDatabase = async () => {
     console.log('🌿 Seeding Branches...');
     const branches = [
       // BTech (Semesters 1-8)
-      await Branch.create({ name: 'Computer Science', code: 'CSE', courseId: courses[0]._id }),
-      await Branch.create({ name: 'Electronics & Comm', code: 'ECE', courseId: courses[0]._id }),
-      await Branch.create({ name: 'Mechanical Engineering', code: 'MECH', courseId: courses[0]._id }),
+      await Branch.create({ name: 'Computer Science', code: 'CSE', courseId: courses[0]._id, hostingDepartmentId: cseDept._id }),
+      await Branch.create({ name: 'Electronics & Comm', code: 'ECE', courseId: courses[0]._id, hostingDepartmentId: eceDept._id }),
+      await Branch.create({ name: 'Mechanical Engineering', code: 'MECH', courseId: courses[0]._id, hostingDepartmentId: meDept._id }),
       // MTech (Semesters 1-4)
-      await Branch.create({ name: 'Advanced Computing', code: 'MTECH-CS', courseId: courses[1]._id }),
-      await Branch.create({ name: 'VLSI Design', code: 'VLSI', courseId: courses[1]._id }),
+      await Branch.create({ name: 'Advanced Computing', code: 'MTECH-CS', courseId: courses[1]._id, hostingDepartmentId: cseDept._id }),
+      await Branch.create({ name: 'VLSI Design', code: 'VLSI', courseId: courses[1]._id, hostingDepartmentId: eceDept._id }),
       // MBA (Semesters 1-4)
-      await Branch.create({ name: 'Human Resource', code: 'MBA-HR', courseId: courses[2]._id }),
-      await Branch.create({ name: 'Finance Management', code: 'FIN', courseId: courses[2]._id }),
+      await Branch.create({ name: 'Human Resource', code: 'MBA-HR', courseId: courses[2]._id, hostingDepartmentId: cseDept._id }),
+      await Branch.create({ name: 'Finance Management', code: 'FIN', courseId: courses[2]._id, hostingDepartmentId: cseDept._id }),
       // BSc (Semesters 1-6)
-      await Branch.create({ name: 'Physics Science', code: 'PHYS', courseId: courses[3]._id }),
-      await Branch.create({ name: 'Mathematical Science', code: 'MATHS', courseId: courses[3]._id })
+      await Branch.create({ name: 'Physics Science', code: 'PHYS', courseId: courses[3]._id, hostingDepartmentId: eceDept._id }),
+      await Branch.create({ name: 'Mathematical Science', code: 'MATHS', courseId: courses[3]._id, hostingDepartmentId: cseDept._id })
     ];
 
     // 7. Faculty members (10 total)

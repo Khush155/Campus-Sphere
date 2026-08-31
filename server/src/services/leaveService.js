@@ -163,7 +163,7 @@ const updateLeaveStatus = async (id, statusData, actor, req) => {
   // Notify requesting applicant (faculty or student)
   try {
     const applicant = await User.findById(leave.userId).select('role');
-    const notificationLink = applicant?.role === ROLES.STUDENT ? '/student/leave' : '/faculty/leaves';
+    const notificationLink = applicant?.role === ROLES.STUDENT ? '/student/leave' : '/leaves';
 
     await createNotification({
       recipientId: leave.userId,

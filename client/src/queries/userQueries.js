@@ -27,7 +27,7 @@ export const useUpdateUserMutation = () => {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['users']);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 };
@@ -43,7 +43,7 @@ export const useDeleteUserMutation = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['users']);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 };
@@ -59,7 +59,7 @@ export const useHardDeleteUserMutation = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['users']);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 };
@@ -77,7 +77,7 @@ export const useImportStudentsMutation = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['users']);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 };
@@ -107,7 +107,7 @@ export const useRegisterMutation = () => {
       return response.data.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['users']);
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 };
