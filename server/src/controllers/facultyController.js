@@ -523,7 +523,7 @@ const getFacultyAnalytics = asyncHandler(async (req, res, _next) => {
     const passRate = totalResultCount > 0 ? Math.round((passCount / totalResultCount) * 100) : 90;
 
     performance.push({
-      name: `${sub.name} (${sub.code})`,
+      name: sub.code ? `${sub.name} (${sub.code})` : sub.name,
       attendance: attRate,
       passingRate: passRate
     });

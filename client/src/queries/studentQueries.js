@@ -172,18 +172,6 @@ export const useCreateComplaintMutation = () => {
   });
 };
 
-/**
- * Fetch projects assigned to student
- */
-export const useStudentProjectsQuery = () => {
-  return useQuery({
-    queryKey: ['student-projects'],
-    queryFn: async () => {
-      const response = await api.get('/projects');
-      return response.data?.data || [];
-    },
-  });
-};
 
 /**
  * Fetch placement drives

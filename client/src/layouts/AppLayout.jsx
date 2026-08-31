@@ -201,6 +201,9 @@ export const AppLayout = () => {
         { text: 'Faculty Allocations', icon: <AssignmentIndIcon />, path: '/admin/faculty-assignments', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'ID Cards Studio', icon: <BadgeIcon />, path: '/admin/id-cards', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Fee Dues Clearance', icon: <AccountBalanceWalletIcon />, path: '/admin/fee-clearance', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Placements & Drives', icon: <WorkIcon />, path: '/admin/placements', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Leave Oversight', icon: <EventNoteIcon />, path: '/admin/leave-management', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Maintenance & Complaints', icon: <ReportProblemIcon />, path: '/admin/complaints', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Notice Board', icon: <NotificationsIcon />, path: '/admin/notices', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Academic Calendar', icon: <DateRangeIcon />, path: '/admin/academic-calendar', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Bulk Promotion', icon: <AutorenewIcon />, path: '/admin/bulk-promotion', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
@@ -233,7 +236,7 @@ export const AppLayout = () => {
       ]
     : userRole === 'STUDENT'
     ? [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['STUDENT'] },
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/student/dashboard', roles: ['STUDENT'] },
         { text: 'Academics', icon: <MenuBookIcon />, path: '/student/academics', roles: ['STUDENT'] },
         { text: 'Timetable', icon: <DateRangeIcon />, path: '/student/timetable', roles: ['STUDENT'] },
         { text: 'Assignments', icon: <AssignmentIcon />, path: '/student/assignments', roles: ['STUDENT'] },
@@ -242,19 +245,16 @@ export const AppLayout = () => {
         { text: 'Fees', icon: <ReceiptLongIcon />, path: '/student/fees', roles: ['STUDENT'] },
         { text: 'Notices', icon: <CampaignIcon />, path: '/student/notices', roles: ['STUDENT'] },
         { text: 'Faculty Feedback', icon: <RateReviewIcon />, path: '/student/feedback', roles: ['STUDENT'] },
-        { text: 'Projects', icon: <FolderIcon />, path: '/student/projects', roles: ['STUDENT'] },
         { text: 'Placements', icon: <WorkIcon />, path: '/student/placements', roles: ['STUDENT'] },
         { text: 'Library', icon: <LocalLibraryIcon />, path: '/student/library', roles: ['STUDENT'] },
         { text: 'Leave', icon: <EventNoteIcon />, path: '/student/leave', roles: ['STUDENT'] },
-        { text: 'Portfolio & Resume', icon: <MenuBookIcon />, path: '/student/portfolio', roles: ['STUDENT'] },
         { text: 'Documents', icon: <FolderIcon />, path: '/student/documents', roles: ['STUDENT'] },
         { text: 'Complaints', icon: <ReportProblemIcon />, path: '/student/complaints', roles: ['STUDENT'] },
-        { text: 'Faculty Feedback', icon: <RateReviewIcon />, path: '/student/feedback', roles: ['STUDENT'] },
         { text: 'Notifications', icon: <NotificationsIcon />, path: '/student/notifications', roles: ['STUDENT'] },
       ]
     : userRole === 'FACULTY'
     ? [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['FACULTY'] },
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/faculty', roles: ['FACULTY'] },
         { text: 'Students Roster', icon: <PeopleIcon />, path: '/students', roles: ['FACULTY'] },
         { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['FACULTY'] },
         { text: 'Assignments', icon: <AssignmentIcon />, path: '/assignments', roles: ['FACULTY'] },

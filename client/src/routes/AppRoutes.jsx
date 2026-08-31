@@ -69,9 +69,7 @@ import StudentNotificationsPage from '../pages/student/StudentNotificationsPage'
 import StudentLibraryPage from '../pages/student/StudentLibraryPage';
 import StudentDocumentsPage from '../pages/student/StudentDocumentsPage';
 import StudentComplaintsPage from '../pages/student/StudentComplaintsPage';
-import StudentProjectsPage from '../pages/student/StudentProjectsPage';
 import StudentPlacementsPage from '../pages/student/StudentPlacementsPage';
-import StudentPortfolioPage from '../pages/student/StudentPortfolioPage';
 import StudentHallTicketPage from '../pages/student/StudentHallTicketPage';
 import StudentFeeReceiptPage from '../pages/student/StudentFeeReceiptPage';
 import StudentNoticeHub from '../pages/student/StudentNoticeHub';
@@ -166,9 +164,17 @@ const HomeRedirect = () => {
     return <Navigate to="/faculty" replace />;
   }
   if (user?.role === 'STUDENT') {
-    return <StudentDashboard />;
+    return <Navigate to="/student/dashboard" replace />;
   }
   return <Home />;
+};
+
+const ProfileRoute = () => {
+  const { user } = useAuth();
+  if (user?.role === 'STUDENT') {
+    return <Navigate to="/student/profile" replace />;
+  }
+  return <UserProfilePage />;
 };
 
 export const AppRoutes = () => {
@@ -372,6 +378,39 @@ export const AppRoutes = () => {
         />
 
         <Route
+          path="admin/placements"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AdminSetupGuard>
+                <HodPlacementsHub />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/complaints"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AdminSetupGuard>
+                <HodComplaintsHub />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
+          path="admin/leave-management"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AdminSetupGuard>
+                <HodLeaveHub />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+
+        <Route
           path="admin/academic-sessions"
           element={<Navigate to="/admin/academic-calendar" replace />}
         />
@@ -388,7 +427,7 @@ export const AppRoutes = () => {
         <Route path="leaves" element={<RoleRoute allowedRoles={['FACULTY']}><FacultyLeavePage /></RoleRoute>} />
         <Route path="meetings" element={<RoleRoute allowedRoles={['FACULTY']}><FacultyMeetingHub /></RoleRoute>} />
         <Route path="complaints" element={<RoleRoute allowedRoles={['FACULTY']}><FacultyComplaintHub /></RoleRoute>} />
-        <Route path="profile" element={<UserProfilePage />} />
+        <Route path="profile" element={<ProfileRoute />} />
         <Route path="settings" element={<AccountSettingsPage />} />
         <Route path="fees" element={<RoleRoute allowedRoles={['STUDENT', 'SUPER_ADMIN', 'COLLEGE_ADMIN']}><StudentFeesPage /></RoleRoute>} />
 
@@ -405,10 +444,8 @@ export const AppRoutes = () => {
         <Route path="student/fees" element={<RoleRoute allowedRoles={['STUDENT']}><StudentFeesPage /></RoleRoute>} />
         <Route path="student/fees/receipt/:receiptId" element={<RoleRoute allowedRoles={['STUDENT']}><StudentFeeReceiptPage /></RoleRoute>} />
         <Route path="student/notices" element={<RoleRoute allowedRoles={['STUDENT']}><StudentNoticeHub /></RoleRoute>} />
-        <Route path="student/projects" element={<RoleRoute allowedRoles={['STUDENT']}><StudentProjectsPage /></RoleRoute>} />
         <Route path="student/placements" element={<RoleRoute allowedRoles={['STUDENT']}><StudentPlacementsPage /></RoleRoute>} />
         <Route path="student/library" element={<RoleRoute allowedRoles={['STUDENT']}><StudentLibraryPage /></RoleRoute>} />
-        <Route path="student/portfolio" element={<RoleRoute allowedRoles={['STUDENT']}><StudentPortfolioPage /></RoleRoute>} />
         <Route path="student/documents" element={<RoleRoute allowedRoles={['STUDENT']}><StudentDocumentsPage /></RoleRoute>} />
         <Route path="student/complaints" element={<RoleRoute allowedRoles={['STUDENT']}><StudentComplaintsPage /></RoleRoute>} />
         <Route path="student/feedback" element={<RoleRoute allowedRoles={['STUDENT']}><StudentFeedbackPage /></RoleRoute>} />

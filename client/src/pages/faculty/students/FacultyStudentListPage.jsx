@@ -337,7 +337,7 @@ export const FacultyStudentListPage = () => {
               sx={{ minWidth: 220 }}
             >
               {assignedSubjects.map((sub) => (
-                <MenuItem key={sub.id} value={sub.id}>{sub.name} ({sub.code})</MenuItem>
+                <MenuItem key={sub.id} value={sub.id}>{sub.name}{sub.code ? ` (${sub.code})` : ''}</MenuItem>
               ))}
             </TextField>
 

@@ -511,7 +511,7 @@ export const MaterialsPage = () => {
             >
               {assignedSubjects.map((sub) => (
                 <MenuItem key={sub.id} value={sub.id}>
-                  {sub.name} ({sub.code})
+                  {sub.name}{sub.code ? ` (${sub.code})` : ''}
                 </MenuItem>
               ))}
             </TextField>

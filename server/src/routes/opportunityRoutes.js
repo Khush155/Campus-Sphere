@@ -13,13 +13,13 @@ router.get('/', asyncHandler(opportunityController.getExternalOpportunities));
 
 router.post(
   '/',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   asyncHandler(opportunityController.createOpportunity)
 );
 
 router.delete(
   '/:id',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   asyncHandler(opportunityController.deleteOpportunity)
 );
 

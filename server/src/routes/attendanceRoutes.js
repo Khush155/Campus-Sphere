@@ -9,10 +9,10 @@ const ROLES = require('../constants/roles');
 const router = express.Router();
 router.use(authMiddleware);
 
-// Route to submit/update bulk attendance sheet (Faculty)
+// Route to submit/update bulk attendance sheet (Faculty / HOD)
 router.post(
   '/',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.FACULTY),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY),
   validate(submitAttendanceSchema),
   attendanceController.submitAttendance
 );

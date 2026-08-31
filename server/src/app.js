@@ -131,7 +131,6 @@ app.use('/api/v1/reports', require('./routes/reportRoutes'));
 app.use('/api/v1/timetable', require('./routes/timetableRoutes'));
 app.use('/api/v1/cross-dept-requests', require('./routes/requestRoutes'));
 app.use('/api/v1/examinations', require('./routes/examinationRoutes'));
-app.use('/api/v1/projects', require('./routes/projectRoutes'));
 app.use('/api/v1/placements', require('./routes/placementRoutes'));
 app.use('/api/v1/leaves', require('./routes/leaveRoutes'));
 app.use('/api/v1/leave-requests', require('./routes/leaveRoutes'));

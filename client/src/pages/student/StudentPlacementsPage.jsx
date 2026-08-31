@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Box,
   Container,
@@ -18,6 +18,8 @@ import {
   TableRow,
   Alert,
   Skeleton,
+  TextField,
+  InputAdornment,
   useTheme,
 } from '@mui/material';
 import {
@@ -31,6 +33,10 @@ import {
   CancelOutlined as RejectedIcon,
   DescriptionOutlined as NocIcon,
   WarningAmberOutlined,
+  OpenInNew as OpenInNewIcon,
+  EmojiEventsOutlined as HackathonIcon,
+  PublicOutlined as GlobalIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -40,6 +46,7 @@ import {
   useStudentPlacementApplicationsQuery,
   useApplyPlacementDriveMutation,
 } from '../../queries/studentQueries';
+import { useOpportunitiesQuery } from '../../queries/opportunityQueries';
 
 const getAppStatusConfig = (status) => {
   switch (status) {
@@ -70,18 +77,35 @@ export const StudentPlacementsPage = () => {
 
   const [activeTab, setActiveTab] = useState(0);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
-
   const { data: drivesData = [], isLoading: isDrivesLoading } = usePlacementDrivesQuery();
   const { data: appsData = [], isLoading: isAppsLoading } = useStudentPlacementApplicationsQuery();
+  const { data: rawOpportunities = [], isLoading: isOppsLoading } = useOpportunitiesQuery();
   const applyMutation = useApplyPlacementDriveMutation();
 
-  const drives = Array.isArray(drivesData) ? drivesData : [];
-  const applications = Array.isArray(appsData) ? appsData : [];
+  const [oppSearchQuery, setOppSearchQuery] = useState('');
+  const [oppTypeFilter, setOppTypeFilter] = useState('ALL');
+
+  const drives = useMemo(() => (Array.isArray(drivesData) ? drivesData : []), [drivesData]);
+  const applications = useMemo(() => (Array.isArray(appsData) ? appsData : []), [appsData]);
+  const opportunities = useMemo(() => (Array.isArray(rawOpportunities) ? rawOpportunities : []), [rawOpportunities]);
+
+  const filteredOpportunities = useMemo(() => {
+    return opportunities.filter((opp) => {
+      const matchesType = oppTypeFilter === 'ALL' || opp.type === oppTypeFilter;
+      const matchesSearch =
+        !oppSearchQuery ||
+        opp.title?.toLowerCase().includes(oppSearchQuery.toLowerCase()) ||
+        opp.organization?.toLowerCase().includes(oppSearchQuery.toLowerCase()) ||
+        opp.location?.toLowerCase().includes(oppSearchQuery.toLowerCase());
+      return matchesType && matchesSearch;
+    });
+  }, [opportunities, oppTypeFilter, oppSearchQuery]);
 
   // Summary Metrics
   const totalDrives = drives.length;
   const totalApplied = applications.length;
   const totalSelected = applications.filter((a) => a.finalStatus === 'SELECTED' || a.status === 'SELECTED').length;
+  const totalOpportunities = opportunities.length;
 
   const appliedDriveIds = new Set(
     applications.map((app) => (typeof app.driveId === 'object' ? app.driveId?._id : app.driveId))
@@ -339,6 +363,7 @@ export const StudentPlacementsPage = () => {
         >
           <Tab label={`Upcoming & Open Drives (${totalDrives})`} />
           <Tab label={`My Submitted Applications (${totalApplied})`} />
+          <Tab label={`Global Opportunities & Hackathons (${totalOpportunities})`} />
         </Tabs>
       </Paper>
 
@@ -651,6 +676,207 @@ export const StudentPlacementsPage = () => {
                 </Table>
               </TableContainer>
             </Paper>
+          )}
+        </Box>
+      )}
+
+      {/* TAB 2: GLOBAL OPPORTUNITIES & HACKATHONS */}
+      {activeTab === 2 && (
+        <Box>
+          {/* Search & Category Filter Toolbar */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '16px',
+              border: `1px solid ${theme.palette.divider}`,
+              mb: 3,
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              alignItems: { xs: 'stretch', md: 'center' },
+              justifyContent: 'space-between',
+              gap: 2,
+            }}
+          >
+            {/* Search Input */}
+            <TextField
+              size="small"
+              placeholder="Search hackathons, internships, companies..."
+              value={oppSearchQuery}
+              onChange={(e) => setOppSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ minWidth: { xs: '100%', md: 320 } }}
+            />
+
+            {/* Type Filter Chips */}
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+              {[
+                { key: 'ALL', label: `All (${opportunities.length})` },
+                { key: 'HACKATHON', label: `Hackathons (${opportunities.filter((o) => o.type === 'HACKATHON').length})` },
+                { key: 'INTERNSHIP', label: `Internships (${opportunities.filter((o) => o.type === 'INTERNSHIP').length})` },
+                { key: 'PLACEMENT', label: `Placements (${opportunities.filter((o) => o.type === 'PLACEMENT').length})` },
+              ].map((filter) => (
+                <Chip
+                  key={filter.key}
+                  label={filter.label}
+                  clickable
+                  onClick={() => setOppTypeFilter(filter.key)}
+                  color={oppTypeFilter === filter.key ? 'primary' : 'default'}
+                  variant={oppTypeFilter === filter.key ? 'filled' : 'outlined'}
+                  sx={{ fontWeight: 700, borderRadius: '8px' }}
+                />
+              ))}
+            </Box>
+          </Paper>
+
+          {/* Opportunities Listing */}
+          {isOppsLoading ? (
+            <Grid container spacing={3}>
+              {[1, 2, 3].map((item) => (
+                <Grid item xs={12} sm={6} md={4} key={item}>
+                  <Skeleton variant="rounded" height={280} sx={{ borderRadius: '18px' }} />
+                </Grid>
+              ))}
+            </Grid>
+          ) : filteredOpportunities.length === 0 ? (
+            <Paper elevation={0} sx={{ p: 6, borderRadius: '24px', textAlign: 'center', border: `1px solid ${theme.palette.divider}` }}>
+              <GlobalIcon sx={{ fontSize: 56, color: 'text.secondary', opacity: 0.4, mb: 1.5 }} />
+              <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
+                No Matching Opportunities
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                {opportunities.length === 0
+                  ? 'There are currently no external opportunities or hackathons curated by the department.'
+                  : 'Try adjusting your search criteria or category filter.'}
+              </Typography>
+            </Paper>
+          ) : (
+            <Grid container spacing={3}>
+              {filteredOpportunities.map((opp) => {
+                const isHackathon = opp.type === 'HACKATHON';
+                const isInternship = opp.type === 'INTERNSHIP';
+                const accentColor = isHackathon ? '#8b5cf6' : isInternship ? '#06b6d4' : '#3b82f6';
+                const isDeadlinePassed = opp.deadline && new Date() > new Date(opp.deadline);
+
+                return (
+                  <Grid item xs={12} sm={6} md={4} key={opp.id || opp._id}>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 3,
+                        borderRadius: '18px',
+                        border: `1px solid ${opp.featured ? '#f59e0b' : theme.palette.divider}`,
+                        borderTop: `4px solid ${accentColor}`,
+                        bgcolor: isDark ? 'background.paper' : '#ffffff',
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        transition: 'transform 0.2s, box-shadow 0.2s',
+                        '&:hover': {
+                          transform: 'translateY(-4px)',
+                          boxShadow: '0 12px 24px rgba(0,0,0,0.06)',
+                        },
+                      }}
+                    >
+                      <Box>
+                        {/* Top Chips Row */}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            <Chip
+                              icon={isHackathon ? <HackathonIcon fontSize="small" /> : isInternship ? <WorkIcon fontSize="small" /> : <CompanyIcon fontSize="small" />}
+                              label={opp.type || 'OPPORTUNITY'}
+                              size="small"
+                              sx={{
+                                fontWeight: 800,
+                                bgcolor: `${accentColor}18`,
+                                color: accentColor,
+                                fontSize: '0.7rem',
+                              }}
+                            />
+                            {opp.featured && (
+                              <Chip
+                                label="FEATURED"
+                                size="small"
+                                sx={{
+                                  fontWeight: 800,
+                                  bgcolor: '#fef3c7',
+                                  color: '#b45309',
+                                  fontSize: '0.65rem',
+                                }}
+                              />
+                            )}
+                          </Box>
+
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                            {opp.source || 'Curated'}
+                          </Typography>
+                        </Box>
+
+                        {/* Title & Organization */}
+                        <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5, lineHeight: 1.3 }}>
+                          {opp.title}
+                        </Typography>
+                        <Typography variant="subtitle2" sx={{ color: 'primary.main', fontWeight: 700, mb: 2 }}>
+                          {opp.organization}
+                        </Typography>
+
+                        {/* Key Info Details */}
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8, mb: 2.5 }}>
+                          {opp.location && (
+                            <Typography variant="body2" color="text.secondary">
+                              <strong>Location:</strong> {opp.location}
+                            </Typography>
+                          )}
+                          {opp.deadline && (
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: 700,
+                                color: isDeadlinePassed ? 'error.main' : 'warning.dark',
+                              }}
+                            >
+                              <strong>Deadline:</strong> {new Date(opp.deadline).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              {isDeadlinePassed ? ' (Expired)' : ''}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+
+                      {/* Apply Button */}
+                      <Button
+                        variant="contained"
+                        fullWidth
+                        endIcon={<OpenInNewIcon />}
+                        href={opp.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        disabled={!opp.url}
+                        sx={{
+                          borderRadius: '10px',
+                          textTransform: 'none',
+                          fontWeight: 800,
+                          py: 1.1,
+                          bgcolor: accentColor,
+                          '&:hover': {
+                            bgcolor: accentColor,
+                            filter: 'brightness(0.9)',
+                          },
+                        }}
+                      >
+                        Visit &amp; Apply Online
+                      </Button>
+                    </Paper>
+                  </Grid>
+                );
+              })}
+            </Grid>
           )}
         </Box>
       )}

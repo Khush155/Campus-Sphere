@@ -43,9 +43,10 @@ const revokeAssignment = asyncHandler(async (req, res) => {
  * @access  Private/HOD
  */
 const getAssignments = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, status, branchId, semester } = req.query;
+  const { page = 1, limit = 10, status, branchId, semester, departmentId } = req.query;
+  const targetDeptId = req.user.departmentId || departmentId;
 
-  const result = await assignmentService.listAssignmentsByDept(req.user.departmentId, {
+  const result = await assignmentService.listAssignmentsByDept(targetDeptId, {
     page: parseInt(page, 10),
     limit: parseInt(limit, 10),
     status,

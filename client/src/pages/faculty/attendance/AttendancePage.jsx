@@ -296,7 +296,7 @@ export const AttendancePage = () => {
               />
               {currentSubject && (
                 <Chip
-                  label={`${currentSubject.name} (${currentSubject.code})`}
+                  label={`${currentSubject.name}${currentSubject.code ? ` (${currentSubject.code})` : ''}`}
                   size="small"
                   sx={{
                     bgcolor: 'rgba(16, 185, 129, 0.12)',

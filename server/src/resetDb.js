@@ -33,7 +33,6 @@ const Notice = require('./models/Notice');
 const Notification = require('./models/Notification');
 const PlacementApplication = require('./models/PlacementApplication');
 const PlacementDrive = require('./models/PlacementDrive');
-const Project = require('./models/Project');
 const PromotionBatch = require('./models/PromotionBatch');
 const Result = require('./models/Result');
 const Subject = require('./models/Subject');
@@ -81,7 +80,6 @@ const resetDatabase = async () => {
       Notification.deleteMany({}),
       PlacementApplication.deleteMany({}),
       PlacementDrive.deleteMany({}),
-      Project.deleteMany({}),
       PromotionBatch.deleteMany({}),
       Result.deleteMany({}),
       Subject.deleteMany({}),

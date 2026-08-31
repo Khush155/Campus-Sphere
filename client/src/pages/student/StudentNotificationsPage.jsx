@@ -52,6 +52,29 @@ const getCategoryConfig = (category) => {
   }
 };
 
+const resolveStudentLink = (rawLink, category) => {
+  if (rawLink) {
+    if (rawLink === '/notices' || rawLink === '/hod/notices' || rawLink === '/admin/notices') return '/student/notices';
+    if (rawLink === '/leaves' || rawLink === '/hod/leave-management' || rawLink === '/admin/leave-management') return '/student/leave';
+    if (rawLink === '/attendance' || rawLink === '/hod/attendance') return '/student/attendance';
+    if (rawLink === '/assignments') return '/student/assignments';
+    if (rawLink === '/complaints' || rawLink === '/hod/complaints' || rawLink === '/admin/complaints') return '/student/complaints';
+    if (rawLink === '/fees') return '/student/fees';
+    if (rawLink === '/documents' || rawLink === '/hod/documents' || rawLink === '/admin/certificates') return '/student/documents';
+    if (rawLink === '/placements' || rawLink === '/hod/placements') return '/student/placements';
+    return rawLink;
+  }
+  if (category === 'NOTICE') return '/student/notices';
+  if (category === 'LEAVE') return '/student/leave';
+  if (category === 'ATTENDANCE_LOW') return '/student/attendance';
+  if (category === 'ASSIGNMENT') return '/student/assignments';
+  if (category === 'COMPLAINT') return '/student/complaints';
+  if (category === 'FEE_PAYMENT') return '/student/fees';
+  if (category === 'DOCUMENT') return '/student/documents';
+  if (category === 'PLACEMENT') return '/student/placements';
+  return '/student/dashboard';
+};
+
 export const StudentNotificationsPage = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
@@ -250,7 +273,7 @@ export const StudentNotificationsPage = () => {
                             size="small"
                             variant="outlined"
                             startIcon={<LinkIcon />}
-                            onClick={() => navigate(item.link)}
+                            onClick={() => navigate(resolveStudentLink(item.link, item.category))}
                             sx={{ textTransform: 'none', fontWeight: 800, borderRadius: '8px' }}
                           >
                             View

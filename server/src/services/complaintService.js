@@ -52,6 +52,12 @@ const getComplaints = async (queryOptions, actor) => {
     filters.departmentId = actor.departmentId;
   } else if (actor.role === ROLES.STUDENT) {
     filters.submittedBy = actor.id;
+  } else if (actor.role === ROLES.FACULTY) {
+    if (actor.departmentId) {
+      filters.$or = [{ submittedBy: actor.id }, { departmentId: actor.departmentId }];
+    } else {
+      filters.submittedBy = actor.id;
+    }
   }
 
   // Auto-check SLA breaches on fetch

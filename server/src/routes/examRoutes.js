@@ -13,14 +13,14 @@ router
   .route('/')
   .get(examController.getExams)
   .post(
-    roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.FACULTY),
+    roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY),
     validate(createExamSchema),
     examController.scheduleExam
   );
 
 router.post(
   '/results',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.FACULTY),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY),
   validate(submitResultSchema),
   examController.submitExamResult
 );

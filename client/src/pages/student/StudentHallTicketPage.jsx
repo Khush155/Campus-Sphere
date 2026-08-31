@@ -17,20 +17,27 @@ import {
   Divider,
   useTheme,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import {
   PrintOutlined as PrintIcon,
   SchoolOutlined as SchoolIcon,
   VerifiedOutlined as VerifiedIcon,
   QrCode2Outlined as QrIcon,
   AssignmentTurnedInOutlined as ExamIcon,
+  LockOutlined as LockIcon,
+  AccountBalanceWalletOutlined as FeeIcon,
+  WarningAmberOutlined as AlertIcon,
+  ArrowForward as ArrowIcon,
+  EventNoteOutlined as LeaveIcon,
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
-import { useStudentExaminationsQuery } from '../../queries/studentQueries';
+import { useStudentExaminationsQuery, useStudentAttendanceQuery } from '../../queries/studentQueries';
 
 export const StudentHallTicketPage = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { data: profile } = useMyProfileQuery();
 
@@ -40,11 +47,34 @@ export const StudentHallTicketPage = () => {
   const branchId = typeof branchObj === 'object' ? branchObj?._id : branchObj;
   const semesterNum = currentUser?.semester || studentMeta?.semester || 6;
   const sectionGroup = currentUser?.group || 'A1';
+  const studentId = currentUser?._id || currentUser?.id;
 
   const { data: examsData = [], isLoading: isExamsLoading } = useStudentExaminationsQuery({
     branchId: branchId || undefined,
     semester: semesterNum || undefined,
   });
+
+  const { data: attendanceData } = useStudentAttendanceQuery(studentId);
+
+  // 1. Fee Clearance Verification
+  const tuitionDues = currentUser?.feeDues?.tuition || 0;
+  const hostelDues = currentUser?.feeDues?.hostel || 0;
+  const libraryDues = currentUser?.feeDues?.library || 0;
+  const labDues = currentUser?.feeDues?.lab || 0;
+  const totalDues = tuitionDues + hostelDues + libraryDues + labDues;
+  const isFeeDue = currentUser?.feeStatus === 'DUE' || totalDues > 0;
+
+  // 2. Attendance Clearance Verification (< 75% is detained)
+  const attendanceRecords = Array.isArray(attendanceData)
+    ? attendanceData
+    : attendanceData?.summary || attendanceData?.records || [];
+
+  const totalClasses = attendanceRecords.reduce((acc, curr) => acc + (curr.totalClasses || 0), 0);
+  const attendedClasses = attendanceRecords.reduce((acc, curr) => acc + (curr.attendedClasses || 0) + (curr.medicalClasses || 0), 0);
+  const attendancePercentage = totalClasses > 0 ? Math.round((attendedClasses / totalClasses) * 100) : 100;
+  const isAttendanceDetained = totalClasses >= 5 && attendancePercentage < 75;
+
+  const isEligible = !isFeeDue && !isAttendanceDetained;
 
   const studentName = currentUser?.name || 'Student Candidate';
   const rollNumber = currentUser?.rollNumber || studentMeta?.rollNumber || 'N/A';
@@ -55,6 +85,7 @@ export const StudentHallTicketPage = () => {
   const scheduledExams = Array.isArray(examsData) ? examsData : [];
 
   const handlePrint = () => {
+    if (!isEligible) return;
     window.print();
   };
 
@@ -64,7 +95,7 @@ export const StudentHallTicketPage = () => {
       <Box
         sx={{
           display: 'flex',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           alignItems: 'center',
           mb: 3.5,
           flexWrap: 'wrap',
@@ -86,18 +117,144 @@ export const StudentHallTicketPage = () => {
           color="primary"
           startIcon={<PrintIcon />}
           onClick={handlePrint}
+          disabled={!isEligible}
           sx={{
             borderRadius: '12px',
             px: 3,
             py: 1.25,
             fontWeight: 800,
             textTransform: 'none',
-            boxShadow: '0 8px 20px rgba(79, 70, 229, 0.25)',
+            boxShadow: isEligible ? '0 8px 20px rgba(79, 70, 229, 0.25)' : 'none',
           }}
         >
-          Print / Download Hall Ticket PDF
+          {isEligible ? 'Print / Download Hall Ticket PDF' : 'Hall Ticket Withheld'}
         </Button>
       </Box>
+
+      {/* ── Security / Withholding Banners (if not eligible) ──────────────── */}
+      {!isEligible && (
+        <Box sx={{ mb: 3.5, display: 'flex', flexDirection: 'column', gap: 2.5, '@media print': { display: 'none' } }}>
+          {isFeeDue && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                borderRadius: '16px',
+                border: '1px solid #fecaca',
+                bgcolor: '#fef2f2',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 2.5,
+                flexWrap: 'wrap',
+              }}
+            >
+              <Avatar sx={{ bgcolor: '#fee2e2', color: '#dc2626', width: 48, height: 48 }}>
+                <FeeIcon />
+              </Avatar>
+              <Box sx={{ flex: 1, minWidth: 260 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 800, color: '#991b1b' }}>
+                    Admit Card Withheld — Outstanding Tuition & Fee Dues
+                  </Typography>
+                  <Chip
+                    label={`DUE: ₹${totalDues.toLocaleString('en-IN')}`}
+                    size="small"
+                    sx={{ bgcolor: '#dc2626', color: '#ffffff', fontWeight: 800 }}
+                  />
+                </Box>
+                <Typography variant="body2" sx={{ color: '#7f1d1d', lineHeight: 1.6 }}>
+                  As per University Examination Bylaws, hall tickets are conditionally withheld for candidates with pending semester fee dues. Please clear your institutional dues online or present your fee receipt to the Accounts Department to unlock your official examination hall ticket.
+                </Typography>
+                <Box sx={{ mt: 2, display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    endIcon={<ArrowIcon />}
+                    onClick={() => navigate('/student/fees')}
+                    sx={{
+                      bgcolor: '#dc2626',
+                      '&:hover': { bgcolor: '#b91c1c' },
+                      fontWeight: 800,
+                      borderRadius: '8px',
+                      textTransform: 'none',
+                    }}
+                  >
+                    Clear Fee Dues Online
+                  </Button>
+                </Box>
+              </Box>
+            </Paper>
+          )}
+
+          {isAttendanceDetained && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                borderRadius: '16px',
+                border: '1px solid #fed7aa',
+                bgcolor: '#fff7ed',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 2.5,
+                flexWrap: 'wrap',
+              }}
+            >
+              <Avatar sx={{ bgcolor: '#ffedd5', color: '#ea580c', width: 48, height: 48 }}>
+                <AlertIcon />
+              </Avatar>
+              <Box sx={{ flex: 1, minWidth: 260 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 800, color: '#9a3412' }}>
+                    Candidate Detained — Attendance Shortage (&lt;75%)
+                  </Typography>
+                  <Chip
+                    label={`CURRENT ATTENDANCE: ${attendancePercentage}%`}
+                    size="small"
+                    sx={{ bgcolor: '#ea580c', color: '#ffffff', fontWeight: 800 }}
+                  />
+                </Box>
+                <Typography variant="body2" sx={{ color: '#7c2d12', lineHeight: 1.6 }}>
+                  Your cumulative attendance across registered coursework stands at <strong>{attendancePercentage}%</strong>, which is below the mandatory <strong>75% statutory requirement</strong>. Your candidate admit ticket has been automatically withheld. If you have valid medical certificates or institutional duty leaves, apply for official condonation with your Head of Department.
+                </Typography>
+                <Box sx={{ mt: 2, display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    endIcon={<ArrowIcon />}
+                    onClick={() => navigate('/student/attendance')}
+                    sx={{
+                      borderColor: '#ea580c',
+                      color: '#ea580c',
+                      '&:hover': { borderColor: '#c2410c', bgcolor: '#fff' },
+                      fontWeight: 800,
+                      borderRadius: '8px',
+                      textTransform: 'none',
+                    }}
+                  >
+                    View Attendance Register
+                  </Button>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<LeaveIcon />}
+                    onClick={() => navigate('/student/leave')}
+                    sx={{
+                      bgcolor: '#ea580c',
+                      '&:hover': { bgcolor: '#c2410c' },
+                      fontWeight: 800,
+                      borderRadius: '8px',
+                      textTransform: 'none',
+                    }}
+                  >
+                    Submit Medical Exemption
+                  </Button>
+                </Box>
+              </Box>
+            </Paper>
+          )}
+        </Box>
+      )}
 
       {/* Hall Ticket Document Container */}
       <Paper
@@ -119,6 +276,39 @@ export const StudentHallTicketPage = () => {
           },
         }}
       >
+        {/* Official Diagonal Watermark when Withheld */}
+        {!isEligible && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '45%',
+              left: '50%',
+              transform: 'translate(-50%, -50%) rotate(-25deg)',
+              pointerEvents: 'none',
+              zIndex: 10,
+              opacity: 0.16,
+              border: '6px solid #dc2626',
+              px: 6,
+              py: 2,
+              borderRadius: '16px',
+              textAlign: 'center',
+            }}
+          >
+            <Typography
+              variant="h1"
+              sx={{
+                fontWeight: 900,
+                color: '#dc2626',
+                letterSpacing: '0.1em',
+                whiteSpace: 'nowrap',
+                fontSize: { xs: '2.2rem', sm: '3.8rem' },
+              }}
+            >
+              WITHHELD / DETAINED
+            </Typography>
+          </Box>
+        )}
+
         {/* Document Header Seal Banner */}
         <Box
           sx={{
@@ -138,18 +328,39 @@ export const StudentHallTicketPage = () => {
           <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#475569', letterSpacing: '0.1em' }}>
             OFFICE OF THE CONTROLLER OF EXAMINATIONS • OFFICIAL ADMIT TICKET
           </Typography>
-          <Chip
-            icon={<VerifiedIcon fontSize="small" style={{ color: scheduledExams.length > 0 ? '#059669' : '#d97706' }} />}
-            label={scheduledExams.length > 0 ? "VERIFIED EXAM CANDIDATE" : "EXAM DATESHEET PENDING"}
-            size="small"
-            sx={{
-              mt: 1.5,
-              fontWeight: 800,
-              bgcolor: scheduledExams.length > 0 ? '#ecfdf5' : '#fffbe6',
-              color: scheduledExams.length > 0 ? '#047857' : '#b45309',
-              border: scheduledExams.length > 0 ? '1px solid #a7f3d0' : '1px solid #fef08a',
-            }}
-          />
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
+            <Chip
+              icon={isEligible ? <VerifiedIcon fontSize="small" style={{ color: '#059669' }} /> : <LockIcon fontSize="small" style={{ color: '#dc2626' }} />}
+              label={isEligible ? "OFFICIAL EXAM CANDIDATE" : "ADMIT TICKET CONDITIONAL / WITHHELD"}
+              size="small"
+              sx={{
+                fontWeight: 800,
+                bgcolor: isEligible ? '#ecfdf5' : '#fef2f2',
+                color: isEligible ? '#047857' : '#b91c1c',
+                border: isEligible ? '1px solid #a7f3d0' : '1px solid #fecaca',
+              }}
+            />
+            <Chip
+              label={isFeeDue ? `FEES: ₹${totalDues.toLocaleString('en-IN')} DUE` : 'FEE STATUS: CLEARED'}
+              size="small"
+              sx={{
+                fontWeight: 800,
+                bgcolor: isFeeDue ? '#fef2f2' : '#f0fdf4',
+                color: isFeeDue ? '#dc2626' : '#15803d',
+                border: isFeeDue ? '1px solid #fecaca' : '1px solid #bbf7d0',
+              }}
+            />
+            <Chip
+              label={`ATTENDANCE: ${attendancePercentage}% ${isAttendanceDetained ? '(SHORTAGE <75%)' : '(COMPLIANT ≥75%)'}`}
+              size="small"
+              sx={{
+                fontWeight: 800,
+                bgcolor: isAttendanceDetained ? '#fff7ed' : '#f0fdf4',
+                color: isAttendanceDetained ? '#c2410c' : '#15803d',
+                border: isAttendanceDetained ? '1px solid #fed7aa' : '1px solid #bbf7d0',
+              }}
+            />
+          </Box>
         </Box>
 
         {/* Candidate Information & QR Verification Grid */}

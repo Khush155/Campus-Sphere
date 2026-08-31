@@ -37,7 +37,16 @@ const createLeaveRequest = async (leaveData, actor) => {
     throw new AppError('You already have an active leave request overlapping with these dates.', 409, ERROR_CODES.DUPLICATE_ENTRY);
   }
 
-  const targetDeptId = actor.departmentId || leaveData.departmentId || actor.branchId;
+  let targetDeptId = actor.departmentId || leaveData.departmentId;
+  if (!targetDeptId && actor.branchId) {
+    const Branch = require('../models/Branch');
+    const branch = await Branch.findById(actor.branchId).select('hostingDepartmentId');
+    if (branch?.hostingDepartmentId) {
+      targetDeptId = branch.hostingDepartmentId;
+    } else {
+      targetDeptId = actor.branchId;
+    }
+  }
 
   const leave = await LeaveRequest.create({
     userId: actor.id,
@@ -90,7 +99,14 @@ const getLeaveRequests = async (queryOptions, actor) => {
 
   // Enforce HOD & Student/Faculty boundary checks
   if (actor.role === ROLES.HOD) {
-    filters.departmentId = actor.departmentId;
+    if (actor.departmentId) {
+      const Branch = require('../models/Branch');
+      const branchIds = (await Branch.find({ hostingDepartmentId: actor.departmentId }).select('_id')).map((b) => b._id);
+      filters.$or = [
+        { departmentId: actor.departmentId },
+        { departmentId: { $in: branchIds } },
+      ];
+    }
   } else if (actor.role === ROLES.FACULTY || actor.role === ROLES.STUDENT) {
     filters.userId = actor.id;
   }

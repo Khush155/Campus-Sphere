@@ -119,7 +119,7 @@ exports.getExaminations = async (req, res) => {
 
   if (departmentId) {
     filters.departmentId = departmentId;
-  } else if (req.user.departmentId && req.user.role !== 'STUDENT') {
+  } else if (req.user.departmentId && req.user.role !== 'STUDENT' && !subjectId && req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'COLLEGE_ADMIN') {
     filters.departmentId = req.user.departmentId;
   }
 
@@ -446,6 +446,9 @@ exports.getExamStudentsForGrading = async (req, res) => {
   }
   if (exam.semester) {
     studentFilter.semester = exam.semester;
+  }
+  if (req.query.group && req.query.group !== 'ALL') {
+    studentFilter.group = req.query.group;
   }
 
   const [students, existingResults] = await Promise.all([

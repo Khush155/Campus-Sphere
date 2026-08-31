@@ -19,13 +19,13 @@ router.post(
 
 router.get(
   '/',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD, ROLES.STUDENT),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.STUDENT),
   documentController.getDocumentRequests
 );
 
 router.patch(
   '/:id/status',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   documentController.updateDocumentStatus
 );
 

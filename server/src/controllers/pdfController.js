@@ -6,6 +6,18 @@ const ERROR_CODES = require('../constants/errorCodes');
  * Controller to generate and stream a single ID card.
  */
 const generateIdCard = async (req, res, _next) => {
+  const targetId = String(req.params.userId);
+  const currentId = String(req.user.id || req.user._id);
+  const isSelf = targetId === currentId;
+  const isAdminTier =
+    req.user.role === 'SUPER_ADMIN' ||
+    req.user.role === 'COLLEGE_ADMIN' ||
+    req.user.role === 'HOD';
+
+  if (!isSelf && !isAdminTier) {
+    throw new AppError('You can only download your own ID card.', 403, ERROR_CODES.FORBIDDEN);
+  }
+
   await pdfService.generateIdCardStream(req.params.userId, res);
 };
 

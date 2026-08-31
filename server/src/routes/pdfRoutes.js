@@ -9,11 +9,12 @@ const router = express.Router();
 
 // Apply auth and role restrictions specifically to avoid intercepting other unhandled routes on /api/v1
 const adminAuth = [authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN)];
+const certAuth = [authMiddleware, roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD)];
 
 // MUST place bulk route before parameterized route to avoid matching "bulk" as a userId
 router.get('/id-cards/bulk', adminAuth, asyncHandler(pdfController.generateBulkIdCards));
-router.get('/id-cards/:userId', adminAuth, asyncHandler(pdfController.generateIdCard));
+router.get('/id-cards/:userId', authMiddleware, asyncHandler(pdfController.generateIdCard));
 
-router.post('/certificates/generate', adminAuth, asyncHandler(pdfController.generateCertificate));
+router.post('/certificates/generate', certAuth, asyncHandler(pdfController.generateCertificate));
 
 module.exports = router;

@@ -18,14 +18,14 @@ router
     facultyController.createFaculty
   );
 
-router.get('/dashboard/stats', roleMiddleware(ROLES.FACULTY), facultyController.getFacultyDashboard);
-router.get('/analytics/dashboard', roleMiddleware(ROLES.FACULTY), facultyController.getFacultyAnalytics);
+router.get('/dashboard/stats', roleMiddleware(ROLES.FACULTY, ROLES.HOD), facultyController.getFacultyDashboard);
+router.get('/analytics/dashboard', roleMiddleware(ROLES.FACULTY, ROLES.HOD), facultyController.getFacultyAnalytics);
 
 router
   .route('/:id')
   .get(facultyController.getFacultyById)
   .patch(
-    roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN),
+    roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
     validate(updateFacultySchema),
     facultyController.updateFaculty
   )
@@ -36,7 +36,7 @@ router
 
 router.put(
   '/:id/subjects',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   facultyController.assignSubjects
 );
 

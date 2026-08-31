@@ -135,6 +135,45 @@ export const useSubmitAttendanceMutation = () => {
 
 // --- Exams & Results Mutations ---
 
+export const useExaminationsQuery = (filters = {}) => {
+  return useQuery({
+    queryKey: ['examinations', filters],
+    queryFn: async () => {
+      const response = await api.get('/examinations', { params: filters });
+      const data = response.data?.data;
+      return Array.isArray(data) ? data : (data?.records || []);
+    },
+  });
+};
+
+export const useExamStudentsForGradingQuery = (examId, params = {}) => {
+  return useQuery({
+    queryKey: ['exam-students-grading', examId, params],
+    queryFn: async () => {
+      if (!examId) return null;
+      const response = await api.get(`/examinations/${examId}/students`, { params });
+      return response.data?.data || null;
+    },
+    enabled: Boolean(examId),
+  });
+};
+
+export const useBatchPublishResultsMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ examId, results }) => {
+      const response = await api.post(`/examinations/${examId}/results/batch`, { results });
+      return response.data?.data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['exam-students-grading', variables.examId] });
+      queryClient.invalidateQueries({ queryKey: ['examinations'] });
+      queryClient.invalidateQueries({ queryKey: ['student-examinations'] });
+      queryClient.invalidateQueries({ queryKey: ['student-gpa'] });
+    },
+  });
+};
+
 export const useExamsQuery = (filters = {}) => {
   return useQuery({
     queryKey: ['exams', filters],
@@ -168,6 +207,7 @@ export const useSubmitExamResultMutation = () => {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['exam-results', variables.examId] });
       queryClient.invalidateQueries({ queryKey: ['exams'] });
+      queryClient.invalidateQueries({ queryKey: ['student-gpa'] });
     },
   });
 };

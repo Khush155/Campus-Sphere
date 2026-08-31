@@ -109,10 +109,25 @@ const createFeedback = async (feedbackData, actor) => {
   }
 
   // Resolve department
-  let targetDeptId = actor.departmentId || actor.branchId;
+  let targetDeptId = actor.departmentId;
+  if (!targetDeptId && actor.branchId) {
+    const Branch = require('../models/Branch');
+    const branch = await Branch.findById(actor.branchId).select('hostingDepartmentId departmentId');
+    targetDeptId = branch?.hostingDepartmentId || branch?.departmentId;
+  }
   if (!targetDeptId && targetUser) {
     const targetUserDoc = await User.findById(targetUser).select('departmentId branchId');
-    targetDeptId = targetUserDoc?.departmentId || targetUserDoc?.branchId;
+    targetDeptId = targetUserDoc?.departmentId;
+    if (!targetDeptId && targetUserDoc?.branchId) {
+      const Branch = require('../models/Branch');
+      const branch = await Branch.findById(targetUserDoc.branchId).select('hostingDepartmentId departmentId');
+      targetDeptId = branch?.hostingDepartmentId || branch?.departmentId;
+    }
+  }
+  if (!targetDeptId) {
+    const Department = require('../models/Department');
+    const firstDept = await Department.findOne().select('_id');
+    targetDeptId = firstDept?._id;
   }
 
   const newFeedback = await Feedback.create({

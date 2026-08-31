@@ -35,16 +35,44 @@ const getDrives = async (queryOptions, actor) => {
   }
 
   // Enforce HOD & Student boundaries
-  if (actor.role === ROLES.HOD || actor.role === ROLES.STUDENT) {
-    filters.departmentIds = actor.departmentId;
+  if (actor.role === ROLES.HOD) {
+    const hodDeptId = actor.departmentId || actor.branchId;
+    if (hodDeptId) {
+      filters.$or = [
+        { departmentIds: hodDeptId },
+        { departmentIds: { $size: 0 } },
+        { departmentIds: { $exists: false } },
+      ];
+    }
+  } else if (actor.role === ROLES.STUDENT) {
+    let studentDeptId = actor.departmentId;
+    const studentBranchId = actor.branchId;
+    if (!studentDeptId && studentBranchId) {
+      const Branch = require('../models/Branch');
+      const branch = await Branch.findById(studentBranchId).select('hostingDepartmentId departmentId');
+      studentDeptId = branch?.hostingDepartmentId || branch?.departmentId;
+    }
+
+    const orConditions = [
+      { departmentIds: { $size: 0 } },
+      { departmentIds: { $exists: false } },
+    ];
+    if (studentDeptId) {
+      orConditions.push({ departmentIds: studentDeptId });
+    }
+    if (studentBranchId) {
+      orConditions.push({ eligibleBranches: studentBranchId });
+    }
+    filters.$or = orConditions;
   }
 
   return await paginate(PlacementDrive, filters, {
     ...queryOptions,
     populate: [
-      { path: 'eligibleBranches', select: 'name code' }
+      { path: 'eligibleBranches', select: 'name code' },
+      { path: 'departmentIds', select: 'name code' },
     ],
-    sort: { driveDate: -1 }
+    sort: { driveDate: -1 },
   });
 };
 
@@ -239,7 +267,10 @@ const getApplications = async (queryOptions, actor) => {
   const filters = {};
 
   if (actor.role === ROLES.HOD) {
-    const driveFilters = { departmentIds: actor.departmentId };
+    const hodDeptId = actor.departmentId || actor.branchId;
+    const driveFilters = hodDeptId
+      ? { $or: [{ departmentIds: hodDeptId }, { departmentIds: { $size: 0 } }, { departmentIds: { $exists: false } }] }
+      : {};
     if (driveId) {
       driveFilters._id = driveId;
     }

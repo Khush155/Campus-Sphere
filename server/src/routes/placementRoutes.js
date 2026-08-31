@@ -11,20 +11,20 @@ router.use(authMiddleware);
 
 router.post(
   '/drives',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   validate(createPlacementDriveSchema),
   placementController.createDrive
 );
 
 router.get(
   '/drives',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD, ROLES.STUDENT),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.STUDENT),
   placementController.getDrives
 );
 
 router.delete(
   '/drives/:driveId',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   placementController.deleteDrive
 );
 
@@ -36,25 +36,25 @@ router.post(
 
 router.patch(
   '/applications/:appId/round',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   placementController.updateApplicationRound
 );
 
 router.patch(
   '/applications/:appId/finalize',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   placementController.finalizeApplication
 );
 
 router.get(
   '/applications',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD, ROLES.STUDENT),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.STUDENT),
   placementController.getApplications
 );
 
 router.patch(
   '/applications/:appId/noc',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   placementController.issueNoc
 );
 
