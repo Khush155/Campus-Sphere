@@ -37,9 +37,20 @@ const createLeaveRequest = async (leaveData, actor) => {
     throw new AppError('You already have an active leave request overlapping with these dates.', 409, ERROR_CODES.DUPLICATE_ENTRY);
   }
 
+  let targetDeptId = actor.departmentId || leaveData.departmentId;
+  if (!targetDeptId && actor.branchId) {
+    const Branch = require('../models/Branch');
+    const branch = await Branch.findById(actor.branchId).select('hostingDepartmentId');
+    if (branch?.hostingDepartmentId) {
+      targetDeptId = branch.hostingDepartmentId;
+    } else {
+      targetDeptId = actor.branchId;
+    }
+  }
+
   const leave = await LeaveRequest.create({
     userId: actor.id,
-    departmentId: actor.departmentId,
+    departmentId: targetDeptId,
     leaveType,
     startDate: start,
     endDate: end,
@@ -50,10 +61,12 @@ const createLeaveRequest = async (leaveData, actor) => {
 
   // Notify Department HOD
   try {
-    const hods = await User.find({ role: ROLES.HOD, departmentId: actor.departmentId }).select('_id');
+    const hods = targetDeptId
+      ? await User.find({ role: ROLES.HOD, $or: [{ departmentId: targetDeptId }, { branchId: targetDeptId }] }).select('_id')
+      : await User.find({ role: ROLES.HOD }).select('_id');
     const hodIds = hods.map((h) => h._id);
     await createBulkNotifications(hodIds, {
-      title: `🌴 Leave Request Submitted: ${actor.name || 'Faculty Member'}`,
+      title: `🌴 Leave Request Submitted: ${actor.name || 'Applicant'}`,
       message: `A new ${leaveType} leave request has been submitted for review.`,
       category: 'LEAVE',
       link: '/hod/leave-management',
@@ -68,7 +81,7 @@ const createLeaveRequest = async (leaveData, actor) => {
 };
 
 const getLeaveRequests = async (queryOptions, actor) => {
-  const { departmentId, userId, status, leaveType } = queryOptions;
+  const { departmentId, userId, status, leaveType, role } = queryOptions;
   const filters = {};
 
   if (departmentId) {
@@ -86,18 +99,36 @@ const getLeaveRequests = async (queryOptions, actor) => {
 
   // Enforce HOD & Student/Faculty boundary checks
   if (actor.role === ROLES.HOD) {
-    filters.departmentId = actor.departmentId;
+    if (actor.departmentId) {
+      const Branch = require('../models/Branch');
+      const branchIds = (await Branch.find({ hostingDepartmentId: actor.departmentId }).select('_id')).map((b) => b._id);
+      filters.$or = [
+        { departmentId: actor.departmentId },
+        { departmentId: { $in: branchIds } },
+      ];
+    }
   } else if (actor.role === ROLES.FACULTY || actor.role === ROLES.STUDENT) {
     filters.userId = actor.id;
+  }
+
+  // Filter by applicant role (e.g. FACULTY vs STUDENT)
+  if (role) {
+    const userRoleQuery = { role };
+    if (filters.departmentId) {
+      userRoleQuery.departmentId = filters.departmentId;
+    }
+    const matchingUsers = await User.find(userRoleQuery).select('_id');
+    const matchingUserIds = matchingUsers.map((u) => u._id);
+    filters.userId = { $in: matchingUserIds };
   }
 
   return await paginate(LeaveRequest, filters, {
     ...queryOptions,
     populate: [
-      { path: 'userId', select: 'name email role' },
-      { path: 'approvedBy', select: 'name email' }
+      { path: 'userId', select: 'name email role rollNumber officeRoom' },
+      { path: 'approvedBy', select: 'name email' },
     ],
-    sort: { createdAt: -1 }
+    sort: { createdAt: -1 },
   });
 };
 
@@ -129,14 +160,17 @@ const updateLeaveStatus = async (id, statusData, actor, req) => {
 
   await leave.save();
 
-  // Notify requesting faculty member
+  // Notify requesting applicant (faculty or student)
   try {
+    const applicant = await User.findById(leave.userId).select('role');
+    const notificationLink = applicant?.role === ROLES.STUDENT ? '/student/leave' : '/leaves';
+
     await createNotification({
       recipientId: leave.userId,
       title: `🌴 Leave Request ${status}: ${leave.leaveType}`,
       message: `Your ${leave.leaveType} leave request has been ${status.toLowerCase()} by your HOD.${remarks ? ` Remarks: ${remarks}` : ''}`,
       category: 'LEAVE',
-      link: '/faculty/leaves',
+      link: notificationLink,
       senderId: actor.id,
       metadata: { leaveId: leave._id, status },
     });

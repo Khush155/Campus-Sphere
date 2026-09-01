@@ -30,23 +30,26 @@ import VacantSubjects from './VacantSubjects';
 
 const KpiCard = ({ icon, title, value, subtitle, color = 'primary', children }) => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const accentColor = theme.palette[color]?.main || theme.palette.primary.main;
   return (
     <Card
       sx={{
         p: 3,
-        borderRadius: '16px',
-        border: `1px solid ${theme.palette.divider}`,
+        borderRadius: '18px',
+        border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
         borderTop: `4px solid ${accentColor}`,
-        boxShadow: 'none',
+        bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+        boxShadow: theme.custom?.elevation?.raised || 'none',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        transition: 'transform 0.2s, box-shadow 0.2s',
+        transition: 'all 0.25s ease',
         '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.05)',
+          transform: 'translateY(-4px)',
+          boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+          borderColor: accentColor,
         },
       }}
     >
@@ -97,6 +100,7 @@ const SlaBar = ({ rate }) => {
 
 export const ReportsHub = () => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { data, isLoading, isError, refetch } = useHodReportsQuery();
 
   if (isLoading) {
@@ -127,11 +131,16 @@ export const ReportsHub = () => {
       {/* ── 1. Hero Identity Header ────────────────────────────────────────── */}
       <Card
         sx={{
-          p: 3.5,
-          borderRadius: '16px',
+          p: { xs: 2.5, sm: 3.5 },
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
-          boxShadow: 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.14) 0%, rgba(184, 134, 62, 0.08) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: isDark
+            ? '0 18px 40px -15px rgba(0,0,0,0.5)'
+            : '0 18px 40px -15px rgba(79, 70, 229, 0.08)',
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>

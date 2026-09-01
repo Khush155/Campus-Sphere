@@ -19,6 +19,8 @@ import {
   MenuItem,
   Tooltip,
   Chip,
+  Button,
+  Alert,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -39,10 +41,10 @@ import {
   MenuBook as MenuBookIcon,
   FactCheck as FactCheckIcon,
   Article as ArticleIcon,
-  AccountTree as AccountTreeIcon,
   Work as WorkIcon,
   EventNote as EventNoteIcon,
   ReportProblem as ReportProblemIcon,
+  RateReview as RateReviewIcon,
   Folder as FolderIcon,
   Person as PersonIcon,
   Assignment as AssignmentIcon,
@@ -63,14 +65,18 @@ import {
   CardMembership as CardMembershipIcon,
   Assessment as AssessmentIcon,
   CalendarToday as CalendarTodayIcon,
+  Timeline as TimelineIcon,
   MenuBook as BookIcon,
   Refresh as RefreshIcon,
+  Check as CheckIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useThemeContext } from '../contexts/ThemeContext';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { useStudentSession } from '../contexts/StudentSessionContext';
 import CommandPalette from '../components/common/CommandPalette';
 import { useCollegeProfileQuery } from '../queries/collegeProfileQueries';
 import { useActiveSessionQuery } from '../queries/academicSessionQueries';
@@ -135,6 +141,29 @@ export const AppLayout = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const {
+    isStudent,
+    activeSemester,
+    selectedSemester,
+    setSelectedSemester,
+    isArchivedView,
+    availableSemesters,
+    resetToActive,
+  } = useStudentSession();
+
+  const [sessionAnchorEl, setSessionAnchorEl] = useState(null);
+
+  const handleSessionMenuOpen = (e) => {
+    setSessionAnchorEl(e.currentTarget);
+  };
+  const handleSessionMenuClose = () => {
+    setSessionAnchorEl(null);
+  };
+  const handleSemesterSelect = (semNumber) => {
+    setSelectedSemester(semNumber);
+    handleSessionMenuClose();
+  };
+
   const handlePresetMenuOpen = (event) => {
     setPresetAnchorEl(event.currentTarget);
   };
@@ -172,58 +201,60 @@ export const AppLayout = () => {
         { text: 'Faculty Allocations', icon: <AssignmentIndIcon />, path: '/admin/faculty-assignments', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'ID Cards Studio', icon: <BadgeIcon />, path: '/admin/id-cards', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Fee Dues Clearance', icon: <AccountBalanceWalletIcon />, path: '/admin/fee-clearance', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Placements & Drives', icon: <WorkIcon />, path: '/admin/placements', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Leave Oversight', icon: <EventNoteIcon />, path: '/admin/leave-management', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Maintenance & Complaints', icon: <ReportProblemIcon />, path: '/admin/complaints', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Notice Board', icon: <NotificationsIcon />, path: '/admin/notices', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
-        { text: 'Academic Sessions', icon: <DateRangeIcon />, path: '/admin/academic-calendar', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
-        { text: 'Bulk Promotion', icon: <AutorenewIcon />, path: '/admin/bulk-promotion', roles: ['SUPER_ADMIN'] },
+        { text: 'Academic Calendar', icon: <DateRangeIcon />, path: '/admin/academic-calendar', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Bulk Promotion', icon: <AutorenewIcon />, path: '/admin/bulk-promotion', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Certificates', icon: <CardMembershipIcon />, path: '/admin/certificates', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Reports Export', icon: <AssessmentIcon />, path: '/admin/reports', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
-        { text: 'College Profile', icon: <AccountBalanceIcon />, path: '/admin/college-profile', roles: ['SUPER_ADMIN'] },
+        { text: 'College Profile', icon: <AccountBalanceIcon />, path: '/admin/college-profile', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Audit Logs', icon: <HistoryIcon />, path: '/admin/audit-logs', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
       ]
     : userRole === 'HOD'
     ? [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/hod/overview', roles: ['HOD'] },
         { text: 'Staff Directory', icon: <GroupsIcon />, path: '/hod/faculty', roles: ['HOD'] },
+        { text: 'Students', icon: <PeopleIcon />, path: '/hod/students', roles: ['HOD'] },
+        { text: 'Subjects', icon: <MenuBookIcon />, path: '/hod/subjects', roles: ['HOD'] },
         { text: 'Subject Allocations', icon: <AssignmentIndIcon />, path: '/hod/faculty-assignment', roles: ['HOD'] },
         { text: 'Cross-Dept Requests', icon: <SwapHorizIcon />, path: '/hod/cross-dept-requests', roles: ['HOD'] },
-        { text: 'Students', icon: <PeopleIcon />, path: '/hod/students', roles: ['HOD'] },
-        { text: 'Semester Progression', icon: <TrendingUpIcon />, path: '/hod/promotions', roles: ['HOD'] },
-        { text: 'Subjects', icon: <MenuBookIcon />, path: '/hod/subjects', roles: ['HOD'] },
         { text: 'Timetable', icon: <DateRangeIcon />, path: '/hod/timetable', roles: ['HOD'] },
         { text: 'Attendance', icon: <FactCheckIcon />, path: '/hod/attendance', roles: ['HOD'] },
         { text: 'Examinations', icon: <ArticleIcon />, path: '/hod/examinations', roles: ['HOD'] },
+        { text: 'Semester Progression', icon: <TrendingUpIcon />, path: '/hod/promotions', roles: ['HOD'] },
         { text: 'Placements', icon: <WorkIcon />, path: '/hod/placements', roles: ['HOD'] },
-        { text: 'Leave Management', icon: <EventNoteIcon />, path: '/hod/leave-management', roles: ['HOD'] },
-        { text: 'Notices', icon: <NotificationsIcon />, path: '/hod/notices', roles: ['HOD'] },
-        { text: 'Reports', icon: <BarChartIcon />, path: '/hod/reports', roles: ['HOD'] },
-        { text: 'Complaints', icon: <ReportProblemIcon />, path: '/hod/complaints', roles: ['HOD'] },
-        { text: 'Documents', icon: <FolderIcon />, path: '/hod/documents', roles: ['HOD'] },
-        { text: 'Meetings', icon: <GroupsIcon />, path: '/hod/meetings', roles: ['HOD'] },
         { text: 'Opportunities', icon: <PublicIcon />, path: '/hod/opportunities', roles: ['HOD'] },
-        { text: 'Feedback', icon: <ReportProblemIcon />, path: '/hod/feedback', roles: ['HOD'] },
+        { text: 'Leave Management', icon: <EventNoteIcon />, path: '/hod/leave-management', roles: ['HOD'] },
+        { text: 'Meetings', icon: <GroupsIcon />, path: '/hod/meetings', roles: ['HOD'] },
+        { text: 'Notices', icon: <NotificationsIcon />, path: '/hod/notices', roles: ['HOD'] },
+        { text: 'Documents', icon: <FolderIcon />, path: '/hod/documents', roles: ['HOD'] },
+        { text: 'Feedback', icon: <RateReviewIcon />, path: '/hod/feedback', roles: ['HOD'] },
+        { text: 'Complaints', icon: <ReportProblemIcon />, path: '/hod/complaints', roles: ['HOD'] },
+        { text: 'Reports', icon: <BarChartIcon />, path: '/hod/reports', roles: ['HOD'] },
       ]
     : userRole === 'STUDENT'
     ? [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['STUDENT'] },
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/student/dashboard', roles: ['STUDENT'] },
         { text: 'Academics', icon: <MenuBookIcon />, path: '/student/academics', roles: ['STUDENT'] },
         { text: 'Timetable', icon: <DateRangeIcon />, path: '/student/timetable', roles: ['STUDENT'] },
         { text: 'Assignments', icon: <AssignmentIcon />, path: '/student/assignments', roles: ['STUDENT'] },
         { text: 'Attendance', icon: <FactCheckIcon />, path: '/student/attendance', roles: ['STUDENT'] },
         { text: 'Examinations', icon: <ArticleIcon />, path: '/student/examinations', roles: ['STUDENT'] },
-        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/fees', roles: ['STUDENT'] },
-        { text: 'Notices', icon: <CampaignIcon />, path: '/notices', roles: ['STUDENT'] },
-        { text: 'Projects', icon: <FolderIcon />, path: '/student/projects', roles: ['STUDENT'] },
+        { text: 'Fees', icon: <ReceiptLongIcon />, path: '/student/fees', roles: ['STUDENT'] },
+        { text: 'Notices', icon: <CampaignIcon />, path: '/student/notices', roles: ['STUDENT'] },
+        { text: 'Faculty Feedback', icon: <RateReviewIcon />, path: '/student/feedback', roles: ['STUDENT'] },
         { text: 'Placements', icon: <WorkIcon />, path: '/student/placements', roles: ['STUDENT'] },
         { text: 'Library', icon: <LocalLibraryIcon />, path: '/student/library', roles: ['STUDENT'] },
         { text: 'Leave', icon: <EventNoteIcon />, path: '/student/leave', roles: ['STUDENT'] },
-        { text: 'Portfolio & Resume', icon: <MenuBookIcon />, path: '/student/portfolio', roles: ['STUDENT'] },
         { text: 'Documents', icon: <FolderIcon />, path: '/student/documents', roles: ['STUDENT'] },
         { text: 'Complaints', icon: <ReportProblemIcon />, path: '/student/complaints', roles: ['STUDENT'] },
         { text: 'Notifications', icon: <NotificationsIcon />, path: '/student/notifications', roles: ['STUDENT'] },
       ]
     : userRole === 'FACULTY'
     ? [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/', roles: ['FACULTY'] },
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/faculty', roles: ['FACULTY'] },
         { text: 'Students Roster', icon: <PeopleIcon />, path: '/students', roles: ['FACULTY'] },
         { text: 'Attendance', icon: <DateRangeIcon />, path: '/attendance', roles: ['FACULTY'] },
         { text: 'Assignments', icon: <AssignmentIcon />, path: '/assignments', roles: ['FACULTY'] },
@@ -419,7 +450,131 @@ export const AppLayout = () => {
                 {menuItems.find((item) => item.path === location.pathname)?.text || 'CampusSphere'}
               </Typography>
 
-              {activeSession && (
+              {isStudent ? (
+                <Box>
+                  <Button
+                    size="small"
+                    onClick={handleSessionMenuOpen}
+                    endIcon={<KeyboardArrowDownIcon sx={{ fontSize: '18px !important' }} />}
+                    startIcon={
+                      isArchivedView ? (
+                        <HistoryIcon sx={{ fontSize: '16px !important', color: '#f59e0b' }} />
+                      ) : (
+                        <DateRangeIcon sx={{ fontSize: '16px !important', color: 'primary.main' }} />
+                      )
+                    }
+                    sx={{
+                      borderRadius: '20px',
+                      textTransform: 'none',
+                      fontWeight: 800,
+                      fontSize: '0.78rem',
+                      px: 1.75,
+                      py: 0.5,
+                      border: `1px solid ${isArchivedView ? '#f59e0b' : `${theme.palette.primary.main}50`}`,
+                      bgcolor: isArchivedView
+                        ? 'rgba(245, 158, 11, 0.1)'
+                        : `${theme.palette.primary.main}10`,
+                      color: isArchivedView ? (mode === 'dark' ? '#fbbf24' : '#b45309') : 'primary.main',
+                      '&:hover': {
+                        bgcolor: isArchivedView
+                          ? 'rgba(245, 158, 11, 0.18)'
+                          : `${theme.palette.primary.main}20`,
+                      },
+                    }}
+                  >
+                    {isArchivedView
+                      ? `Semester ${selectedSemester} (Archived • Read Only)`
+                      : `Semester ${selectedSemester} (Current Active)`}
+                  </Button>
+
+                  <Menu
+                    anchorEl={sessionAnchorEl}
+                    open={Boolean(sessionAnchorEl)}
+                    onClose={handleSessionMenuClose}
+                    transformOrigin={{ horizontal: 'left', vertical: 'top' }}
+                    anchorOrigin={{ horizontal: 'left', vertical: 'bottom' }}
+                    PaperProps={{
+                      sx: {
+                        borderRadius: '16px',
+                        minWidth: 290,
+                        p: 1,
+                        mt: 1,
+                        boxShadow: '0 12px 32px rgba(0,0,0,0.15)',
+                        border: `1px solid ${theme.palette.divider}`,
+                      },
+                    }}
+                  >
+                    <Box sx={{ px: 2, py: 1 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                        Select Academic Semester
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Switch historical session context across modules
+                      </Typography>
+                    </Box>
+                    <Divider sx={{ my: 0.75 }} />
+
+                    {availableSemesters.map((sem) => {
+                      const isSelected = Number(selectedSemester) === Number(sem.semester);
+
+                      return (
+                        <MenuItem
+                          key={sem.semester}
+                          onClick={() => handleSemesterSelect(sem.semester)}
+                          sx={{
+                            borderRadius: '10px',
+                            py: 1,
+                            px: 1.5,
+                            my: 0.5,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            bgcolor: isSelected
+                              ? `${theme.palette.primary.main}15`
+                              : 'transparent',
+                            '&:hover': {
+                              bgcolor: isSelected
+                                ? `${theme.palette.primary.main}25`
+                                : mode === 'dark'
+                                ? 'rgba(255,255,255,0.05)'
+                                : 'rgba(0,0,0,0.03)',
+                            },
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                            {isSelected ? (
+                              <CheckIcon sx={{ color: 'primary.main', fontSize: 18, fontWeight: 800 }} />
+                            ) : (
+                              <Box sx={{ width: 18 }} />
+                            )}
+                            <Box>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: isSelected ? 800 : 600,
+                                  color: isSelected ? 'primary.main' : 'text.primary',
+                                }}
+                              >
+                                {sem.label}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                {sem.subLabel}
+                              </Typography>
+                            </Box>
+                          </Box>
+
+                          <Chip
+                            label={sem.isCurrent ? 'ACTIVE' : 'CLEARED'}
+                            color={sem.isCurrent ? 'primary' : 'success'}
+                            size="small"
+                            sx={{ height: 20, fontSize: '0.62rem', fontWeight: 800 }}
+                          />
+                        </MenuItem>
+                      );
+                    })}
+                  </Menu>
+                </Box>
+              ) : activeSession ? (
                 <Chip
                   label={`${activeSession.academicYear} (${activeSession.semesterType} TERM)`}
                   size="small"
@@ -434,7 +589,7 @@ export const AppLayout = () => {
                     color: theme.palette.primary.main,
                   }}
                 />
-              )}
+              ) : null}
             </Box>
           </Box>
 
@@ -715,6 +870,40 @@ export const AppLayout = () => {
           bgcolor: 'background.default',
         }}
       >
+        {isStudent && isArchivedView && (
+          <Box sx={{ mb: 3 }}>
+            <Alert
+              severity="warning"
+              icon={<HistoryIcon />}
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={resetToActive}
+                  sx={{
+                    fontWeight: 800,
+                    textTransform: 'none',
+                    border: '1px solid currentColor',
+                    borderRadius: '8px',
+                    px: 1.5,
+                  }}
+                >
+                  Return to Active Term (Sem {activeSemester})
+                </Button>
+              }
+              sx={{
+                borderRadius: '16px',
+                fontWeight: 600,
+                border: '1px solid #f59e0b',
+                bgcolor: mode === 'dark' ? 'rgba(245, 158, 11, 0.12)' : '#fffbeb',
+                color: mode === 'dark' ? '#fef3c7' : '#92400e',
+              }}
+            >
+              <strong>Historical Archival View (Read-Only Mode):</strong> You are browsing historical records for{' '}
+              <strong>Semester {selectedSemester}</strong>. Submitting assignments, filing leave, or editing data is disabled for past cleared terms.
+            </Alert>
+          </Box>
+        )}
         <Outlet />
       </Box>
 

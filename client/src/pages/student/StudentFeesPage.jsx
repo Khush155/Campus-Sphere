@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -14,30 +15,87 @@ import {
   Chip,
   Avatar,
   Button,
+  Skeleton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   useTheme,
 } from '@mui/material';
 import {
   ReceiptLongOutlined as FeeIcon,
   CheckCircleOutlineOutlined as VerifiedIcon,
   DownloadOutlined as DownloadIcon,
+  VisibilityOutlined as ViewIcon,
+  PrintOutlined as PrintIcon,
 } from '@mui/icons-material';
 
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { useMyProfileQuery } from '../../queries/userProfileQueries';
+import {
+  useStudentFeeReceiptsQuery,
+  usePayStudentFeeMutation,
+} from '../../queries/studentQueries';
 
 export const StudentFeesPage = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
+  const { showToast } = useToast();
   const isDark = theme.palette.mode === 'dark';
-  const { data: profile } = useMyProfileQuery();
+  const { user: authUser } = useAuth();
+  const { data: profile, isLoading } = useMyProfileQuery();
+  const { data: receipts = [], isLoading: isReceiptsLoading } = useStudentFeeReceiptsQuery();
+  const payMutation = usePayStudentFeeMutation();
 
+  const [openPayModal, setOpenPayModal] = React.useState(false);
+
+  const currentUser = profile?.user || authUser;
   const studentMeta = profile?.profileMeta || {};
 
-  const feeItems = [
-    { head: 'Semester Tuition Fee', amount: '₹ 45,000', status: 'PAID', date: '2026-07-15' },
-    { head: 'Laboratory & Computer Facility Fee', amount: '₹ 8,500', status: 'PAID', date: '2026-07-15' },
-    { head: 'Library & Learning Resources Fee', amount: '₹ 3,000', status: 'PAID', date: '2026-07-15' },
-    { head: 'Examination & Assessment Fee', amount: '₹ 2,500', status: 'PAID', date: '2026-07-15' },
-    { head: 'Campus Development Fund', amount: '₹ 4,000', status: 'PAID', date: '2026-07-15' },
+  const feeStatus = currentUser?.feeStatus || 'CLEARED';
+  const feeDues = currentUser?.feeDues || { tuition: 0, hostel: 0, library: 0, lab: 0 };
+  const noDuesIssuedAt = currentUser?.noDuesIssuedAt;
+
+  const totalDues =
+    Number(feeDues.tuition || 0) +
+    Number(feeDues.hostel || 0) +
+    Number(feeDues.library || 0) +
+    Number(feeDues.lab || 0);
+
+  const clearanceLabel =
+    feeStatus === 'OVERDUE'
+      ? 'FEE OVERDUE'
+      : feeStatus === 'PENDING' || totalDues > 0
+      ? 'PAYMENT PENDING'
+      : 'ALL DUES CLEARED';
+
+  const clearanceColor =
+    totalDues > 0 ? (feeStatus === 'OVERDUE' ? 'error' : 'warning') : 'success';
+
+  const baseFeeStructure = [
+    { key: 'tuition', head: 'Semester Tuition Fee', baseAmount: 45000 },
+    { key: 'lab', head: 'Laboratory & Computer Facility Fee', baseAmount: 8500 },
+    { key: 'library', head: 'Library & Learning Resources Fee', baseAmount: 3000 },
+    { key: 'hostel', head: 'Hostel & Residential Accommodation Fee', baseAmount: 6500 },
   ];
+
+  const totalBaseFee = receipts?.[0]?.totalBaseFee || baseFeeStructure.reduce((acc, item) => acc + item.baseAmount, 0);
+  const totalPaidAmount = receipts?.[0]?.totalPaid !== undefined ? receipts[0].totalPaid : Math.max(0, totalBaseFee - totalDues);
+
+  const feeItems = baseFeeStructure.map((item) => {
+    const due = Number(feeDues[item.key] || 0);
+    const isPaid = due === 0;
+    const status = isPaid ? 'PAID' : feeStatus === 'OVERDUE' ? 'OVERDUE' : 'PENDING';
+    const statusColor = isPaid ? 'success' : status === 'OVERDUE' ? 'error' : 'warning';
+    const date = isPaid
+      ? noDuesIssuedAt
+        ? new Date(noDuesIssuedAt).toLocaleDateString()
+        : '2026-07-15'
+      : 'Due Now';
+    const amount = isPaid ? `₹ ${item.baseAmount.toLocaleString('en-IN')}` : `₹ ${due.toLocaleString('en-IN')} (Due)`;
+    return { head: item.head, amount, status, statusColor, date };
+  });
 
   return (
     <Container maxWidth="xl" sx={{ py: 3.5 }}>
@@ -49,101 +107,193 @@ export const StudentFeesPage = () => {
           </Typography>
           <Typography variant="body1" color="text.secondary">
             Official fee clearance status for Course <strong>{studentMeta?.course || 'B.Tech'}</strong> (Sem{' '}
-            {studentMeta?.semester || 6}).
+            {currentUser?.semester || studentMeta?.semester || 1}).
           </Typography>
         </Box>
 
-        <Button
-          variant="contained"
-          startIcon={<DownloadIcon />}
-          onClick={() => window.print()}
-          sx={{
-            borderRadius: '12px',
-            px: 3,
-            py: 1.25,
-            fontWeight: 800,
-            textTransform: 'none',
-            boxShadow: '0 8px 20px rgba(79, 70, 229, 0.25)',
-          }}
-        >
-          Download Fee Receipt
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          {totalDues > 0 && (
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<FeeIcon />}
+              onClick={() => setOpenPayModal(true)}
+              sx={{
+                borderRadius: '12px',
+                px: 3,
+                py: 1.25,
+                fontWeight: 800,
+                textTransform: 'none',
+                boxShadow: '0 8px 20px rgba(34, 197, 94, 0.25)',
+              }}
+            >
+              Pay Dues Online (₹ {totalDues.toLocaleString('en-IN')})
+            </Button>
+          )}
+
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={() => {
+              if (receipts && receipts.length > 0 && receipts[0].receiptId) {
+                navigate(`/student/fees/receipt/${receipts[0].receiptId}`);
+              } else {
+                window.print();
+              }
+            }}
+            sx={{
+              borderRadius: '12px',
+              px: 3,
+              py: 1.25,
+              fontWeight: 800,
+              textTransform: 'none',
+            }}
+          >
+            Download Fee Receipt
+          </Button>
+        </Box>
       </Box>
 
-      {/* KPI Cards */}
-      <Grid container spacing={3} sx={{ mb: 3.5 }}>
-        <Grid item xs={12} sm={4}>
+      {/* KPI Cards (4 Roster-Style Top-Bordered Cards) */}
+      <Grid container spacing={2.5} sx={{ mb: 3.5 }}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #10b981',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.success.main}15`, color: theme.palette.success.main, width: 48, height: 48 }}>
-                <VerifiedIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Clearance Status
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', width: 40, height: 40, borderRadius: '10px' }}>
+                <VerifiedIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  CLEARANCE STATUS
-                </Typography>
-                <Chip label="ALL DUES CLEARED" color="success" sx={{ fontWeight: 800, mt: 0.5 }} />
-              </Box>
+            </Box>
+            <Box>
+              <Chip label={clearanceLabel} color={clearanceColor} sx={{ fontWeight: 800, borderRadius: '6px' }} />
+              <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.75 }}>
+                {totalDues === 0 ? 'No pending dues on record' : 'Payment required'}
+              </Typography>
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #4f46e5',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main, width: 48, height: 48 }}>
-                <FeeIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Total Fees Paid
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(79, 70, 229, 0.12)', color: '#4f46e5', width: 40, height: 40, borderRadius: '10px' }}>
+                <FeeIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  TOTAL FEES PAID
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
-                  ₹ 63,000
-                </Typography>
-              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                ₹ {totalPaidAmount.toLocaleString('en-IN')}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Cumulative settled installments
+              </Typography>
             </Box>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6} md={3}>
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: '20px',
+              p: 2.5,
+              borderRadius: '14px',
               border: `1px solid ${theme.palette.divider}`,
+              borderTop: totalDues > 0 ? '4px solid #ef4444' : '4px solid #06b6d4',
               bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: `${theme.palette.info.main}15`, color: theme.palette.info.main, width: 48, height: 48 }}>
-                <FeeIcon />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Outstanding Dues
+              </Typography>
+              <Avatar
+                sx={{
+                  bgcolor: totalDues > 0 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(6, 182, 212, 0.12)',
+                  color: totalDues > 0 ? '#ef4444' : '#06b6d4',
+                  width: 40,
+                  height: 40,
+                  borderRadius: '10px',
+                }}
+              >
+                <FeeIcon fontSize="small" />
               </Avatar>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                  OUTSTANDING DUES
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'success.main' }}>
-                  ₹ 0.00
-                </Typography>
-              </Box>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: totalDues > 0 ? 'error.main' : 'success.main', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                ₹ {totalDues.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {totalDues > 0 ? 'Due for clearance' : 'Full balance cleared'}
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #f59e0b',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Issued Receipts
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', width: 40, height: 40, borderRadius: '10px' }}>
+                <FeeIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {receipts.length}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Downloadable verified vouchers
+              </Typography>
             </Box>
           </Paper>
         </Grid>
@@ -176,20 +326,211 @@ export const StudentFeesPage = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {feeItems.map((item) => (
-                <TableRow key={item.head} hover>
-                  <TableCell sx={{ fontWeight: 800, color: 'text.primary' }}>{item.head}</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>{item.amount}</TableCell>
-                  <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>{item.date}</TableCell>
-                  <TableCell>
-                    <Chip label={item.status} color="success" size="small" sx={{ fontWeight: 800 }} />
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 4, fontWeight: 600 }}>
+                    Loading fee clearance statement...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                feeItems.map((item) => (
+                  <TableRow key={item.head} hover>
+                    <TableCell sx={{ fontWeight: 800, color: 'text.primary' }}>{item.head}</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>{item.amount}</TableCell>
+                    <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>{item.date}</TableCell>
+                    <TableCell>
+                      <Chip label={item.status} color={item.statusColor} size="small" sx={{ fontWeight: 800 }} />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
       </Paper>
+
+      {/* Official Payment Receipts Section */}
+      <Paper
+        elevation={0}
+        sx={{
+          mt: 3.5,
+          borderRadius: '24px',
+          border: `1px solid ${theme.palette.divider}`,
+          overflow: 'hidden',
+          bgcolor: isDark ? 'background.paper' : '#ffffff',
+        }}
+      >
+        <Box sx={{ p: 3, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
+            Official Fee Payment Receipts
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Verified institutional receipts for cleared fee transactions
+          </Typography>
+        </Box>
+
+        {isReceiptsLoading ? (
+          <Box sx={{ p: 4 }}>
+            <Skeleton variant="rectangular" height={80} sx={{ borderRadius: '12px' }} />
+          </Box>
+        ) : receipts.length === 0 ? (
+          <Box sx={{ py: 6, textAlign: 'center' }}>
+            <FeeIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1.5 }} />
+            <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>
+              No Fee Receipts Available
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Official payment receipts will be generated once institutional fee dues are cleared.
+            </Typography>
+          </Box>
+        ) : (
+          <TableContainer>
+            <Table>
+              <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 800 }}>RECEIPT NO.</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>TRANSACTION ID</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>PAYMENT DATE</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>AMOUNT PAID</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>STATUS</TableCell>
+                  <TableCell sx={{ fontWeight: 800, textAlign: 'right' }}>ACTIONS</TableCell>
+                </TableRow>
+              </TableHead>
+
+              <TableBody>
+                {receipts.map((rcp) => (
+                  <TableRow key={rcp.receiptId} hover>
+                    <TableCell sx={{ fontWeight: 800, color: 'text.primary', fontFamily: 'monospace' }}>
+                      {rcp.receiptNumber}
+                    </TableCell>
+
+                    <TableCell sx={{ fontWeight: 700, color: 'primary.main', fontFamily: 'monospace' }}>
+                      {rcp.transactionId}
+                    </TableCell>
+
+                    <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                      {new Date(rcp.paymentDate).toLocaleDateString('en-IN', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </TableCell>
+
+                    <TableCell sx={{ fontWeight: 800, color: 'success.main' }}>
+                      ₹ {rcp.totalPaid.toLocaleString('en-IN')}
+                    </TableCell>
+
+                    <TableCell>
+                      <Chip
+                        label={rcp.isCleared ? 'CLEARED' : rcp.feeStatus}
+                        color={rcp.isCleared ? 'success' : 'warning'}
+                        size="small"
+                        sx={{ fontWeight: 800 }}
+                      />
+                    </TableCell>
+
+                    <TableCell align="right">
+                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<ViewIcon />}
+                          onClick={() => navigate(`/student/fees/receipt/${rcp.receiptId}`)}
+                          sx={{ borderRadius: '8px', fontWeight: 800, textTransform: 'none' }}
+                        >
+                          View Receipt
+                        </Button>
+
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="primary"
+                          startIcon={<PrintIcon />}
+                          onClick={() => navigate(`/student/fees/receipt/${rcp.receiptId}`)}
+                          sx={{ borderRadius: '8px', fontWeight: 800, textTransform: 'none' }}
+                        >
+                          Print / PDF
+                        </Button>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Paper>
+
+      {/* Payment Checkout Modal */}
+      <Dialog
+        open={openPayModal}
+        onClose={() => setOpenPayModal(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '24px', p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          Institutional Online Fee Payment Gateway
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 2 }}>
+            Simulated secure checkout for Course <strong>{studentMeta?.course || 'B.Tech'}</strong> (Sem {studentMeta?.semester || 6}).
+          </Typography>
+
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: '16px', bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', mb: 3 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, display: 'block', mb: 1 }}>
+              OUTSTANDING FEE HEAD BREAKDOWN
+            </Typography>
+            {baseFeeStructure.map((item) => {
+              const due = Number(feeDues[item.key] || 0);
+              if (due === 0) return null;
+              return (
+                <Box key={item.key} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{item.head}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 800, color: 'error.main' }}>
+                    ₹ {due.toLocaleString('en-IN')}
+                  </Typography>
+                </Box>
+              );
+            })}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 1.5, mt: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>TOTAL PAYABLE AMOUNT</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'primary.main' }}>
+                ₹ {totalDues.toLocaleString('en-IN')}
+              </Typography>
+            </Box>
+          </Paper>
+
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>
+            PAYMENT METHOD SIMULATION
+          </Typography>
+          <Chip label="ONLINE ERP GATEWAY (INSTANT CLEARANCE)" color="primary" sx={{ fontWeight: 800, mt: 1 }} />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setOpenPayModal(false)} sx={{ fontWeight: 700 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            disabled={payMutation.isPending}
+            onClick={() => {
+              payMutation.mutate(undefined, {
+                onSuccess: () => {
+                  showToast('Fee payment of ₹' + totalDues.toLocaleString('en-IN') + ' completed successfully!');
+                  setOpenPayModal(false);
+                },
+                onError: (err) => {
+                  showToast(err.response?.data?.message || err.message || 'Payment failed', { severity: 'error' });
+                },
+              });
+            }}
+            sx={{ borderRadius: '12px', fontWeight: 800, px: 3 }}
+          >
+            {payMutation.isPending ? 'Processing Payment...' : `Confirm & Pay ₹ ${totalDues.toLocaleString('en-IN')}`}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

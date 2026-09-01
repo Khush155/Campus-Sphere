@@ -26,6 +26,7 @@ import {
   DialogContent,
   DialogActions,
   Pagination,
+  Tooltip,
 } from '@mui/material';
 import {
   EditOutlined,
@@ -131,6 +132,7 @@ const NormalTablePagination = ({ page, totalPages, onPageChange, totalItems, ite
 
 export const SubjectTab = ({ setOnAddClick }) => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
 
   // Toggles
@@ -587,42 +589,94 @@ export const SubjectTab = ({ setOnAddClick }) => {
                     key={sub._id}
                     className="staggered-row"
                     style={{ animationDelay: `${index * 20}ms` }}
-                    sx={{ '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' } }}
+                    sx={{
+                      '&:hover': {
+                        bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(79, 70, 229, 0.03)',
+                      },
+                    }}
                   >
-                    <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem', fontWeight: 600 }}>
-                      {computedCode}
+                    <TableCell>
+                      <Chip
+                        label={computedCode}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        sx={{
+                          fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          borderRadius: '6px',
+                          bgcolor: `${theme.palette.primary.main}0D`,
+                        }}
+                      />
                     </TableCell>
-                    <TableCell sx={{ fontFamily: theme.typography.body1.fontFamily, fontSize: '0.88rem', fontWeight: 600 }}>
-                      {sub.name}
+                    <TableCell>
+                      <Typography sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.9rem' }}>
+                        {sub.name}
+                      </Typography>
                     </TableCell>
-                    <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.82rem', fontWeight: 600 }}>
-                      {sub.credits} Credits
+                    <TableCell>
+                      <Chip
+                        label={`${sub.credits} Credits`}
+                        size="small"
+                        sx={{
+                          fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          borderRadius: '6px',
+                          bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                        }}
+                      />
                     </TableCell>
                     <TableCell>
                       <Chip
                         label={sub.type}
                         size="small"
                         sx={{
-                          fontFamily: theme.typography.mono.fontFamily,
-                          fontSize: '0.68rem',
+                          fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                          fontSize: '0.7rem',
                           fontWeight: 700,
                           bgcolor: sub.type === 'THEORY' ? `${theme.palette.primary.main}15` : sub.type === 'PRACTICAL' ? `${theme.palette.secondary?.main || '#9c27b0'}15` : `${theme.palette.brass?.[500] || '#b8863e'}15`,
                           color: sub.type === 'THEORY' ? theme.palette.primary.main : sub.type === 'PRACTICAL' ? theme.palette.secondary?.main || '#9c27b0' : theme.palette.brass?.[500] || '#b8863e',
-                          borderRadius: '4px',
+                          borderRadius: '8px',
                         }}
                       />
                     </TableCell>
-                    <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.82rem' }}>
-                      {branchCode} · Sem {sub.semester} (Seq #{sub.sequenceNo || 1})
+                    <TableCell>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.82rem' }}>
+                        {branchCode} · Sem {sub.semester}
+                      </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                        <IconButton aria-label="edit subject" size="small" onClick={() => handleOpenEdit(sub)}>
-                          <EditOutlined fontSize="small" sx={{ color: theme.palette.text.secondary }} />
-                        </IconButton>
-                        <IconButton aria-label="delete subject" size="small" onClick={() => setDeleteId(sub._id)}>
-                          <DeleteOutline fontSize="small" sx={{ color: theme.palette.signal.error }} />
-                        </IconButton>
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.75 }}>
+                        <Tooltip title="Edit Subject" arrow>
+                          <IconButton
+                            aria-label="edit subject"
+                            size="small"
+                            onClick={() => handleOpenEdit(sub)}
+                            sx={{
+                              color: 'text.secondary',
+                              borderRadius: '8px',
+                              '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
+                            }}
+                          >
+                            <EditOutlined fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete Subject" arrow>
+                          <IconButton
+                            aria-label="delete subject"
+                            size="small"
+                            onClick={() => setDeleteId(sub._id)}
+                            sx={{
+                              color: theme.palette.signal?.error || '#ef4444',
+                              borderRadius: '8px',
+                              '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)' },
+                            }}
+                          >
+                            <DeleteOutline fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       </Box>
                     </TableCell>
                   </TableRow>

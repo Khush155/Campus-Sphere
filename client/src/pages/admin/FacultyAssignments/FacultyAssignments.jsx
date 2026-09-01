@@ -34,6 +34,7 @@ import EmptyState from '../../../components/common/EmptyState';
 
 export const FacultyAssignments = () => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
 
   // State filters
@@ -119,10 +120,13 @@ export const FacultyAssignments = () => {
       <Card
         sx={{
           p: 3.5,
-          borderRadius: '16px',
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0F 0%, ${theme.palette.secondary.main}05 100%)`,
-          boxShadow: 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(184, 134, 62, 0.06) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: theme.custom?.elevation?.raised || '0 8px 24px rgba(0,0,0,0.03)',
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
@@ -164,11 +168,25 @@ export const FacultyAssignments = () => {
       {/* ── 2. KPI Metrics Grid ───────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+          <Card
+            sx={{
+              p: 3,
+              borderRadius: '18px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
+            }}
+          >
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               TOTAL FACULTY STAFF
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 1, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
               {loadingFaculty ? <CircularProgress size={24} /> : totalFaculty}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
@@ -178,11 +196,25 @@ export const FacultyAssignments = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.primary.main }}>
+          <Card
+            sx={{
+              p: 3,
+              borderRadius: '18px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              borderTop: `4px solid ${theme.palette.signal?.success || '#10b981'}`,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
+            }}
+          >
+            <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.success || '#10b981' }}>
               ALLOCATED TO DEPTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.primary.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal?.success || '#10b981', mt: 1, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
               {loadingFaculty ? <CircularProgress size={24} /> : assignedFaculty}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
@@ -192,11 +224,25 @@ export const FacultyAssignments = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
+          <Card
+            sx={{
+              p: 3,
+              borderRadius: '18px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              borderTop: `4px solid ${theme.palette.brass?.[500] || '#f59e0b'}`,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
+            }}
+          >
+            <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.brass?.[500] || '#f59e0b' }}>
               UNASSIGNED POOL
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.brass?.[500] || '#f59e0b', mt: 1, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
               {loadingFaculty ? <CircularProgress size={24} /> : unassignedFaculty}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
@@ -206,11 +252,25 @@ export const FacultyAssignments = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 3, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+          <Card
+            sx={{
+              p: 3,
+              borderRadius: '18px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              borderTop: `4px solid ${theme.palette.signal?.info || '#3b82f6'}`,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
+            }}
+          >
+            <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.info || '#3b82f6' }}>
               DEPT COVERAGE RATIO
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal.success, mt: 1, fontFamily: theme.typography.mono.fontFamily }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.signal?.info || '#3b82f6', mt: 1, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
               {loadingDepts ? <CircularProgress size={24} /> : `${coverageRatio}%`}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>

@@ -9,13 +9,25 @@ const paginate = require('../utils/paginate');
 const createComplaint = async (complaintData, actor) => {
   const { title, description, category, priority } = complaintData;
 
+  let departmentId = actor.departmentId;
+  if (!departmentId && actor.branchId) {
+    const Branch = require('../models/Branch');
+    const branch = await Branch.findById(actor.branchId).select('hostingDepartmentId departmentId');
+    departmentId = branch?.hostingDepartmentId || branch?.departmentId;
+  }
+  if (!departmentId) {
+    const Department = require('../models/Department');
+    const firstDept = await Department.findOne().select('_id');
+    departmentId = firstDept?._id;
+  }
+
   const complaint = await Complaint.create({
     title,
     description,
     category,
     priority: priority || 'MEDIUM',
     submittedBy: actor.id,
-    departmentId: actor.departmentId,
+    departmentId,
     statusHistory: [{
       status: 'OPEN',
       changedBy: actor.id,
@@ -47,9 +59,17 @@ const getComplaints = async (queryOptions, actor) => {
     filters.slaBreached = slaBreached === 'true' || slaBreached === true;
   }
 
-  // Enforce HOD department boundaries
+  // Enforce role boundaries
   if (actor.role === ROLES.HOD) {
     filters.departmentId = actor.departmentId;
+  } else if (actor.role === ROLES.STUDENT) {
+    filters.submittedBy = actor.id;
+  } else if (actor.role === ROLES.FACULTY) {
+    if (actor.departmentId) {
+      filters.$or = [{ submittedBy: actor.id }, { departmentId: actor.departmentId }];
+    } else {
+      filters.submittedBy = actor.id;
+    }
   }
 
   // Auto-check SLA breaches on fetch
@@ -113,8 +133,27 @@ const updateComplaintStatus = async (id, statusData, actor, req) => {
     targetModel: 'Complaint',
     before,
     after: { status, resolutionRemarks, assignedTo },
-    req
+    req,
   });
+
+  // Notify submitter
+  try {
+    const { createNotification } = require('./notificationService');
+    const User = require('../models/User');
+    const submitter = await User.findById(complaint.submittedBy).select('role');
+    const targetLink = submitter?.role === ROLES.STUDENT ? '/student/complaints' : '/complaints';
+    await createNotification({
+      recipientId: complaint.submittedBy,
+      title: `🛠️ Complaint ${status}: ${complaint.title}`,
+      message: `Your complaint "${complaint.title}" has been marked as ${status.toLowerCase()}.${resolutionRemarks ? ` Remarks: ${resolutionRemarks}` : ''}`,
+      category: 'COMPLAINT',
+      link: targetLink,
+      senderId: actor.id,
+      metadata: { complaintId: complaint._id, status },
+    });
+  } catch (err) {
+    // Non-blocking
+  }
 
   return complaint;
 };

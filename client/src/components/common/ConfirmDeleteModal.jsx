@@ -33,12 +33,18 @@ export const ConfirmDeleteModal = ({
     }
   }, [open]);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (typedConfirmation && confirmInput.trim().toUpperCase() !== confirmationWord.toUpperCase()) {
       return;
     }
-    onConfirm();
-    onClose();
+    try {
+      await onConfirm();
+      if (!isDeleting) {
+        onClose();
+      }
+    } catch {
+      // Error handled by parent
+    }
   };
 
   const isConfirmDisabled = typedConfirmation && confirmInput.trim().toUpperCase() !== confirmationWord.toUpperCase();
@@ -92,7 +98,7 @@ export const ConfirmDeleteModal = ({
                 color: theme.palette.text.primary,
               }}
             >
-              Please type <Box component="span" sx={{ fontFamily: theme.typography.mono.fontFamily, color: theme.palette.primary.main }}>{confirmationWord}</Box> to proceed.
+              Please type <Box component="span" sx={{ fontFamily: theme.typography.mono?.fontFamily || 'monospace', color: theme.palette.primary.main }}>{confirmationWord}</Box> to proceed.
             </Typography>
             <TextField
               fullWidth
@@ -102,7 +108,7 @@ export const ConfirmDeleteModal = ({
               onChange={(e) => setConfirmInput(e.target.value)}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  fontFamily: theme.typography.mono.fontFamily,
+                  fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                 },
               }}
             />
@@ -125,7 +131,7 @@ export const ConfirmDeleteModal = ({
           disabled={isConfirmDisabled || isDeleting}
           variant="contained"
           sx={{
-            bgcolor: theme.palette.signal.error,
+            bgcolor: theme.palette.error?.main || theme.palette.signal?.error || '#B3432B',
             color: '#ffffff',
             fontWeight: 700,
             fontFamily: theme.typography.button.fontFamily,

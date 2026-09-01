@@ -28,7 +28,11 @@ const submitExamResult = asyncHandler(async (req, res) => {
  * @access  Private/Admin/Faculty/Student
  */
 const calculateStudentGPA = asyncHandler(async (req, res) => {
-  const summary = await examService.calculateStudentGPA(req.params.studentId);
+  let targetStudentId = req.params.studentId;
+  if (req.user.role === 'STUDENT') {
+    targetStudentId = req.user.id;
+  }
+  const summary = await examService.calculateStudentGPA(targetStudentId);
   return successResponse(res, 200, 'GPA calculated successfully', summary);
 });
 

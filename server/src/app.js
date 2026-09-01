@@ -131,7 +131,6 @@ app.use('/api/v1/reports', require('./routes/reportRoutes'));
 app.use('/api/v1/timetable', require('./routes/timetableRoutes'));
 app.use('/api/v1/cross-dept-requests', require('./routes/requestRoutes'));
 app.use('/api/v1/examinations', require('./routes/examinationRoutes'));
-app.use('/api/v1/projects', require('./routes/projectRoutes'));
 app.use('/api/v1/placements', require('./routes/placementRoutes'));
 app.use('/api/v1/leaves', require('./routes/leaveRoutes'));
 app.use('/api/v1/leave-requests', require('./routes/leaveRoutes'));
@@ -154,6 +153,7 @@ app.use('/api/v1/materials', require('./routes/materialRoutes'));
 app.use('/api/v1/notifications', require('./routes/notificationRoutes'));
 app.use('/api/v1/faculty-assignments', require('./routes/facultyAssignmentRoutes'));
 app.use('/api/v1/academics', require('./routes/academicRoutes'));
+app.use('/api/v1/fees', require('./routes/feeRoutes'));
 
 // Serve static client build in production
 if (env.NODE_ENV === 'production') {

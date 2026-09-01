@@ -39,7 +39,6 @@ import {
   BadgeOutlined,
   DeleteOutline,
   SearchOutlined,
-  QrCode2Outlined,
   CloudUploadOutlined,
   ErrorOutline,
   ArrowForwardOutlined,
@@ -47,6 +46,7 @@ import {
   GroupsOutlined,
   VerifiedUserOutlined,
   AccountBalanceOutlined,
+  PrintOutlined,
 } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -57,8 +57,10 @@ import {
   useCoursesQuery,
   useBranchesQuery,
 } from '../../../queries/collegeQueries';
+import { useCollegeProfileQuery } from '../../../queries/collegeProfileQueries';
 import { useRegisterMutation, useUsersQuery } from '../../../queries/userQueries';
 import { useToast } from '../../../contexts/ToastContext';
+import CollegiateIdCard from '../../../components/common/CollegiateIdCard';
 
 // Single admission validation schema
 const singleAdmissionSchema = z.object({
@@ -75,6 +77,7 @@ const singleAdmissionSchema = z.object({
 
 export const AdmissionsHub = () => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -95,6 +98,7 @@ export const AdmissionsHub = () => {
   const { data: courses, isLoading: loadingCourses } = useCoursesQuery();
   const { data: branches, isLoading: loadingBranches } = useBranchesQuery();
   const { data: studentsData } = useUsersQuery({ role: 'STUDENT', limit: 10 });
+  const { data: collegeProfile } = useCollegeProfileQuery();
   const registerMutation = useRegisterMutation();
 
   // Single Admission Form
@@ -364,17 +368,20 @@ export const AdmissionsHub = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
-      {/* ── 1. Header Identity & Admission KPI Dashboard ─────────────────────── */}
+      {/* ── 1. Header Identity & Admission KPI Dashboard (Glassmorphic Luxury Bar) ── */}
       <Card
         sx={{
           p: 3.5,
-          borderRadius: '16px',
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}12 0%, ${theme.palette.secondary.main}08 100%)`,
-          boxShadow: 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(184, 134, 62, 0.06) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: theme.custom?.elevation?.raised || '0 8px 24px rgba(0,0,0,0.03)',
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2.5 }}>
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
               <Chip
@@ -385,16 +392,27 @@ export const AdmissionsHub = () => {
                   bgcolor: `${theme.palette.primary.main}18`,
                   color: theme.palette.primary.main,
                   fontWeight: 800,
-                  fontFamily: theme.typography.mono.fontFamily,
+                  fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                   letterSpacing: '0.05em',
-                  fontSize: '0.7rem',
+                  fontSize: '0.68rem',
+                  borderRadius: '8px',
                 }}
               />
             </Box>
-            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+            <Typography
+              variant="h4"
+              component="h1"
+              sx={{
+                fontWeight: 800,
+                color: 'text.primary',
+                letterSpacing: '-0.02em',
+                lineHeight: 1.15,
+                mb: 0.5,
+              }}
+            >
               Student Admissions Studio
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5, maxWidth: 640 }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5, maxWidth: 680 }}>
               Admit new students into academic programs with live roll number auto-generation, department quota verification, and bulk CSV spreadsheet enrollment.
             </Typography>
           </Box>
@@ -404,7 +422,7 @@ export const AdmissionsHub = () => {
               variant="outlined"
               startIcon={<FileDownloadOutlined />}
               onClick={handleDownloadSampleCsv}
-              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
+              sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 700, height: '42px' }}
             >
               CSV Template
             </Button>
@@ -413,11 +431,13 @@ export const AdmissionsHub = () => {
               startIcon={<GroupsOutlined />}
               onClick={() => navigate('/admin/users')}
               sx={{
-                borderRadius: '8px',
+                borderRadius: '10px',
                 textTransform: 'none',
-                fontWeight: 700,
+                fontWeight: 800,
+                height: '42px',
                 background: theme.palette.primary.gradient || theme.palette.primary.main,
                 color: '#ffffff',
+                boxShadow: `0 4px 18px ${theme.palette.primary.main}40`,
               }}
             >
               View Student Roster
@@ -426,28 +446,34 @@ export const AdmissionsHub = () => {
         </Box>
 
         {/* Admission Executive KPI Strip */}
-        <Grid container spacing={2} sx={{ mt: 2 }}>
+        <Grid container spacing={2.5} sx={{ mt: 2.5 }}>
           <Grid item xs={12} sm={4}>
             <Paper
               elevation={0}
               sx={{
-                p: 2,
-                borderRadius: '12px',
-                bgcolor: theme.palette.background.paper,
+                p: 2.5,
+                borderRadius: '18px',
+                bgcolor: isDark ? 'rgba(255,255,255,0.03)' : theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
+                borderTop: `4px solid ${theme.palette.primary.main}`,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
+                transition: 'all 0.25s ease',
+                '&:hover': {
+                  transform: 'translateY(-3px)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
+                },
               }}
             >
               <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main, width: 44, height: 44 }}>
                 <PersonAddOutlined fontSize="small" />
               </Avatar>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Departments Available
                 </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
                   {loadingDepts ? '...' : depts?.length || 0} Academic Depts
                 </Typography>
               </Box>
@@ -458,23 +484,29 @@ export const AdmissionsHub = () => {
             <Paper
               elevation={0}
               sx={{
-                p: 2,
-                borderRadius: '12px',
-                bgcolor: theme.palette.background.paper,
+                p: 2.5,
+                borderRadius: '18px',
+                bgcolor: isDark ? 'rgba(255,255,255,0.03)' : theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
+                borderTop: `4px solid ${theme.palette.signal?.success || '#10b981'}`,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
+                transition: 'all 0.25s ease',
+                '&:hover': {
+                  transform: 'translateY(-3px)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
+                },
               }}
             >
-              <Avatar sx={{ bgcolor: `${theme.palette.signal.success}15`, color: theme.palette.signal.success, width: 44, height: 44 }}>
+              <Avatar sx={{ bgcolor: `${theme.palette.signal?.success || '#10b981'}15`, color: theme.palette.signal?.success || '#10b981', width: 44, height: 44 }}>
                 <AccountBalanceOutlined fontSize="small" />
               </Avatar>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Degree Courses
                 </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
                   {loadingCourses ? '...' : courses?.length || 0} Programs Active
                 </Typography>
               </Box>
@@ -485,23 +517,29 @@ export const AdmissionsHub = () => {
             <Paper
               elevation={0}
               sx={{
-                p: 2,
-                borderRadius: '12px',
-                bgcolor: theme.palette.background.paper,
+                p: 2.5,
+                borderRadius: '18px',
+                bgcolor: isDark ? 'rgba(255,255,255,0.03)' : theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
+                borderTop: `4px solid ${theme.palette.signal?.info || '#3b82f6'}`,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
+                transition: 'all 0.25s ease',
+                '&:hover': {
+                  transform: 'translateY(-3px)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
+                },
               }}
             >
-              <Avatar sx={{ bgcolor: `${theme.palette.signal.info}15`, color: theme.palette.signal.info, width: 44, height: 44 }}>
+              <Avatar sx={{ bgcolor: `${theme.palette.signal?.info || '#3b82f6'}15`, color: theme.palette.signal?.info || '#3b82f6', width: 44, height: 44 }}>
                 <VerifiedUserOutlined fontSize="small" />
               </Avatar>
               <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Branch Specializations
                 </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
                   {loadingBranches ? '...' : branches?.length || 0} Specializations
                 </Typography>
               </Box>
@@ -511,7 +549,7 @@ export const AdmissionsHub = () => {
       </Card>
 
       {/* ── 2. Admissions Studio Tabs ────────────────────────────────────────── */}
-      <Card sx={{ borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+      <Card sx={{ borderRadius: '18px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper }}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 3, pt: 1, bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.01)' }}>
           <Tabs value={tabIndex} onChange={(e, val) => setTabIndex(val)} sx={{ '& .MuiTab-root': { py: 2 } }}>
             <Tab label="Single Admission Desk" icon={<PersonAddOutlined />} iconPosition="start" sx={{ fontWeight: 700, textTransform: 'none' }} />
@@ -734,108 +772,56 @@ export const AdmissionsHub = () => {
                 </Box>
               </Grid>
 
-              {/* Right Column: Live Student Admission Digital Card Preview */}
+              {/* Right Column: Live Physical Collegiate ID Card Preview */}
               <Grid item xs={12} lg={5}>
-                <Paper
-                  elevation={0}
+                <Box
                   sx={{
-                    p: 3.5,
-                    borderRadius: '16px',
-                    border: `1px solid ${theme.palette.primary.main}30`,
-                    background: `linear-gradient(145deg, ${theme.palette.background.paper} 0%, ${theme.palette.primary.main}08 100%)`,
+                    p: 2.5,
+                    borderRadius: '18px',
+                    border: `1px solid ${theme.palette.divider}`,
+                    bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+                    position: 'sticky',
+                    top: 24,
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    textAlign: 'center',
-                    position: 'sticky',
-                    top: 24,
                   }}
                 >
-                  <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
+                  <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Chip
-                      label="LIVE ID CARD PREVIEW"
+                      icon={<BadgeOutlined sx={{ fontSize: '0.9rem !important' }} />}
+                      label="PHYSICAL ID CARD PREVIEW"
                       size="small"
                       sx={{
                         bgcolor: `${theme.palette.primary.main}15`,
                         color: theme.palette.primary.main,
                         fontWeight: 800,
-                        fontSize: '0.65rem',
+                        fontSize: '0.68rem',
+                        borderRadius: '6px',
                       }}
                     />
-                    <BadgeOutlined sx={{ color: theme.palette.primary.main }} />
-                  </Box>
-
-                  <Avatar
-                    sx={{
-                      width: 80,
-                      height: 80,
-                      bgcolor: `${theme.palette.primary.main}20`,
-                      color: theme.palette.primary.main,
-                      fontWeight: 800,
-                      fontSize: '2rem',
-                      mb: 2,
-                      border: `3px solid ${theme.palette.primary.main}`,
-                    }}
-                  >
-                    {watchName ? watchName.charAt(0).toUpperCase() : 'S'}
-                  </Avatar>
-
-                  <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
-                    {watchName || 'Student Name'}
-                  </Typography>
-
-                  <Typography variant="body2" sx={{ fontFamily: theme.typography.mono.fontFamily, color: theme.palette.primary.main, fontWeight: 700, mt: 0.5 }}>
-                    {watchRoll || '2026-ROLL-NUMBER'}
-                  </Typography>
-
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-                    {watchEmail || 'student.email@campussphere.edu'}
-                  </Typography>
-
-                  <Box sx={{ width: '100%', bgcolor: theme.palette.background.paper, p: 2, borderRadius: '12px', border: `1px solid ${theme.palette.divider}`, textAlign: 'left', mb: 2.5 }}>
-                    <Grid container spacing={1.5}>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.7rem' }}>
-                          DEPARTMENT
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.8rem' }}>
-                          {deptObj?.code || 'Not Selected'}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.7rem' }}>
-                          DEGREE COURSE
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.8rem' }}>
-                          {courseObj?.code || 'Not Selected'}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.7rem' }}>
-                          SPECIALIZATION
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.8rem' }}>
-                          {branchObj?.code || 'Not Selected'}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.7rem' }}>
-                          SEMESTER
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.8rem' }}>
-                          Semester {watchSemester || 1}
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                  </Box>
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: theme.palette.text.secondary }}>
-                    <QrCode2Outlined sx={{ fontSize: 28 }} />
-                    <Typography variant="caption" sx={{ fontSize: '0.7rem', textAlign: 'left' }}>
-                      Official CampusSphere Digital ID Voucher Generated upon Admission Confirmation
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Live Rendering
                     </Typography>
                   </Box>
-                </Paper>
+
+                  <CollegiateIdCard
+                    name={watchName || 'Student Name'}
+                    rollNumber={watchRoll || '2026-ROLL-NUMBER'}
+                    role="STUDENT"
+                    department={deptObj?.name || 'Department Name'}
+                    course={courseObj?.code || courseObj?.name || 'B.Tech'}
+                    branch={branchObj?.code || branchObj?.name || 'General'}
+                    semester={watchSemester || 1}
+                    email={watchEmail || 'student@campussphere.edu'}
+                    collegeName={collegeProfile?.name || 'CAMPUS SPHERE UNIVERSITY'}
+                    collegeLogo={collegeProfile?.logoUrl}
+                  />
+
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block', textAlign: 'center', fontSize: '0.72rem' }}>
+                    Physical ISO/IEC PVC format with barcode, RFID chip mockup &amp; digital verification pass.
+                  </Typography>
+                </Box>
               </Grid>
             </Grid>
           )}
@@ -1101,63 +1087,65 @@ export const AdmissionsHub = () => {
           PaperProps={{ sx: { borderRadius: 4, p: 1 } }}
         >
           <DialogTitle sx={{ textAlign: 'center', pt: 3, pb: 1 }}>
-            <Avatar sx={{ width: 64, height: 64, bgcolor: `${theme.palette.signal.success}18`, color: theme.palette.signal.success, mx: 'auto', mb: 1.5 }}>
-              <CheckCircleOutlined sx={{ fontSize: 36 }} />
+            <Avatar sx={{ width: 56, height: 56, bgcolor: `${theme.palette.signal?.success || '#10b981'}18`, color: theme.palette.signal?.success || '#10b981', mx: 'auto', mb: 1.5 }}>
+              <CheckCircleOutlined sx={{ fontSize: 32 }} />
             </Avatar>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+            <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary' }}>
               Admission Confirmed!
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Official student account has been created.
+              Official student account &amp; physical identity card generated.
             </Typography>
           </DialogTitle>
-          <DialogContent>
-            <Paper elevation={0} sx={{ p: 2.5, borderRadius: '12px', bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)', border: `1px solid ${theme.palette.divider}` }}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="caption" color="text.secondary">NAME</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{successModalData?.name}</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="caption" color="text.secondary">ROLL NUMBER</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: theme.typography.mono.fontFamily, fontWeight: 800, color: theme.palette.primary.main }}>
-                    {successModalData?.rollNumber}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="caption" color="text.secondary">EMAIL</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem' }}>
-                    {successModalData?.email}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="caption" color="text.secondary">COURSE / BRANCH</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    {successModalData?.courseName} ({successModalData?.branchName})
-                  </Typography>
-                </Box>
-              </Box>
-            </Paper>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 2 }}>
+            <CollegiateIdCard
+              id="admission-confirmed-id-card"
+              name={successModalData?.name}
+              rollNumber={successModalData?.rollNumber}
+              role="STUDENT"
+              department={successModalData?.departmentName || deptObj?.name || 'Department'}
+              course={successModalData?.courseName || courseObj?.code || 'B.Tech'}
+              branch={successModalData?.branchName || branchObj?.code || 'General'}
+              semester={successModalData?.semester || 1}
+              email={successModalData?.email}
+              collegeName={collegeProfile?.name || 'CAMPUS SPHERE UNIVERSITY'}
+              collegeLogo={collegeProfile?.logoUrl}
+            />
           </DialogContent>
-          <DialogActions sx={{ p: 3, pt: 1, justifyContent: 'space-between' }}>
-            <Button variant="outlined" onClick={() => setSuccessModalData(null)} sx={{ borderRadius: '8px' }}>
+          <DialogActions sx={{ p: 3, pt: 1, justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
+            <Button
+              variant="outlined"
+              onClick={() => setSuccessModalData(null)}
+              sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600 }}
+            >
               Close
             </Button>
-            <Button
-              variant="contained"
-              onClick={() => {
-                setSuccessModalData(null);
-                navigate('/admin/users');
-              }}
-              sx={{
-                borderRadius: '8px',
-                fontWeight: 700,
-                background: theme.palette.primary.gradient || theme.palette.primary.main,
-                color: '#ffffff',
-              }}
-            >
-              View in Users Roster
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1.5 }}>
+              <Button
+                variant="outlined"
+                startIcon={<PrintOutlined />}
+                onClick={() => window.print()}
+                sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 700 }}
+              >
+                Print Student ID Pass
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  setSuccessModalData(null);
+                  navigate('/admin/users');
+                }}
+                sx={{
+                  borderRadius: '10px',
+                  fontWeight: 800,
+                  textTransform: 'none',
+                  background: theme.palette.primary.gradient || theme.palette.primary.main,
+                  color: '#ffffff',
+                }}
+              >
+                View in Users Roster
+              </Button>
+            </Box>
           </DialogActions>
         </Dialog>
       )}

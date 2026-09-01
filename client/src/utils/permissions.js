@@ -28,6 +28,7 @@ export const canCreate = (userRole, entityType) => {
     case 'ID_CARD':
     case 'CERTIFICATE':
     case 'REPORT':
+    case 'BULK_PROMOTION':
       return userRole === ROLES.COLLEGE_ADMIN;
     case 'SUBJECT':
     case 'NOTICE':

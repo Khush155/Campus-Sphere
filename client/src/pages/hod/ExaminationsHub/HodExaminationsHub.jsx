@@ -19,6 +19,7 @@ import {
   Switch,
   FormControlLabel,
   Tooltip,
+  IconButton,
 } from '@mui/material';
 import {
   AddOutlined,
@@ -34,6 +35,9 @@ import {
   CheckCircleOutlined,
   ScheduleOutlined,
   FilterListOutlined,
+  DeleteOutline,
+  GradingOutlined,
+  SchoolOutlined,
 } from '@mui/icons-material';
 import DataTable from '../../../components/common/DataTable';
 import EmptyState from '../../../components/common/EmptyState';
@@ -42,9 +46,11 @@ import {
   useCreateExaminationsMutation,
   useExamStatsQuery,
   useToggleMarksEntryMutation,
+  useDeleteExaminationMutation,
 } from '../../../queries/hodQueries';
-import { useSubjectsQuery } from '../../../queries/collegeQueries';
+import { useSubjectsQuery, useCoursesQuery, useBranchesQuery } from '../../../queries/collegeQueries';
 import { useToast } from '../../../contexts/ToastContext';
+import ResultsDeskModal from './ResultsDeskModal';
 
 const EXAM_TYPES = ['INTERNAL', 'EXTERNAL', 'PRACTICAL', 'VIVA'];
 const DATESHEET_SLOTS = ['MORNING', 'AFTERNOON', 'EVENING'];
@@ -70,24 +76,33 @@ const getDaysInfo = (dateStr) => {
 
 const KpiCard = ({ label, value, color, icon, sublabel, accentColor }) => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  const finalColor = accentColor || color;
   return (
     <Card
       sx={{
         p: 2.5,
-        borderRadius: '14px',
-        border: `1px solid ${theme.palette.divider}`,
-        borderTop: `4px solid ${accentColor || color}`,
-        boxShadow: 'none',
+        borderRadius: '18px',
+        border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+        borderTop: `4px solid ${finalColor}`,
+        bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+        boxShadow: theme.custom?.elevation?.raised || 'none',
         height: '100%',
+        transition: 'all 0.25s ease',
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+          borderColor: finalColor,
+        },
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.06em', color: accentColor || color, textTransform: 'uppercase', fontSize: '0.65rem' }}>
+        <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.06em', color: finalColor, textTransform: 'uppercase', fontSize: '0.65rem' }}>
           {label}
         </Typography>
-        <Box sx={{ color: accentColor || color, opacity: 0.7 }}>{icon}</Box>
+        <Box sx={{ color: finalColor, opacity: 0.7 }}>{icon}</Box>
       </Box>
-      <Typography variant="h3" sx={{ fontWeight: 900, color: accentColor || color, mt: 1, fontFamily: 'monospace', lineHeight: 1.1 }}>
+      <Typography variant="h3" sx={{ fontWeight: 900, color: finalColor, mt: 1, fontFamily: theme.typography.mono?.fontFamily || 'monospace', lineHeight: 1.1 }}>
         {value}
       </Typography>
       {sublabel && (
@@ -104,12 +119,22 @@ export const HodExaminationsHub = () => {
   const { showToast } = useToast();
   const [openModal, setOpenModal] = useState(false);
   const [selectedExamId, setSelectedExamId] = useState(null);
+  const [selectedExamForGrading, setSelectedExamForGrading] = useState(null);
+  const [examToDelete, setExamToDelete] = useState(null);
   const [syllabusInput, setSyllabusInput] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [courseFilter, setCourseFilter] = useState('ALL');
+  const [branchFilter, setBranchFilter] = useState('ALL');
+  const [semesterFilter, setSemesterFilter] = useState('ALL');
+
   const [formData, setFormData] = useState({
     title: '',
     type: 'INTERNAL',
+    courseId: '',
+    branchId: '',
+    semester: '',
+    academicYear: '2025-2026',
     subjectId: '',
     date: '',
     totalMarks: '',
@@ -126,21 +151,28 @@ export const HodExaminationsHub = () => {
   const { data: exams = [], isLoading, refetch } = useExaminationsQuery();
   const { data: statsData } = useExamStatsQuery(selectedExamId);
   const { data: subjectsData = [] } = useSubjectsQuery({ limit: 1000 });
+  const { data: courses = [] } = useCoursesQuery();
+  const { data: branches = [] } = useBranchesQuery();
+
   const createMutation = useCreateExaminationsMutation();
   const toggleMarksMutation = useToggleMarksEntryMutation();
+  const deleteMutation = useDeleteExaminationMutation();
 
   const totalExams = exams.length;
   const scheduledExams = exams.filter((e) => e.status === 'SCHEDULED').length;
   const publishedExams = exams.filter((e) => e.status === 'RESULTS_PUBLISHED').length;
   const completedExams = exams.filter((e) => e.status === 'COMPLETED').length;
 
-  // Filtered exams
+  // Filtered exams with Course, Branch, and Semester scoping
   const filteredExams = useMemo(() => {
     let list = exams;
     if (typeFilter !== 'ALL') list = list.filter((e) => e.type === typeFilter);
     if (statusFilter !== 'ALL') list = list.filter((e) => e.status === statusFilter);
+    if (courseFilter !== 'ALL') list = list.filter((e) => (e.courseId?._id || e.courseId) === courseFilter);
+    if (branchFilter !== 'ALL') list = list.filter((e) => (e.branchId?._id || e.branchId) === branchFilter);
+    if (semesterFilter !== 'ALL') list = list.filter((e) => Number(e.semester) === Number(semesterFilter));
     return list;
-  }, [exams, typeFilter, statusFilter]);
+  }, [exams, typeFilter, statusFilter, courseFilter, branchFilter, semesterFilter]);
 
   const columns = [
     {
@@ -183,6 +215,32 @@ export const HodExaminationsHub = () => {
                 {r.subjectId ? `${r.subjectId.name} (${r.subjectId.code})` : 'General'}
               </Typography>
             </Box>
+          </Box>
+        );
+      },
+    },
+    {
+      id: 'cohort',
+      label: 'Target Cohort',
+      render: (r) => {
+        const cCode = r.courseId?.code || 'Course';
+        const bCode = r.branchId?.code || 'Branch';
+        const sem = r.semester ? `Sem ${r.semester}` : '';
+        return (
+          <Box>
+            <Chip
+              icon={<SchoolOutlined sx={{ fontSize: '0.75rem !important' }} />}
+              label={`${cCode} • ${bCode}`}
+              size="small"
+              variant="outlined"
+              color="primary"
+              sx={{ fontWeight: 800, fontSize: '0.68rem', mb: 0.25 }}
+            />
+            {sem && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 700 }}>
+                {sem} {r.academicYear ? `(${r.academicYear})` : ''}
+              </Typography>
+            )}
           </Box>
         );
       },
@@ -268,19 +326,49 @@ export const HodExaminationsHub = () => {
       },
     },
     {
-      id: 'stats',
-      label: 'Performance',
+      id: 'actions',
+      label: 'Evaluation & Actions',
       render: (r) => (
-        <Button
-          size="small"
-          variant={r.status === 'RESULTS_PUBLISHED' ? 'contained' : 'outlined'}
-          startIcon={<BarChart sx={{ fontSize: '0.9rem !important' }} />}
-          onClick={() => setSelectedExamId(r.status === 'RESULTS_PUBLISHED' ? (r._id || r.id) : null)}
-          disabled={r.status !== 'RESULTS_PUBLISHED'}
-          sx={{ borderRadius: '6px', textTransform: 'none', fontWeight: 700, fontSize: '0.72rem' }}
-        >
-          {r.status === 'RESULTS_PUBLISHED' ? 'Class Stats' : 'Pending'}
-        </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+          <Button
+            size="small"
+            variant={r.status === 'RESULTS_PUBLISHED' ? 'outlined' : 'contained'}
+            color="primary"
+            startIcon={<GradingOutlined sx={{ fontSize: 15 }} />}
+            onClick={() => setSelectedExamForGrading(r)}
+            sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700, fontSize: '0.72rem', py: 0.4, px: 1.2 }}
+          >
+            {r.status === 'RESULTS_PUBLISHED' ? 'Review Desk' : 'Results Desk'}
+          </Button>
+          {r.status === 'RESULTS_PUBLISHED' && (
+            <Tooltip title="View Class Performance Stats">
+              <IconButton
+                size="small"
+                color="info"
+                onClick={() => setSelectedExamId(selectedExamId === (r._id || r.id) ? null : (r._id || r.id))}
+                sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: '8px', p: 0.6 }}
+              >
+                <BarChart sx={{ fontSize: 17 }} />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Tooltip title="Delete Examination">
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => setExamToDelete(r)}
+              sx={{
+                border: `1px solid ${theme.palette.error.main}30`,
+                bgcolor: `${theme.palette.error.main}08`,
+                borderRadius: '8px',
+                p: 0.6,
+                '&:hover': { bgcolor: `${theme.palette.error.main}20`, borderColor: theme.palette.error.main },
+              }}
+            >
+              <DeleteOutline sx={{ fontSize: 17 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
       ),
     },
     {
@@ -318,12 +406,92 @@ export const HodExaminationsHub = () => {
     },
   ];
 
+  const handleCourseChange = (e) => {
+    const cId = e.target.value;
+    setFormData((p) => ({
+      ...p,
+      courseId: cId,
+      branchId: '',
+      semester: '',
+      subjectId: '',
+    }));
+  };
+
+  const handleBranchChange = (e) => {
+    const bId = e.target.value;
+    setFormData((p) => ({
+      ...p,
+      branchId: bId,
+      subjectId: '',
+    }));
+  };
+
+  const handleSubjectSelect = (subId) => {
+    const sub = subjectsData.find((s) => (s._id || s.id) === subId);
+    if (sub) {
+      const bId = sub.branchId?._id || sub.branchId;
+      const branch = branches.find((b) => (b._id || b.id) === bId);
+      const cId = branch?.courseId?._id || branch?.courseId;
+      setFormData((prev) => ({
+        ...prev,
+        subjectId: subId,
+        branchId: prev.branchId || bId || '',
+        courseId: prev.courseId || cId || '',
+        semester: prev.semester || sub.semester || '',
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, subjectId: subId }));
+    }
+  };
+
+  const handleDeleteExam = () => {
+    if (!examToDelete) return;
+    deleteMutation.mutate(examToDelete._id || examToDelete.id, {
+      onSuccess: () => {
+        showToast('Examination deleted successfully.');
+        setExamToDelete(null);
+        if (selectedExamId === (examToDelete._id || examToDelete.id)) {
+          setSelectedExamId(null);
+        }
+        refetch();
+      },
+      onError: (err) => {
+        showToast(err.response?.data?.message || 'Failed to delete examination', { severity: 'error' });
+      },
+    });
+  };
+
+  const selectedCourse = useMemo(() => {
+    return courses.find((c) => (c._id || c.id) === formData.courseId) || null;
+  }, [courses, formData.courseId]);
+
+  const maxSemesters = useMemo(() => {
+    return (selectedCourse?.durationYears || 4) * 2;
+  }, [selectedCourse]);
+
+  const availableBranchesForForm = useMemo(() => {
+    if (!formData.courseId) return branches;
+    return branches.filter((b) => (b.courseId?._id || b.courseId) === formData.courseId);
+  }, [branches, formData.courseId]);
+
+  const availableSubjectsForForm = useMemo(() => {
+    return subjectsData.filter((s) => {
+      if (formData.branchId && (s.branchId?._id || s.branchId) !== formData.branchId) return false;
+      if (formData.semester && Number(s.semester) !== Number(formData.semester)) return false;
+      return true;
+    });
+  }, [subjectsData, formData.branchId, formData.semester]);
+
   const handleChange = (e) => setFormData((p) => ({ ...p, [e.target.name]: e.target.value }));
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const payload = new FormData();
-    Object.entries(formData).forEach(([key, val]) => payload.append(key, val));
+    Object.entries(formData).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== '') {
+        payload.append(key, val);
+      }
+    });
     const syllabus = syllabusInput.split('\n').map((s) => s.trim()).filter(Boolean);
     syllabus.forEach((item) => payload.append('syllabus[]', item));
     if (datesheetFile) payload.append('datesheet', datesheetFile);
@@ -334,7 +502,23 @@ export const HodExaminationsHub = () => {
         setDatesheetFile(null);
         setSeatingPlanFile(null);
         setSyllabusInput('');
-        setFormData({ title: '', type: 'INTERNAL', subjectId: '', date: '', totalMarks: '', passingMarks: '', venue: '', duration: '', datesheetSlot: 'MORNING', reportingTime: '', instructions: '' });
+        setFormData({
+          title: '',
+          type: 'INTERNAL',
+          courseId: '',
+          branchId: '',
+          semester: '',
+          academicYear: '2025-2026',
+          subjectId: '',
+          date: '',
+          totalMarks: '',
+          passingMarks: '',
+          venue: '',
+          duration: '',
+          datesheetSlot: 'MORNING',
+          reportingTime: '',
+          instructions: '',
+        });
         showToast('Examination scheduled successfully.');
         refetch();
       },
@@ -346,16 +530,23 @@ export const HodExaminationsHub = () => {
   const gradeDistribution = statsData?.gradeDistribution || [];
   const maxGradeCount = Math.max(...gradeDistribution.map((g) => g.count), 1);
 
+  const isDark = theme.palette.mode === 'dark';
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       {/* ── 1. Hero Banner ─────────────────────────────────────────────────── */}
       <Card
         sx={{
-          p: 3.5,
-          borderRadius: '16px',
+          p: { xs: 2.5, md: 3.5 },
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}08 100%)`,
-          boxShadow: 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.14) 0%, rgba(184, 134, 62, 0.08) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: isDark
+            ? '0 18px 40px -15px rgba(0,0,0,0.5)'
+            : '0 18px 40px -15px rgba(79, 70, 229, 0.08)',
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
@@ -480,6 +671,68 @@ export const HodExaminationsHub = () => {
       <Card sx={{ borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', overflow: 'hidden' }}>
         {/* Filter Bar */}
         <Box sx={{ px: 3, pt: 2.5, pb: 2, borderBottom: `1px solid ${theme.palette.divider}`, display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+          {/* Course filter */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <SchoolOutlined sx={{ fontSize: 16, color: 'text.secondary' }} />
+            <TextField
+              select
+              size="small"
+              label="Course"
+              value={courseFilter}
+              onChange={(e) => {
+                setCourseFilter(e.target.value);
+                setBranchFilter('ALL');
+                setSemesterFilter('ALL');
+              }}
+              sx={{ minWidth: 130 }}
+            >
+              <MenuItem value="ALL">All Courses</MenuItem>
+              {courses.map((c) => (
+                <MenuItem key={c._id || c.id} value={c._id || c.id}>
+                  {c.code || c.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Box>
+
+          {/* Branch filter */}
+          <TextField
+            select
+            size="small"
+            label="Branch"
+            value={branchFilter}
+            onChange={(e) => setBranchFilter(e.target.value)}
+            sx={{ minWidth: 140 }}
+          >
+            <MenuItem value="ALL">All Branches</MenuItem>
+            {branches
+              .filter((b) => courseFilter === 'ALL' || (b.courseId?._id || b.courseId) === courseFilter)
+              .map((b) => (
+                <MenuItem key={b._id || b.id} value={b._id || b.id}>
+                  {b.code || b.name}
+                </MenuItem>
+              ))}
+          </TextField>
+
+          {/* Semester filter */}
+          <TextField
+            select
+            size="small"
+            label="Semester"
+            value={semesterFilter}
+            onChange={(e) => setSemesterFilter(e.target.value)}
+            sx={{ minWidth: 110 }}
+          >
+            <MenuItem value="ALL">All Sem</MenuItem>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((sm) => (
+              <MenuItem key={sm} value={String(sm)}>
+                Sem {sm}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <FilterListOutlined sx={{ fontSize: 16, color: 'text.secondary' }} />
             <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '0.05em' }}>
@@ -541,7 +794,7 @@ export const HodExaminationsHub = () => {
             <EmptyState
               type="reports"
               title={totalExams === 0 ? 'No Examinations Scheduled' : 'No Exams Match Filters'}
-              description={totalExams === 0 ? 'Schedule your first mid-term or semester examination.' : 'Try adjusting the type or status filter.'}
+              description={totalExams === 0 ? 'Schedule your first mid-term or semester examination.' : 'Try adjusting the type, course, or status filter.'}
               actionText={totalExams === 0 ? 'Schedule First Exam' : undefined}
               onAction={totalExams === 0 ? () => setOpenModal(true) : undefined}
             />
@@ -551,7 +804,7 @@ export const HodExaminationsHub = () => {
         </Box>
       </Card>
 
-      {/* ── 5. Schedule Exam Modal ────────────────────────────────────────── */}
+      {/* ── 5. Schedule Exam Modal with Cascading Academic Scoping ─────────── */}
       <Dialog open={openModal} onClose={() => setOpenModal(false)} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
         <DialogTitle sx={{ fontWeight: 800, borderBottom: `1px solid ${theme.palette.divider}`, pb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -569,24 +822,103 @@ export const HodExaminationsHub = () => {
                 <TextField label="Exam Title" name="title" value={formData.title} onChange={handleChange} required fullWidth placeholder="e.g. Mid-Term Theory Examination — Semester 4" />
               </Grid>
 
-              {/* Row 2: Type + Subject */}
+              {/* Row 2: Academic Scoping (Course, Branch, Semester, Academic Year) */}
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  select
+                  label="Target Course"
+                  name="courseId"
+                  value={formData.courseId}
+                  onChange={handleCourseChange}
+                  required
+                  fullWidth
+                >
+                  <MenuItem value="" disabled>Select Course</MenuItem>
+                  {courses.map((c) => (
+                    <MenuItem key={c._id || c.id} value={c._id || c.id}>
+                      {c.name} ({c.code})
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  select
+                  label="Target Branch"
+                  name="branchId"
+                  value={formData.branchId}
+                  onChange={handleBranchChange}
+                  required
+                  fullWidth
+                >
+                  <MenuItem value="" disabled>Select Branch</MenuItem>
+                  {availableBranchesForForm.map((b) => (
+                    <MenuItem key={b._id || b.id} value={b._id || b.id}>
+                      {b.name} ({b.code})
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  select
+                  label="Semester"
+                  name="semester"
+                  value={formData.semester}
+                  onChange={(e) => setFormData((p) => ({ ...p, semester: e.target.value, subjectId: '' }))}
+                  required
+                  fullWidth
+                >
+                  <MenuItem value="" disabled>Select Semester</MenuItem>
+                  {Array.from({ length: maxSemesters }, (_, i) => i + 1).map((sm) => (
+                    <MenuItem key={sm} value={sm}>
+                      Semester {sm}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  label="Academic Year"
+                  name="academicYear"
+                  value={formData.academicYear}
+                  onChange={handleChange}
+                  fullWidth
+                  placeholder="2025-2026"
+                />
+              </Grid>
+
+              {/* Row 3: Type + Subject */}
               <Grid item xs={12} sm={4}>
                 <TextField select label="Exam Type" name="type" value={formData.type} onChange={handleChange} required fullWidth>
                   {EXAM_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={8}>
-                <TextField select label="Curriculum Subject" name="subjectId" value={formData.subjectId} onChange={handleChange} required fullWidth>
-                  <MenuItem value="" disabled>Select Subject</MenuItem>
-                  {subjectsData.map((s) => (
+                <TextField
+                  select
+                  label="Curriculum Subject"
+                  name="subjectId"
+                  value={formData.subjectId}
+                  onChange={(e) => handleSubjectSelect(e.target.value)}
+                  required
+                  fullWidth
+                >
+                  <MenuItem value="" disabled>
+                    {availableSubjectsForForm.length === 0 ? 'No subjects found for selected Branch/Sem' : 'Select Subject'}
+                  </MenuItem>
+                  {availableSubjectsForForm.map((s) => (
                     <MenuItem key={s._id || s.id} value={s._id || s.id}>
-                      {s.name} ({s.code}) — Sem {s.semester}
+                      {s.name} ({s.code}) &bull; Sem {s.semester} &bull; {s.type || 'THEORY'}
                     </MenuItem>
                   ))}
                 </TextField>
               </Grid>
 
-              {/* Row 3: Date + Slot + Reporting */}
+              {/* Row 4: Date + Slot + Reporting */}
               <Grid item xs={12} sm={4}>
                 <TextField label="Exam Date" name="date" type="date" value={formData.date} onChange={handleChange} required fullWidth InputLabelProps={{ shrink: true }} />
               </Grid>
@@ -599,7 +931,7 @@ export const HodExaminationsHub = () => {
                 <TextField label="Reporting Time" name="reportingTime" placeholder="09:00 AM" value={formData.reportingTime} onChange={handleChange} fullWidth />
               </Grid>
 
-              {/* Row 4: Marks + Duration + Venue */}
+              {/* Row 5: Marks + Duration + Venue */}
               <Grid item xs={12} sm={3}>
                 <TextField label="Total Marks" name="totalMarks" type="number" value={formData.totalMarks} onChange={handleChange} required fullWidth />
               </Grid>
@@ -613,7 +945,7 @@ export const HodExaminationsHub = () => {
                 <TextField label="Venue / Room" name="venue" value={formData.venue} onChange={handleChange} fullWidth placeholder="Hall A, Block 3" />
               </Grid>
 
-              {/* Row 5: File Uploads */}
+              {/* Row 6: File Uploads */}
               <Grid item xs={12}>
                 <Divider>
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>OFFICIAL DOCUMENTS (OPTIONAL)</Typography>
@@ -628,7 +960,7 @@ export const HodExaminationsHub = () => {
                 <TextField type="file" inputProps={{ accept: 'application/pdf' }} onChange={(e) => setSeatingPlanFile(e.target.files[0])} fullWidth size="small" />
               </Grid>
 
-              {/* Row 6: Syllabus + Instructions */}
+              {/* Row 7: Syllabus + Instructions */}
               <Grid item xs={12} sm={6}>
                 <TextField
                   label="Syllabus Topics (one per line)"
@@ -653,6 +985,82 @@ export const HodExaminationsHub = () => {
           </DialogActions>
         </form>
       </Dialog>
+
+      {/* ── 6. Confirm Delete Exam Dialog ───────────────────────────────── */}
+      <Dialog
+        open={Boolean(examToDelete)}
+        onClose={() => setExamToDelete(null)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: '18px', p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: 'error.main', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box
+            sx={{
+              width: 38,
+              height: 38,
+              borderRadius: '10px',
+              bgcolor: 'rgba(239, 68, 68, 0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <DeleteOutline sx={{ color: 'error.main', fontSize: 22 }} />
+          </Box>
+          Delete Examination
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Are you sure you want to permanently delete this examination?
+          </Typography>
+          <Box
+            sx={{
+              p: 1.75,
+              borderRadius: '10px',
+              bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+              border: `1px solid ${theme.palette.divider}`,
+              mb: 2,
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 800 }}>
+              {examToDelete?.title}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Subject: <strong>{examToDelete?.subjectId?.name} ({examToDelete?.subjectId?.code})</strong>
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Cohort: {examToDelete?.courseId?.code || 'Course'} &bull; {examToDelete?.branchId?.code || 'Branch'} &bull; Sem {examToDelete?.semester}
+            </Typography>
+          </Box>
+          <Typography variant="caption" color="error.main" sx={{ fontWeight: 700 }}>
+            ⚠ Warning: This action cannot be undone and will permanently delete all evaluated results and grades associated with this examination.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1.5 }}>
+          <Button onClick={() => setExamToDelete(null)} variant="outlined" sx={{ borderRadius: '8px', fontWeight: 700 }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteExam}
+            variant="contained"
+            color="error"
+            disabled={deleteMutation.isPending}
+            startIcon={<DeleteOutline />}
+            sx={{ borderRadius: '8px', fontWeight: 800, px: 3 }}
+          >
+            {deleteMutation.isPending ? 'Deleting...' : 'Delete Exam'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── 7. Results & Marks Evaluation Desk Modal ────────────────────── */}
+      <ResultsDeskModal
+        open={Boolean(selectedExamForGrading)}
+        onClose={() => setSelectedExamForGrading(null)}
+        examination={selectedExamForGrading}
+        onSuccess={() => refetch()}
+      />
     </Box>
   );
 };

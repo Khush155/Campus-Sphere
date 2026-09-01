@@ -68,9 +68,10 @@ const timetableSlotSchema = new mongoose.Schema(
 );
 
 // We rely on the conflict detection engine to prevent overlapping slots.
-// We can index common queries to improve performance.
+// Index common queries and enforce unique slot schedule per cohort & group
 timetableSlotSchema.index({ departmentId: 1, courseId: 1, branchId: 1, semester: 1 });
 timetableSlotSchema.index({ facultyId: 1, dayOfWeek: 1 });
+timetableSlotSchema.index({ departmentId: 1, courseId: 1, branchId: 1, semester: 1, group: 1, dayOfWeek: 1, startTime: 1, endTime: 1 });
 
 const TimetableSlot = mongoose.model('TimetableSlot', timetableSlotSchema);
 

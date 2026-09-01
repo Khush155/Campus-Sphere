@@ -93,44 +93,59 @@ const resolveNotificationTargetRoute = (notification, userRole) => {
   if (rawLink) {
     if (userRole === 'HOD') {
       if (category === 'LEAVE' || rawLink.includes('leave') || rawLink === '/hod/reports') return '/hod/leave-management';
-      if (rawLink === '/notices') return '/hod/notices';
-      if (rawLink === '/attendance') return '/hod/attendance';
-      if (rawLink === '/assignments') return '/hod/faculty-assignment';
-      if (rawLink === '/complaints') return '/hod/complaints';
+      if (rawLink === '/notices' || rawLink === '/student/notices') return '/hod/notices';
+      if (rawLink === '/attendance' || rawLink === '/student/attendance') return '/hod/attendance';
+      if (rawLink === '/assignments' || rawLink === '/student/assignments') return '/hod/faculty-assignment';
+      if (rawLink === '/complaints' || rawLink === '/student/complaints') return '/hod/complaints';
       if (rawLink === '/meetings') return '/hod/meetings';
+      if (rawLink === '/documents' || rawLink === '/student/documents') return '/hod/documents';
+      if (rawLink === '/placements' || rawLink === '/student/placements') return '/hod/placements';
     } else if (userRole === 'FACULTY') {
-      if (rawLink === '/hod/leave-management') return '/leaves';
-      if (rawLink === '/hod/notices') return '/notices';
-      if (rawLink === '/hod/complaints') return '/complaints';
+      if (rawLink === '/hod/leave-management' || rawLink === '/student/leave') return '/leaves';
+      if (rawLink === '/hod/notices' || rawLink === '/student/notices') return '/notices';
+      if (rawLink === '/hod/complaints' || rawLink === '/student/complaints') return '/complaints';
       if (rawLink === '/hod/meetings') return '/meetings';
+      if (rawLink === '/student/attendance') return '/attendance';
+      if (rawLink === '/student/assignments') return '/assignments';
     } else if (userRole === 'STUDENT') {
-      if (rawLink === '/notices') return '/notices';
-      if (rawLink === '/leaves') return '/student/leave';
-      if (rawLink === '/attendance') return '/student/attendance';
+      if (rawLink === '/notices' || rawLink === '/hod/notices' || rawLink === '/admin/notices') return '/student/notices';
+      if (rawLink === '/leaves' || rawLink === '/hod/leave-management' || rawLink === '/admin/leave-management') return '/student/leave';
+      if (rawLink === '/attendance' || rawLink === '/hod/attendance') return '/student/attendance';
+      if (rawLink === '/assignments') return '/student/assignments';
+      if (rawLink === '/complaints' || rawLink === '/hod/complaints' || rawLink === '/admin/complaints') return '/student/complaints';
+      if (rawLink === '/fees') return '/student/fees';
+      if (rawLink === '/documents' || rawLink === '/hod/documents' || rawLink === '/admin/certificates') return '/student/documents';
+      if (rawLink === '/placements' || rawLink === '/hod/placements') return '/student/placements';
     } else if (userRole === 'SUPER_ADMIN' || userRole === 'COLLEGE_ADMIN') {
-      if (rawLink === '/notices') return '/admin/notices';
-      if (rawLink === '/leaves') return '/admin/reports';
+      if (rawLink === '/notices' || rawLink === '/student/notices' || rawLink === '/hod/notices') return '/admin/notices';
+      if (rawLink === '/leaves' || rawLink === '/student/leave' || rawLink === '/hod/leave-management') return '/admin/leave-management';
+      if (rawLink === '/complaints' || rawLink === '/student/complaints' || rawLink === '/hod/complaints') return '/admin/complaints';
+      if (rawLink === '/placements' || rawLink === '/student/placements' || rawLink === '/hod/placements') return '/admin/placements';
     }
     return rawLink;
   }
 
   switch (category) {
     case 'NOTICE':
-      return userRole === 'HOD' ? '/hod/notices' : userRole === 'SUPER_ADMIN' || userRole === 'COLLEGE_ADMIN' ? '/admin/notices' : '/notices';
+      return userRole === 'HOD' ? '/hod/notices' : (userRole === 'SUPER_ADMIN' || userRole === 'COLLEGE_ADMIN') ? '/admin/notices' : userRole === 'STUDENT' ? '/student/notices' : '/notices';
     case 'LEAVE':
-      return userRole === 'HOD' ? '/hod/leave-management' : userRole === 'STUDENT' ? '/student/leave' : '/leaves';
+      return userRole === 'HOD' ? '/hod/leave-management' : userRole === 'STUDENT' ? '/student/leave' : (userRole === 'SUPER_ADMIN' || userRole === 'COLLEGE_ADMIN') ? '/admin/leave-management' : '/leaves';
     case 'CROSS_DEPT':
       return '/hod/cross-dept-requests';
     case 'ATTENDANCE_LOW':
       return userRole === 'HOD' ? '/hod/attendance' : userRole === 'FACULTY' ? '/attendance' : '/student/attendance';
     case 'FACULTY_ASSIGNMENT':
-      return userRole === 'HOD' ? '/hod/faculty-assignment' : '/assignments';
+      return userRole === 'HOD' ? '/hod/faculty-assignment' : (userRole === 'SUPER_ADMIN' || userRole === 'COLLEGE_ADMIN') ? '/admin/faculty-assignments' : '/assignments';
     case 'FEE_PAYMENT':
-      return userRole === 'SUPER_ADMIN' || userRole === 'COLLEGE_ADMIN' ? '/admin/fee-clearance' : '/fees';
+      return (userRole === 'SUPER_ADMIN' || userRole === 'COLLEGE_ADMIN') ? '/admin/fee-clearance' : '/student/fees';
     case 'COMPLAINT':
-      return userRole === 'HOD' ? '/hod/complaints' : userRole === 'FACULTY' ? '/complaints' : '/';
+      return userRole === 'HOD' ? '/hod/complaints' : (userRole === 'SUPER_ADMIN' || userRole === 'COLLEGE_ADMIN') ? '/admin/complaints' : userRole === 'STUDENT' ? '/student/complaints' : '/complaints';
     case 'MEETING':
       return userRole === 'HOD' ? '/hod/meetings' : userRole === 'FACULTY' ? '/meetings' : '/';
+    case 'DOCUMENT':
+      return userRole === 'STUDENT' ? '/student/documents' : userRole === 'HOD' ? '/hod/documents' : '/admin/certificates';
+    case 'PLACEMENT':
+      return userRole === 'STUDENT' ? '/student/placements' : userRole === 'HOD' ? '/hod/placements' : '/admin/placements';
     default:
       return '/';
   }

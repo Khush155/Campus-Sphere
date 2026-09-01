@@ -12,20 +12,20 @@ router.use(authMiddleware);
 
 router.post(
   '/',
-  roleMiddleware(ROLES.STUDENT, ROLES.FACULTY, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY, ROLES.STUDENT),
   validate(createComplaintSchema),
   complaintController.createComplaint
 );
 
 router.get(
   '/',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY, ROLES.STUDENT),
   complaintController.getComplaints
 );
 
 router.patch(
   '/:id/status',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   complaintController.updateComplaintStatus
 );
 

@@ -22,6 +22,8 @@ import {
   Grid,
   InputAdornment,
   Pagination,
+  Chip,
+  Tooltip,
 } from '@mui/material';
 import { EditOutlined, DeleteOutline, SearchOutlined } from '@mui/icons-material';
 import {
@@ -55,6 +57,7 @@ const courseFormSchema = z.object({
 
 export const CourseTab = ({ setOnAddClick }) => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
 
   // Search & Pagination state
@@ -271,28 +274,80 @@ export const CourseTab = ({ setOnAddClick }) => {
                   key={course._id}
                   className="staggered-row"
                   style={{ animationDelay: `${index * 25}ms` }}
-                  sx={{ '&:hover': { bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)' } }}
+                  sx={{
+                    '&:hover': {
+                      bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(79, 70, 229, 0.03)',
+                    },
+                  }}
                 >
-                  <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem', fontWeight: 600 }}>
-                    {course.code}
+                  <TableCell>
+                    <Chip
+                      label={course.code}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      sx={{
+                        fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        borderRadius: '6px',
+                        bgcolor: `${theme.palette.primary.main}0D`,
+                      }}
+                    />
                   </TableCell>
-                  <TableCell sx={{ fontFamily: theme.typography.body1.fontFamily, fontSize: '0.88rem', fontWeight: 600 }}>
-                    {course.name}
+                  <TableCell>
+                    <Typography sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.9rem' }}>
+                      {course.name}
+                    </Typography>
                   </TableCell>
-                  <TableCell sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.82rem' }}>
-                    {course.durationYears} {course.durationYears === 1 ? 'Year' : 'Years'}
+                  <TableCell>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                      {course.durationYears} {course.durationYears === 1 ? 'Year' : 'Years'}
+                    </Typography>
                   </TableCell>
-                  <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.82rem', fontWeight: 600 }}>
-                    {course.semesters || course.durationYears * 2} Semesters
+                  <TableCell>
+                    <Chip
+                      label={`${course.semesters || course.durationYears * 2} Semesters`}
+                      size="small"
+                      sx={{
+                        fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        borderRadius: '6px',
+                        bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                      }}
+                    />
                   </TableCell>
                   <TableCell align="right">
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                      <IconButton aria-label="edit course" size="small" onClick={() => handleOpenEdit(course)}>
-                        <EditOutlined fontSize="small" sx={{ color: theme.palette.text.secondary }} />
-                      </IconButton>
-                      <IconButton aria-label="delete course" size="small" onClick={() => setDeleteId(course._id)}>
-                        <DeleteOutline fontSize="small" sx={{ color: theme.palette.signal.error }} />
-                      </IconButton>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.75 }}>
+                      <Tooltip title="Edit Degree Course" arrow>
+                        <IconButton
+                          aria-label="edit course"
+                          size="small"
+                          onClick={() => handleOpenEdit(course)}
+                          sx={{
+                            color: 'text.secondary',
+                            borderRadius: '8px',
+                            '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
+                          }}
+                        >
+                          <EditOutlined fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete Degree Course" arrow>
+                        <IconButton
+                          aria-label="delete course"
+                          size="small"
+                          onClick={() => setDeleteId(course._id)}
+                          sx={{
+                            color: theme.palette.signal?.error || '#ef4444',
+                            borderRadius: '8px',
+                            '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)' },
+                          }}
+                        >
+                          <DeleteOutline fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   </TableCell>
                 </TableRow>

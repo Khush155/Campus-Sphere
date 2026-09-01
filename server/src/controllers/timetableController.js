@@ -9,7 +9,7 @@ const asyncHandler = require('../middlewares/asyncHandler');
  * @access  Private/HOD
  */
 const createSlot = asyncHandler(async (req, res) => {
-  const departmentId = req.user.departmentId;
+  const departmentId = req.user.departmentId || req.body.departmentId;
   const slotData = {
     ...req.body,
     departmentId,
@@ -22,14 +22,18 @@ const createSlot = asyncHandler(async (req, res) => {
 /**
  * @desc    Get slots for cohort/batch
  * @route   GET /api/v1/timetable
- * @access  Private/HOD/Faculty
+ * @access  Private/HOD/Faculty/Student/Admin
  */
 const getSlotsForBatch = asyncHandler(async (req, res) => {
   if (req.user.role === 'FACULTY') {
     const slots = await timetableService.getSlotsForFaculty(req.user.id);
     return successResponse(res, 200, 'Timetable fetched successfully', slots);
   }
-  const departmentId = req.user.departmentId;
+  if (req.user.role === 'STUDENT') {
+    const slots = await timetableService.getSlotsForStudent(req.user.id);
+    return successResponse(res, 200, 'Timetable fetched successfully', slots);
+  }
+  const departmentId = req.user.departmentId || req.query.departmentId;
   const slots = await timetableService.getSlotsForBatch(departmentId, req.query);
   return successResponse(res, 200, 'Timetable fetched successfully', slots);
 });
@@ -37,10 +41,10 @@ const getSlotsForBatch = asyncHandler(async (req, res) => {
 /**
  * @desc    Delete timetable slot
  * @route   DELETE /api/v1/timetable/:id
- * @access  Private/HOD
+ * @access  Private/HOD/Admin
  */
 const deleteSlot = asyncHandler(async (req, res) => {
-  const departmentId = req.user.departmentId;
+  const departmentId = req.user.departmentId || req.query.departmentId || req.body.departmentId;
   await timetableService.deleteSlot(req.params.id, departmentId, req.user.id, req);
   return successResponse(res, 200, 'Timetable slot deleted successfully');
 });
@@ -48,10 +52,10 @@ const deleteSlot = asyncHandler(async (req, res) => {
 /**
  * @desc    Auto generate smart timetable
  * @route   POST /api/v1/timetable/auto-generate
- * @access  Private/HOD
+ * @access  Private/HOD/Admin
  */
 const autoGenerateTimetable = asyncHandler(async (req, res) => {
-  const departmentId = req.user.departmentId;
+  const departmentId = req.user.departmentId || req.body.departmentId;
   const payload = { ...req.body, departmentId };
   
   const slots = await timetableGeneratorService.generateSmartTimetable(payload, req.user.id);

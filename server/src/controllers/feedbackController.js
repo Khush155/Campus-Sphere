@@ -13,7 +13,7 @@ const getAllFeedback = asyncHandler(async (req, res) => {
   return successResponse(res, 200, 'Feedback retrieved successfully', result.data, {
     total: result.meta.total,
     page: parseInt(page),
-    limit: parseInt(limit)
+    limit: parseInt(limit),
   });
 });
 
@@ -37,8 +37,20 @@ const getFeedbackAnalytics = asyncHandler(async (req, res) => {
   return successResponse(res, 200, 'Feedback analytics retrieved successfully', result);
 });
 
+/**
+ * @desc    Get student's eligible courses and feedback completion status
+ * @route   GET /api/v1/feedback/student-status
+ * @access  Private/Student
+ */
+const getStudentFeedbackStatus = asyncHandler(async (req, res) => {
+  const { semester } = req.query;
+  const result = await feedbackService.getStudentFeedbackStatus(req.user, semester);
+  return successResponse(res, 200, 'Student feedback status retrieved successfully', result);
+});
+
 module.exports = {
   getAllFeedback,
   createFeedback,
   getFeedbackAnalytics,
+  getStudentFeedbackStatus,
 };

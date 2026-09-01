@@ -12,23 +12,23 @@ router.use(authMiddleware);
 
 router
   .route('/')
-  .get(roleMiddleware(ROLES.HOD, ROLES.FACULTY), timetableController.getSlotsForBatch)
+  .get(roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY, ROLES.STUDENT), timetableController.getSlotsForBatch)
   .post(
-    roleMiddleware(ROLES.HOD),
+    roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
     validate(createSlotSchema),
     timetableController.createSlot
   );
 
 router.post(
   '/auto-generate',
-  roleMiddleware(ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   validate(autoGenerateTimetableSchema),
   timetableController.autoGenerateTimetable
 );
 
 router.delete(
   '/:id',
-  roleMiddleware(ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   timetableController.deleteSlot
 );
 

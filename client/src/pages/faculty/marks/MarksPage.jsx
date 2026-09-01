@@ -27,9 +27,11 @@ import {
 import MarksFilters from './components/MarksFilters';
 import MarksEntryTable from './components/MarksEntryTable';
 
-// Backend hooks
 import {
   useFacultyDashboardQuery,
+  useExaminationsQuery,
+  useExamStudentsForGradingQuery,
+  useBatchPublishResultsMutation,
   useExamsQuery,
   useFacultyAssignmentsQuery,
   useSubmitExamResultMutation,
@@ -78,7 +80,11 @@ export const MarksPage = () => {
     { id: 'B', name: 'Group / Section B', strength: 'Sec B' },
   ], []);
 
-  // 2. Fetch Exams and Homework Assignments from backend
+  // 2. Fetch HOD Scheduled Examinations, Legacy Exams, and Homework Assignments
+  const { data: rawExaminations = [], isLoading: isExaminationsLoading } = useExaminationsQuery({
+    subjectId: selectedSubjectId || undefined,
+  });
+
   const { data: rawExams = [], isLoading: isExamsLoading } = useExamsQuery({
     subjectId: selectedSubjectId || undefined,
   });
@@ -97,27 +103,52 @@ export const MarksPage = () => {
         maxMarks: asg.maxMarks || 100,
         passingMarks: Math.round((asg.maxMarks || 100) * 0.4),
         assessmentType: 'ASSIGNMENT',
+        source: 'ASSIGNMENT',
         marksEntryEnabled: true, // Homework assignments are always editable by faculty
       }));
     }
 
-    return rawExams
-      .filter((ex) => {
-        if (assessmentType === 'EXAM') return ex.examType === 'MID_TERM' || ex.examType === 'END_TERM' || ex.type === 'INTERNAL' || ex.type === 'EXTERNAL';
-        if (assessmentType === 'QUIZ') return ex.examType === 'QUIZ';
-        if (assessmentType === 'PRACTICAL') return ex.examType === 'LAB' || ex.type === 'PRACTICAL' || ex.type === 'VIVA';
-        return true;
-      })
-      .map((ex) => ({
+    const combined = [];
+
+    // 1. Official HOD Scheduled Examinations (/examinations)
+    rawExaminations.forEach((ex) => {
+      combined.push({
         id: ex._id,
-        name: ex.name || ex.title,
-        title: ex.name || ex.title,
-        maxMarks: ex.maxMarks || ex.totalMarks || 100,
+        name: ex.title,
+        title: ex.title,
+        maxMarks: ex.totalMarks || 100,
         passingMarks: ex.passingMarks || 40,
-        assessmentType: ex.examType || ex.type,
+        assessmentType: ex.type || 'EXAM',
+        source: 'EXAMINATION',
         marksEntryEnabled: Boolean(ex.marksEntryEnabled), // Controlled by HOD
-      }));
-  }, [rawExams, rawAssignments, assessmentType]);
+        status: ex.status,
+      });
+    });
+
+    // 2. Legacy / Faculty Scheduled Exams (/exams)
+    rawExams.forEach((ex) => {
+      if (!combined.some((c) => String(c.id) === String(ex._id))) {
+        combined.push({
+          id: ex._id,
+          name: ex.name || ex.title,
+          title: ex.name || ex.title,
+          maxMarks: ex.maxMarks || ex.totalMarks || 100,
+          passingMarks: ex.passingMarks || 40,
+          assessmentType: ex.examType || ex.type || 'EXAM',
+          source: 'LEGACY_EXAM',
+          marksEntryEnabled: ex.marksEntryEnabled !== undefined ? Boolean(ex.marksEntryEnabled) : true,
+          status: ex.status,
+        });
+      }
+    });
+
+    return combined.filter((item) => {
+      if (assessmentType === 'EXAM') return item.assessmentType === 'MID_TERM' || item.assessmentType === 'END_TERM' || item.assessmentType === 'INTERNAL' || item.assessmentType === 'EXTERNAL' || item.assessmentType === 'EXAM';
+      if (assessmentType === 'QUIZ') return item.assessmentType === 'QUIZ';
+      if (assessmentType === 'PRACTICAL') return item.assessmentType === 'LAB' || item.assessmentType === 'PRACTICAL' || item.assessmentType === 'VIVA';
+      return true;
+    });
+  }, [rawExaminations, rawExams, rawAssignments, assessmentType]);
 
   // Auto-select first assessment item when list updates
   useEffect(() => {
@@ -138,7 +169,7 @@ export const MarksPage = () => {
   // Check HOD Permission Lock
   const isMarksEntryAllowed = activeAssessment ? Boolean(activeAssessment.marksEntryEnabled) : false;
 
-  // 3. Fetch student roster
+  // 3. Fetch student roster (Standard User Query)
   const cleanDeptId = typeof user?.departmentId === 'object'
     ? user?.departmentId?._id
     : (user?.departmentId || user?.department?._id || user?.department || currentSubject?.departmentId);
@@ -146,6 +177,8 @@ export const MarksPage = () => {
   const { data: studentsResponse, isLoading: isStudentsLoading } = useUsersQuery({
     role: 'STUDENT',
     departmentId: cleanDeptId,
+    branchId: currentSubject?.branchId,
+    semester: currentSubject?.semester,
     group: selectedSectionId !== 'ALL' ? selectedSectionId : undefined,
     limit: 200,
   });
@@ -155,50 +188,79 @@ export const MarksPage = () => {
     return studentsResponse?.data || [];
   }, [studentsResponse]);
 
+  // Fetch official examination roster with evaluated results
+  const { data: gradingRosterData, isLoading: isRosterLoading, refetch: refetchGradingRoster } = useExamStudentsForGradingQuery(
+    activeAssessment?.source === 'EXAMINATION' ? selectedAssessmentId : null,
+    { group: selectedSectionId !== 'ALL' ? selectedSectionId : undefined }
+  );
+
+  const batchPublishMutation = useBatchPublishResultsMutation();
   const submitResultMutation = useSubmitExamResultMutation();
 
-  // Fetch existing exam/assignment results from MongoDB
-  const { data: dbResults = [], isLoading: isResultsLoading, refetch: refetchResults } = useExamResultsQuery(selectedAssessmentId);
+  // Fetch legacy exam/assignment results from MongoDB
+  const { data: dbResults = [], isLoading: isResultsLoading, refetch: refetchResults } = useExamResultsQuery(
+    activeAssessment?.source !== 'EXAMINATION' ? selectedAssessmentId : null
+  );
 
   // Load and populate records (syncing with MongoDB results)
   useEffect(() => {
-    if (!selectedAssessmentId || rawStudents.length === 0) {
+    if (!selectedAssessmentId) {
       setRecords([]);
       setStatus('DRAFT');
       return;
     }
 
     const maxMarksValue = activeAssessment?.maxMarks || 100;
-    const initialRecords = rawStudents.map((stud, idx) => {
-      const studId = stud._id || stud.id;
-      const dbMatch = Array.isArray(dbResults)
-        ? dbResults.find((res) => {
-            const rStudId = typeof res.studentId === 'object' ? res.studentId?._id : res.studentId;
-            return String(rStudId) === String(studId);
-          })
-        : null;
 
-      const marksValue = dbMatch
-        ? (dbMatch.absent ? null : dbMatch.marksObtained)
-        : '';
-
-      return {
-        studentId: studId,
-        rollNumber: stud.rollNumber || stud.enrollmentNo || stud.studentId || `STU2026${String(idx + 1).padStart(3, '0')}`,
+    // Case A: Official Examination roster populated by backend
+    if (activeAssessment?.source === 'EXAMINATION' && gradingRosterData?.students) {
+      const examStudents = gradingRosterData.students.map((stud) => ({
+        studentId: stud.studentId,
+        rollNumber: stud.rollNumber || 'N/A',
         name: stud.name,
         email: stud.email,
-        marksObtained: marksValue,
+        marksObtained: stud.marksObtained !== undefined && stud.marksObtained !== '' ? (stud.isAbsent ? null : stud.marksObtained) : '',
         maxMarks: maxMarksValue,
-        grade: dbMatch ? dbMatch.grade : '',
-        remarks: dbMatch ? dbMatch.remarks || '' : '',
-      };
-    });
+        grade: stud.grade || '',
+        remarks: stud.remarks || (stud.requiresRemedialClass ? 'Remedial Class Required' : ''),
+      }));
+      setRecords(examStudents);
+      setStatus(activeAssessment?.status === 'RESULTS_PUBLISHED' ? 'PUBLISHED' : 'DRAFT');
+      return;
+    }
 
-    setRecords(initialRecords);
-    
-    const anyPublished = Array.isArray(dbResults) && dbResults.some((res) => res.isPublished);
-    setStatus(anyPublished ? 'PUBLISHED' : 'DRAFT');
-  }, [selectedAssessmentId, activeAssessment, rawStudents, dbResults]);
+    // Case B: Fallback / Assignment / Legacy Exam Roster
+    if (rawStudents.length > 0) {
+      const initialRecords = rawStudents.map((stud, idx) => {
+        const studId = stud._id || stud.id;
+        const dbMatch = Array.isArray(dbResults)
+          ? dbResults.find((res) => {
+              const rStudId = typeof res.studentId === 'object' ? res.studentId?._id : res.studentId;
+              return String(rStudId) === String(studId);
+            })
+          : null;
+
+        const marksValue = dbMatch
+          ? (dbMatch.absent ? null : dbMatch.marksObtained)
+          : '';
+
+        return {
+          studentId: studId,
+          rollNumber: stud.rollNumber || stud.enrollmentNo || stud.studentId || `STU2026${String(idx + 1).padStart(3, '0')}`,
+          name: stud.name,
+          email: stud.email,
+          marksObtained: marksValue,
+          maxMarks: maxMarksValue,
+          grade: dbMatch ? dbMatch.grade : '',
+          remarks: dbMatch ? dbMatch.remarks || '' : '',
+        };
+      });
+
+      setRecords(initialRecords);
+      const anyPublished = Array.isArray(dbResults) && dbResults.some((res) => res.isPublished);
+      setStatus(anyPublished ? 'PUBLISHED' : 'DRAFT');
+    }
+  }, [selectedAssessmentId, activeAssessment, gradingRosterData, rawStudents, dbResults]);
 
   // Automatic Letter Grade Calculation
   const calculateGrade = (score, max) => {
@@ -279,10 +341,10 @@ export const MarksPage = () => {
     return list;
   }, [records, sortBy]);
 
-  const handleSaveMarks = () => {
+  const handleSaveMarks = async () => {
     if (!selectedAssessmentId) return;
     if (!isMarksEntryAllowed) {
-      showToast('Marks entry is currently locked by HOD. You cannot submit marks.', { severity: 'error' });
+      showToast('Marks entry is currently locked by HOD. Contact your HOD to grant marks markup permission.', { severity: 'error' });
       return;
     }
     setIsSubmitting(true);
@@ -295,30 +357,45 @@ export const MarksPage = () => {
       return;
     }
 
-    const promises = gradedRecords.map((rec) => {
-      const isAbsent = rec.marksObtained === null;
-      return submitResultMutation.mutateAsync({
-        examId: selectedAssessmentId,
-        studentId: rec.studentId,
-        marksObtained: isAbsent ? 0 : Number(rec.marksObtained),
-        absent: isAbsent,
-        remarks: rec.remarks || '',
-        isPublished: true,
-      });
-    });
+    try {
+      if (activeAssessment?.source === 'EXAMINATION') {
+        const batchPayload = gradedRecords.map((rec) => ({
+          studentId: rec.studentId,
+          marksObtained: rec.marksObtained === null ? 0 : Number(rec.marksObtained),
+          isAbsent: rec.marksObtained === null,
+        }));
 
-    Promise.all(promises)
-      .then(() => {
+        const result = await batchPublishMutation.mutateAsync({
+          examId: selectedAssessmentId,
+          results: batchPayload,
+        });
+
+        setStatus('PUBLISHED');
+        showToast(`Official results published for ${result?.total || gradedRecords.length} students! Grade points & GPAs computed.`);
+        if (refetchGradingRoster) refetchGradingRoster();
+      } else {
+        const promises = gradedRecords.map((rec) => {
+          const isAbsent = rec.marksObtained === null;
+          return submitResultMutation.mutateAsync({
+            examId: selectedAssessmentId,
+            studentId: rec.studentId,
+            marksObtained: isAbsent ? 0 : Number(rec.marksObtained),
+            absent: isAbsent,
+            remarks: rec.remarks || '',
+            isPublished: true,
+          });
+        });
+
+        await Promise.all(promises);
         setStatus('PUBLISHED');
         showToast('Marks submitted and saved to database successfully!');
-        refetchResults();
-      })
-      .catch((err) => {
-        showToast(`Failed to save marks: ${err.response?.data?.message || err.message}`, { severity: 'error' });
-      })
-      .finally(() => {
-        setIsSubmitting(false);
-      });
+        if (refetchResults) refetchResults();
+      }
+    } catch (err) {
+      showToast(`Failed to save marks: ${err.response?.data?.message || err.message}`, { severity: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleExportCSV = () => {
@@ -414,7 +491,7 @@ export const MarksPage = () => {
               variant="contained"
               startIcon={<SaveIcon />}
               onClick={handleSaveMarks}
-              disabled={!isMarksEntryAllowed || isSubmitting || submitResultMutation.isPending}
+              disabled={!isMarksEntryAllowed || isSubmitting || batchPublishMutation.isPending || submitResultMutation.isPending}
               sx={{
                 borderRadius: '8px',
                 textTransform: 'none',
@@ -423,7 +500,7 @@ export const MarksPage = () => {
                 color: '#ffffff',
               }}
             >
-              {isSubmitting || submitResultMutation.isPending ? 'Submitting...' : 'Save & Publish Marks'}
+              {isSubmitting || batchPublishMutation.isPending || submitResultMutation.isPending ? 'Publishing...' : 'Save & Publish Marks'}
             </Button>
           </Box>
         </Box>
@@ -658,7 +735,7 @@ export const MarksPage = () => {
 
       {/* ── 5. Marks Entry Table Roster ────────────────────────────────────── */}
       <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
-        {isStudentsLoading || isResultsLoading || isExamsLoading || isAssignmentsLoading ? (
+        {isStudentsLoading || isRosterLoading || isExaminationsLoading || isExamsLoading || isAssignmentsLoading || isResultsLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
             <CircularProgress size={32} />
           </Box>

@@ -256,16 +256,23 @@ export const HodNoticesHub = () => {
     },
   ];
 
+  const isDark = theme.palette.mode === 'dark';
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
       {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
       <Card
         sx={{
-          p: 3.5,
-          borderRadius: '16px',
+          p: { xs: 2.5, md: 3.5 },
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
-          boxShadow: 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.14) 0%, rgba(184, 134, 62, 0.08) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: isDark
+            ? '0 18px 40px -15px rgba(0,0,0,0.5)'
+            : '0 18px 40px -15px rgba(79, 70, 229, 0.08)',
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
@@ -279,13 +286,13 @@ export const HodNoticesHub = () => {
                   bgcolor: `${theme.palette.primary.main}15`,
                   color: theme.palette.primary.main,
                   fontWeight: 800,
-                  fontFamily: theme.typography.mono.fontFamily,
+                  fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                   letterSpacing: '0.05em',
                   fontSize: '0.7rem',
                 }}
               />
             </Box>
-            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1?.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
               Department Notices & Circulars
             </Typography>
             <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>

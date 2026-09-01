@@ -130,6 +130,25 @@ const getStudentAttendanceSummary = async (studentId) => {
             $cond: [{ $in: ['$status', ['PRESENT', 'LATE']] }, 1, 0],
           },
         },
+        absentClasses: {
+          $sum: {
+            $cond: [{ $eq: ['$status', 'ABSENT'] }, 1, 0],
+          },
+        },
+        medicalClasses: {
+          $sum: {
+            $cond: [
+              {
+                $or: [
+                  { $in: ['$status', ['MEDICAL_LEAVE', 'DUTY_LEAVE', 'EXCUSED']] },
+                  { $eq: ['$isMedicalApproved', true] },
+                ],
+              },
+              1,
+              0,
+            ],
+          },
+        },
       },
     },
     {
@@ -149,13 +168,27 @@ const getStudentAttendanceSummary = async (studentId) => {
         subjectId: '$_id',
         subjectName: '$subjectInfo.name',
         subjectCode: '$subjectInfo.code',
+        semester: '$subjectInfo.semester',
         totalClasses: 1,
         attendedClasses: 1,
+        absentClasses: 1,
+        medicalClasses: 1,
         attendancePercentage: {
           $round: [
             {
               $multiply: [
                 { $divide: ['$attendedClasses', '$totalClasses'] },
+                100,
+              ],
+            },
+            1,
+          ],
+        },
+        effectivePercentage: {
+          $round: [
+            {
+              $multiply: [
+                { $divide: [{ $add: ['$attendedClasses', '$medicalClasses'] }, '$totalClasses'] },
                 100,
               ],
             },
@@ -213,6 +246,31 @@ const bulkMarkAttendance = async (attendanceData, actor, req) => {
 
   const result = await Attendance.bulkWrite(ops);
 
+  // Check low attendance (< 75%) for updated students
+  try {
+    const studentIds = records.map((r) => r.studentId);
+    for (const studentId of studentIds) {
+      const studentLogs = await Attendance.find({ studentId, subjectId });
+      if (studentLogs.length >= 3) {
+        const attendedCount = studentLogs.filter((l) => l.status === 'PRESENT' || l.status === 'LATE').length;
+        const pct = Math.round((attendedCount / studentLogs.length) * 100);
+        if (pct < 75) {
+          await createNotification({
+            recipientId: studentId,
+            title: `⚠️ Low Attendance Warning: ${subject.name || 'Subject'}`,
+            message: `Your attendance in ${subject.name || 'this subject'} is currently ${pct}%, which is below the 75% requirement.`,
+            category: 'ATTENDANCE_LOW',
+            link: '/student/attendance',
+            senderId: actor.id,
+            metadata: { subjectId, percentage: pct },
+          });
+        }
+      }
+    }
+  } catch (err) {
+    // Non-blocking
+  }
+
   // Audit Log
   await logAuditEvent({
     actorId: actor.id,
@@ -220,7 +278,7 @@ const bulkMarkAttendance = async (attendanceData, actor, req) => {
     targetId: subjectId,
     targetModel: 'Subject',
     after: { count: records.length, date: attendanceDate, sessionType },
-    req
+    req,
   });
 
   return {
@@ -280,6 +338,9 @@ const getAttendance = async (queryOptions, actor) => {
   if (actor.role === ROLES.HOD || actor.role === ROLES.FACULTY || actor.role === ROLES.STUDENT) {
     if (actor.role === ROLES.STUDENT) {
       filters.studentId = actor.id;
+      if (subjectId) {
+        filters.subjectId = subjectId;
+      }
     } else {
       // Build student cohort filter
       const studentFilter = { role: 'STUDENT' };
@@ -313,7 +374,7 @@ const getAttendance = async (queryOptions, actor) => {
   return await paginate(Attendance, filters, {
     ...queryOptions,
     populate: [
-      { path: 'subjectId', select: 'name code' },
+      { path: 'subjectId', select: 'name code semester' },
       { path: 'facultyId', select: 'name' },
       { path: 'studentId', select: 'name email group semester branchId' }
     ],

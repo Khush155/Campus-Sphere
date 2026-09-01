@@ -25,8 +25,19 @@ import {
   ToggleButtonGroup,
   Tooltip,
   IconButton,
+  Grid,
+  CircularProgress,
 } from '@mui/material';
-import { AddOutlined, PlayArrowOutlined, DateRangeOutlined, CheckCircleOutlined, DeleteOutline, EditOutlined } from '@mui/icons-material';
+import {
+  AddOutlined,
+  PlayArrowOutlined,
+  DateRangeOutlined,
+  CheckCircleOutlined,
+  DeleteOutline,
+  EditOutlined,
+  LockOutlined,
+  RefreshOutlined,
+} from '@mui/icons-material';
 
 import {
   useActiveSessionQuery,
@@ -61,6 +72,7 @@ const sessionFormSchema = z.object({
 
 export const AcademicCalendar = () => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -78,6 +90,20 @@ export const AcademicCalendar = () => {
     page,
     limit,
   });
+  const { data: allSessionsResponse } = useAcademicSessionsQuery({ limit: 100 });
+
+  const allSessions = React.useMemo(() => {
+    if (!allSessionsResponse) return [];
+    if (Array.isArray(allSessionsResponse)) return allSessionsResponse;
+    return allSessionsResponse.data || [];
+  }, [allSessionsResponse]);
+
+  const kpiStats = React.useMemo(() => {
+    const total = allSessions.length;
+    const activeCount = allSessions.filter((s) => s.status === 'ACTIVE').length;
+    const archivedCount = allSessions.filter((s) => s.status === 'ARCHIVED').length;
+    return { total, activeCount, archivedCount };
+  }, [allSessions]);
 
   const createSession = useCreateAcademicSessionMutation();
   const updateSession = useUpdateAcademicSessionMutation();
@@ -118,11 +144,15 @@ export const AcademicCalendar = () => {
 
   const handleOpenCreate = () => {
     setEditingSessionId(null);
+    const now = new Date();
+    const future = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
+    const currentYear = now.getFullYear();
+    const nextYr = (currentYear + 1).toString().slice(2);
     reset({
-      academicYear: '',
+      academicYear: `${currentYear}-${nextYr}`,
       semesterType: 'ODD',
-      termStartDate: '',
-      termEndDate: '',
+      termStartDate: now.toISOString().slice(0, 10),
+      termEndDate: future.toISOString().slice(0, 10),
       status: 'UPCOMING',
     });
     setDrawerOpen(true);
@@ -254,19 +284,22 @@ export const AcademicCalendar = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
-      {/* ── 1. Hero Header Banner Card ─────────────────────────────────────── */}
+      {/* ── 1. Hero Header Banner Card (Glassmorphic Luxury Bar) ────────── */}
       <Card
         sx={{
           p: 3.5,
-          borderRadius: '16px',
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0F 0%, ${theme.palette.brass?.[500] || '#b8863e'}08 100%)`,
-          boxShadow: theme.custom?.elevation?.raised || 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(184, 134, 62, 0.06) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: theme.custom?.elevation?.raised || '0 8px 24px rgba(0,0,0,0.03)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 2,
+          gap: 2.5,
         }}
       >
         <Box>
@@ -278,23 +311,37 @@ export const AcademicCalendar = () => {
               sx={{
                 bgcolor: `${theme.palette.primary.main}15`,
                 color: theme.palette.primary.main,
-                fontFamily: theme.typography.mono.fontFamily,
-                fontWeight: 700,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontWeight: 800,
                 fontSize: '0.68rem',
                 letterSpacing: '0.06em',
+                borderRadius: '8px',
+              }}
+            />
+            <Chip
+              label={`${kpiStats.total} Sessions Configured`}
+              size="small"
+              sx={{
+                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
+                border: `1px solid ${theme.palette.divider}`,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontSize: '0.72rem',
+                fontWeight: 700,
                 borderRadius: '6px',
               }}
             />
             {activeSession && (
               <Chip
-                label={`${activeSession.academicYear} (${activeSession.semesterType} Sem)`}
+                label={`${activeSession.academicYear} · ${activeSession.semesterType} Term`}
                 size="small"
                 sx={{
-                  bgcolor: theme.palette.background.paper,
-                  border: `1px solid ${theme.palette.divider}`,
-                  fontFamily: theme.typography.mono.fontFamily,
+                  bgcolor: 'rgba(16, 185, 129, 0.1)',
+                  color: theme.palette.signal?.success || '#10b981',
+                  border: `1px solid rgba(16, 185, 129, 0.2)`,
+                  fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                   fontSize: '0.72rem',
-                  fontWeight: 600,
+                  fontWeight: 700,
+                  borderRadius: '6px',
                 }}
               />
             )}
@@ -303,52 +350,58 @@ export const AcademicCalendar = () => {
             variant="h4"
             component="h1"
             sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 600,
-              color: theme.palette.ink[900],
+              fontWeight: 800,
+              color: 'text.primary',
+              letterSpacing: '-0.02em',
               lineHeight: 1.15,
               mb: 0.5,
             }}
           >
-            Academic Sessions & Calendar
+            Academic Calendar &amp; Sessions
           </Typography>
           <Typography
             variant="body2"
             sx={{
-              fontFamily: theme.typography.body2.fontFamily,
               color: theme.palette.text.secondary,
-              maxWidth: 640,
+              maxWidth: 680,
             }}
           >
-            Configure academic terms, active academic years, and toggle semester boundaries.
+            Configure institutional academic years, monitor ongoing semester boundaries, and schedule automated term activations.
           </Typography>
         </Box>
 
-        <Button
-          variant="contained"
-          startIcon={<AddOutlined />}
-          onClick={handleOpenCreate}
-          sx={{
-            background: theme.palette.primary.gradient || theme.palette.primary.main,
-            color: '#ffffff',
-            fontWeight: 700,
-            px: 3,
-            py: 1.25,
-            borderRadius: '8px',
-            textTransform: 'none',
-            boxShadow: `0 4px 16px ${theme.palette.primary.main}40`,
-            '&:hover': {
-              filter: 'brightness(1.1)',
-            },
-          }}
-        >
-          Create Session
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshOutlined />}
+            onClick={() => refetch()}
+            sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, height: '42px', bgcolor: theme.palette.background.paper }}
+          >
+            Refresh Sessions
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddOutlined />}
+            onClick={handleOpenCreate}
+            sx={{
+              background: theme.palette.primary.gradient || theme.palette.primary.main,
+              color: '#ffffff',
+              fontWeight: 800,
+              px: 2.75,
+              height: '42px',
+              borderRadius: '10px',
+              textTransform: 'none',
+              boxShadow: `0 4px 18px ${theme.palette.primary.main}40`,
+            }}
+          >
+            Create Session
+          </Button>
+        </Box>
       </Card>
 
-      {/* ── 2. Prominent Active Session Card with Progress Bar ──────────────── */}
+      {/* ── 2. Prominent Active Session Card with Progress Bar & Pulse Glow ──── */}
       {loadingActive ? (
-        <Card sx={{ p: 3, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '12px' }}>
+        <Card sx={{ p: 3, border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', borderRadius: '18px' }}>
           <Skeleton variant="text" width="40%" height={32} />
           <Skeleton variant="text" width="60%" height={24} sx={{ mt: 1 }} />
         </Card>
@@ -356,48 +409,78 @@ export const AcademicCalendar = () => {
         <Card
           sx={{
             p: 3.5,
-            border: `1px solid ${theme.palette.primary.main}40`,
-            background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.primary.main}08 100%)`,
+            border: `1px solid rgba(16, 185, 129, 0.35)`,
+            background: isDark
+              ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(79, 70, 229, 0.04) 100%)'
+              : 'linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(79, 70, 229, 0.02) 100%)',
             boxShadow: 'none',
-            borderRadius: '16px',
+            borderRadius: '18px',
             position: 'relative',
           }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mb: 2 }}>
             <Box>
-              <Typography
-                variant="h5"
-                sx={{
-                  fontFamily: theme.typography.h1.fontFamily,
-                  fontWeight: 700,
-                  color: theme.palette.ink[900],
-                  mb: 0.5,
-                }}
-              >
-                {activeSession.semesterType === 'ODD' ? 'Odd Semester' : 'Even Semester'} {activeSession.academicYear}
-              </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    bgcolor: '#10b981',
+                    boxShadow: '0 0 0 0 rgba(16, 185, 129, 0.7)',
+                    animation: 'pulseGlow 2s infinite',
+                    '@keyframes pulseGlow': {
+                      '0%': { transform: 'scale(0.95)', boxShadow: '0 0 0 0 rgba(16, 185, 129, 0.7)' },
+                      '70%': { transform: 'scale(1)', boxShadow: '0 0 0 8px rgba(16, 185, 129, 0)' },
+                      '100%': { transform: 'scale(0.95)', boxShadow: '0 0 0 0 rgba(16, 185, 129, 0)' },
+                    },
+                  }}
+                />
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 800,
+                    color: 'text.primary',
+                  }}
+                >
+                  {activeSession.semesterType === 'ODD' ? 'Odd Semester' : 'Even Semester'} {activeSession.academicYear}
+                </Typography>
+              </Box>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
                 Term Duration: <strong>{formatDate(activeSession.termStartDate)}</strong> to{' '}
                 <strong>{formatDate(activeSession.termEndDate)}</strong>
               </Typography>
             </Box>
-            <Chip
-              icon={<CheckCircleOutlined sx={{ fontSize: '0.85rem !important' }} />}
-              label="CURRENT ACTIVE SESSION"
-              color="success"
-              size="small"
-              sx={{ fontWeight: 800, fontSize: '0.7rem', borderRadius: '6px' }}
-            />
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Chip
+                icon={<LockOutlined sx={{ fontSize: '0.85rem !important' }} />}
+                label="Timeline Locked"
+                size="small"
+                sx={{
+                  bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                }}
+              />
+              <Chip
+                icon={<CheckCircleOutlined sx={{ fontSize: '0.85rem !important' }} />}
+                label="CURRENT ACTIVE SESSION"
+                color="success"
+                size="small"
+                sx={{ fontWeight: 800, fontSize: '0.7rem', borderRadius: '6px' }}
+              />
+            </Box>
           </Box>
 
           {/* Term Timeline Progress */}
           {activeProgress && (
-            <Box sx={{ mt: 2 }}>
+            <Box sx={{ mt: 2.5 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
-                <Typography variant="caption" sx={{ fontWeight: 700, color: theme.palette.ink[900], fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
                   Term Progress: Week {activeProgress.weeksPassed} of {activeProgress.totalWeeks}
                 </Typography>
-                <Typography variant="caption" sx={{ fontWeight: 700, color: theme.palette.primary.main, fontFamily: theme.typography.mono.fontFamily }}>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: theme.palette.primary.main, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
                   {activeProgress.percentage}% Completed
                 </Typography>
               </Box>
@@ -418,30 +501,147 @@ export const AcademicCalendar = () => {
           )}
         </Card>
       ) : (
-        <Alert severity="warning" sx={{ borderRadius: '12px' }}>
+        <Alert severity="warning" sx={{ borderRadius: '14px' }}>
           No active academic session set. Configure one below to initialize the calendar scope.
         </Alert>
       )}
 
+      {/* ── 3. 3D Hover KPI Summary Grid ───────────────────────────────────── */}
+      <Grid container spacing={2.5}>
+        <Grid item xs={12} sm={4}>
+          <Card
+            sx={{
+              p: 3,
+              borderRadius: '18px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
+            }}
+          >
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
+              TOTAL ACADEMIC SESSIONS
+            </Typography>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                color: 'text.primary',
+                mt: 1,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+              }}
+            >
+              {loadingList ? <CircularProgress size={24} /> : kpiStats.total}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Institutional semester terms configured
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={4}>
+          <Card
+            sx={{
+              p: 3,
+              borderRadius: '18px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.success || '#10b981'}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.success || '#10b981' }}
+            >
+              ACTIVE TERM STATUS
+            </Typography>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                color: theme.palette.signal?.success || '#10b981',
+                mt: 1,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+              }}
+            >
+              {activeSession ? `${activeSession.semesterType} Sem` : 'Inactive'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              {activeSession ? activeSession.academicYear : 'No active session'}
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={4}>
+          <Card
+            sx={{
+              p: 3,
+              borderRadius: '18px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.info || '#3b82f6'}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+              },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.info || '#3b82f6' }}
+            >
+              HISTORIC ARCHIVED SESSIONS
+            </Typography>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                color: 'text.primary',
+                mt: 1,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+              }}
+            >
+              {kpiStats.archivedCount}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Previous academic years preserved
+            </Typography>
+          </Card>
+        </Grid>
+      </Grid>
+
       {/* Auto-Sync Informational Alert Banner */}
-      <Alert severity="info" icon={<CheckCircleOutlined />} sx={{ borderRadius: '12px', bgcolor: 'rgba(59, 130, 246, 0.08)', color: theme.palette.ink[900] }}>
+      <Alert severity="info" icon={<CheckCircleOutlined />} sx={{ borderRadius: '14px', bgcolor: 'rgba(59, 130, 246, 0.08)', color: theme.palette.ink[900] }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
           ⚡ Automatic Time-Based Progression Active
         </Typography>
         <Typography variant="body2" sx={{ fontSize: '0.82rem', mt: 0.25 }}>
-          Academic sessions automatically transition based on their scheduled term start & end dates. When a term finishes, it is automatically moved to <strong>ARCHIVED</strong> status and the next scheduled <strong>UPCOMING</strong> term automatically takes over as <strong>ACTIVE</strong>.
+          Academic sessions automatically transition based on their scheduled term start &amp; end dates. When a term finishes, it is automatically moved to <strong>ARCHIVED</strong> status and the next scheduled <strong>UPCOMING</strong> term automatically takes over as <strong>ACTIVE</strong>.
         </Typography>
       </Alert>
 
       {/* Error Alert with Retry */}
       {error && (
-        <Alert severity="error" action={<Button color="inherit" size="small" onClick={() => refetch()}>Retry</Button>} sx={{ borderRadius: '12px' }}>
+        <Alert severity="error" action={<Button color="inherit" size="small" onClick={() => refetch()}>Retry</Button>} sx={{ borderRadius: '14px' }}>
           Failed to load academic session history.
         </Alert>
       )}
 
-      {/* ── 3. Session Directory & Status Filtering ──────────────────────────── */}
-      <Card sx={{ p: 2.5, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+      {/* ── 4. Session Directory & Status Filtering ──────────────────────────── */}
+      <Card sx={{ p: 2.5, borderRadius: '18px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none', bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5, flexWrap: 'wrap', gap: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, fontFamily: theme.typography.h1.fontFamily, color: theme.palette.ink[900] }}>
             Academic Terms Directory

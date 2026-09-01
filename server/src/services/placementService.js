@@ -35,20 +35,51 @@ const getDrives = async (queryOptions, actor) => {
   }
 
   // Enforce HOD & Student boundaries
-  if (actor.role === ROLES.HOD || actor.role === ROLES.STUDENT) {
-    filters.departmentIds = actor.departmentId;
+  if (actor.role === ROLES.HOD) {
+    const hodDeptId = actor.departmentId || actor.branchId;
+    if (hodDeptId) {
+      filters.$or = [
+        { departmentIds: hodDeptId },
+        { departmentIds: { $size: 0 } },
+        { departmentIds: { $exists: false } },
+      ];
+    }
+  } else if (actor.role === ROLES.STUDENT) {
+    let studentDeptId = actor.departmentId;
+    const studentBranchId = actor.branchId;
+    if (!studentDeptId && studentBranchId) {
+      const Branch = require('../models/Branch');
+      const branch = await Branch.findById(studentBranchId).select('hostingDepartmentId departmentId');
+      studentDeptId = branch?.hostingDepartmentId || branch?.departmentId;
+    }
+
+    const orConditions = [
+      { departmentIds: { $size: 0 } },
+      { departmentIds: { $exists: false } },
+    ];
+    if (studentDeptId) {
+      orConditions.push({ departmentIds: studentDeptId });
+    }
+    if (studentBranchId) {
+      orConditions.push({ eligibleBranches: studentBranchId });
+    }
+    filters.$or = orConditions;
   }
 
   return await paginate(PlacementDrive, filters, {
     ...queryOptions,
-    sort: { driveDate: -1 }
+    populate: [
+      { path: 'eligibleBranches', select: 'name code' },
+      { path: 'departmentIds', select: 'name code' },
+    ],
+    sort: { driveDate: -1 },
   });
 };
 
 const applyForDrive = async (driveId, actor) => {
   const [drive, student] = await Promise.all([
     PlacementDrive.findById(driveId),
-    User.findById(actor.id),
+    User.findById(actor.id).populate('courseId branchId'),
   ]);
 
   if (!drive) {
@@ -61,6 +92,54 @@ const applyForDrive = async (driveId, actor) => {
   // Check application deadline
   if (drive.applicationDeadline && new Date() > drive.applicationDeadline) {
     throw new AppError('Application deadline has passed.', 400, ERROR_CODES.BAD_REQUEST);
+  }
+
+  // Enforce branch eligibility (if specific branches configured)
+  if (drive.eligibleBranches && drive.eligibleBranches.length > 0) {
+    const studentBranchId = student.branchId?._id ? student.branchId._id.toString() : student.branchId?.toString();
+    const isBranchAllowed = drive.eligibleBranches.some(bId => bId.toString() === studentBranchId);
+    if (!isBranchAllowed) {
+      throw new AppError('Eligibility not met: This recruitment drive is not open for your academic branch.', 403, ERROR_CODES.FORBIDDEN);
+    }
+  }
+
+  // Enforce academic standing based on dynamic course duration
+  if (drive.eligibleStanding && drive.eligibleStanding !== 'ALL_YEARS') {
+    const durationYears = student.courseId?.durationYears || 4;
+    const totalSemesters = durationYears * 2;
+    const studentSem = student.semester || 1;
+
+    const isFinalYear = studentSem >= (totalSemesters - 1);
+    const isPreFinalYear = studentSem >= (totalSemesters - 3) && studentSem < (totalSemesters - 1);
+
+    if (drive.eligibleStanding === 'FINAL_YEAR' && !isFinalYear) {
+      throw new AppError(
+        `Eligibility not met: This drive is restricted to Final Year graduating students (Current semester: ${studentSem}, required: ${totalSemesters - 1} or ${totalSemesters}).`,
+        403,
+        ERROR_CODES.FORBIDDEN
+      );
+    }
+
+    if (drive.eligibleStanding === 'PRE_FINAL_YEAR' && !isPreFinalYear) {
+      throw new AppError(
+        `Eligibility not met: This drive is restricted to Pre-Final Year students for internships (Current semester: ${studentSem}, required: ${totalSemesters - 3} or ${totalSemesters - 2}).`,
+        403,
+        ERROR_CODES.FORBIDDEN
+      );
+    }
+  }
+
+  // Enforce graduating batch year (if specified)
+  if (drive.graduatingBatchYear) {
+    const durationYears = student.courseId?.durationYears || 4;
+    const expectedGraduationYear = student.admissionYear ? student.admissionYear + durationYears : null;
+    if (expectedGraduationYear && expectedGraduationYear !== drive.graduatingBatchYear) {
+      throw new AppError(
+        `Eligibility not met: This recruitment drive is reserved for the Class of ${drive.graduatingBatchYear}.`,
+        403,
+        ERROR_CODES.FORBIDDEN
+      );
+    }
   }
 
   // Enforce eligibility criteria
@@ -185,19 +264,27 @@ const finalizeApplication = async (appId, finalizeData, actor, req) => {
 const getApplications = async (queryOptions, actor) => {
   const { driveId, finalStatus, isNocIssued } = queryOptions;
 
-  // Find all drives for the department
-  const driveFilters = {};
+  const filters = {};
+
   if (actor.role === ROLES.HOD) {
-    driveFilters.departmentIds = actor.departmentId;
-  }
-  if (driveId) {
-    driveFilters._id = driveId;
+    const hodDeptId = actor.departmentId || actor.branchId;
+    const driveFilters = hodDeptId
+      ? { $or: [{ departmentIds: hodDeptId }, { departmentIds: { $size: 0 } }, { departmentIds: { $exists: false } }] }
+      : {};
+    if (driveId) {
+      driveFilters._id = driveId;
+    }
+    const drives = await PlacementDrive.find(driveFilters).select('_id');
+    filters.driveId = { $in: drives.map(d => d._id) };
+  } else if (actor.role === ROLES.STUDENT) {
+    filters.studentId = actor.id;
+    if (driveId) {
+      filters.driveId = driveId;
+    }
+  } else if (driveId) {
+    filters.driveId = driveId;
   }
 
-  const drives = await PlacementDrive.find(driveFilters).select('_id');
-  const driveIds = drives.map(d => d._id);
-
-  const filters = { driveId: { $in: driveIds } };
   if (finalStatus) {
     filters.finalStatus = finalStatus;
   }
@@ -209,7 +296,7 @@ const getApplications = async (queryOptions, actor) => {
     ...queryOptions,
     populate: [
       { path: 'studentId', select: 'name email rollNumber cgpa activeBacklogs' },
-      { path: 'driveId', select: 'companyName role driveType' }
+      { path: 'driveId', select: 'companyName role driveType packageInfo selectionProcess eligibilityCriteria driveDate applicationDeadline status' }
     ],
     sort: { createdAt: -1 }
   });
@@ -254,6 +341,39 @@ const issueNoc = async (appId, actor, req) => {
   return app;
 };
 
+const deleteDrive = async (driveId, actor, req) => {
+  const drive = await PlacementDrive.findById(driveId);
+  if (!drive) {
+    throw new AppError('Placement drive not found.', 404, ERROR_CODES.NOT_FOUND);
+  }
+
+  // Enforce HOD department boundaries
+  if (actor.role === ROLES.HOD) {
+    const isDeptMatched = drive.departmentIds.some(id => id.toString() === actor.departmentId.toString());
+    if (!isDeptMatched) {
+      throw new AppError('Access denied. This placement drive does not belong to your department.', 403, ERROR_CODES.FORBIDDEN);
+    }
+  }
+
+  const before = drive.toObject();
+  await PlacementDrive.findByIdAndDelete(driveId);
+
+  // Also cascade delete associated applications
+  await PlacementApplication.deleteMany({ driveId });
+
+  // Audit Log
+  await logAuditEvent({
+    actorId: actor.id,
+    action: 'PLACEMENT_DRIVE_DELETED',
+    targetId: drive._id,
+    targetModel: 'PlacementDrive',
+    before,
+    req
+  });
+
+  return { message: 'Placement drive deleted successfully.' };
+};
+
 module.exports = {
   createDrive,
   getDrives,
@@ -261,5 +381,6 @@ module.exports = {
   updateApplicationRound,
   finalizeApplication,
   getApplications,
-  issueNoc
+  issueNoc,
+  deleteDrive,
 };

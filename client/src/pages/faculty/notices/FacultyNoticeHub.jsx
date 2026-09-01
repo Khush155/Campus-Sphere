@@ -15,7 +15,6 @@ import {
   useTheme,
   Card,
   CircularProgress,
-  Avatar,
   Divider,
   ToggleButton,
   ToggleButtonGroup,
@@ -27,9 +26,6 @@ import {
   SearchOutlined,
   RefreshOutlined,
   CampaignOutlined,
-  WarningAmberOutlined,
-  InfoOutlined,
-  NotificationsOutlined,
   ViewListOutlined,
   GridViewOutlined,
 } from '@mui/icons-material';
@@ -37,6 +33,7 @@ import DataTable from '../../../components/common/DataTable';
 import EmptyState from '../../../components/common/EmptyState';
 import ConfirmDeleteModal from '../../../components/common/ConfirmDeleteModal';
 import { useNoticesQuery, useCreateNoticesMutation, useDeleteNoticeMutation } from '../../../queries/hodQueries';
+import { useFeedQuery } from '../../../queries/noticeQueries';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 
@@ -92,12 +89,28 @@ export const FacultyNoticeHub = () => {
     return () => clearTimeout(handler);
   }, [search]);
 
-  // Queries & Mutations
-  const { data: noticesData = [], isLoading, refetch } = useNoticesQuery({ priority: priorityFilter || undefined });
+  const isStudent = user?.role === 'STUDENT';
+  const { data: adminNoticesData = [], isLoading: isAdminLoading, refetch: refetchAdmin } = useNoticesQuery(
+    { priority: priorityFilter || undefined },
+    { enabled: !isStudent }
+  );
+  const { data: studentFeedData = [], isLoading: isFeedLoading, refetch: refetchFeed } = useFeedQuery(
+    { priority: priorityFilter || undefined },
+    { enabled: isStudent }
+  );
+
+  const noticesData = isStudent ? studentFeedData : adminNoticesData;
+  const isLoading = isStudent ? isFeedLoading : isAdminLoading;
+  const refetch = isStudent ? refetchFeed : refetchAdmin;
+
   const createMutation = useCreateNoticesMutation();
   const deleteMutation = useDeleteNoticeMutation();
 
-  const rawList = useMemo(() => (Array.isArray(noticesData) ? noticesData : []), [noticesData]);
+  const rawList = useMemo(() => {
+    if (!noticesData) return [];
+    if (Array.isArray(noticesData)) return noticesData;
+    return noticesData.notices || noticesData.data || [];
+  }, [noticesData]);
 
   const filteredNotices = useMemo(() => {
     let list = rawList;
@@ -113,13 +126,6 @@ export const FacultyNoticeHub = () => {
     return list;
   }, [rawList, priorityFilter, debouncedSearch]);
 
-  const stats = useMemo(() => {
-    const total = rawList.length;
-    const urgent = rawList.filter((n) => n.priority === 'URGENT').length;
-    const important = rawList.filter((n) => n.priority === 'IMPORTANT').length;
-    const normal = rawList.filter((n) => n.priority === 'NORMAL').length;
-    return { total, urgent, important, normal };
-  }, [rawList]);
 
   const handleOpenPublish = () => setOpenPublishModal(true);
   const handleClosePublish = () => {
@@ -301,7 +307,7 @@ export const FacultyNoticeHub = () => {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
               <Chip
                 icon={<CampaignOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
-                label="FACULTY NOTICE BOARD & OFFICIAL BROADCAST DESK"
+                label={isStudent ? "STUDENT NOTICE BOARD & ANNOUNCEMENT RADAR" : "FACULTY NOTICE BOARD & OFFICIAL BROADCAST DESK"}
                 size="small"
                 sx={{
                   bgcolor: `${theme.palette.primary.main}15`,
@@ -317,7 +323,9 @@ export const FacultyNoticeHub = () => {
               Notice Board & Broadcast Feed
             </Typography>
             <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
-              Publish official class circulars, issue urgent academic alerts, and read department notifications.
+              {isStudent
+                ? "Read official institutional announcements, department circulars, and academic broadcast notifications."
+                : "Publish official class circulars, issue urgent academic alerts, and read department notifications."}
             </Typography>
           </Box>
 
@@ -330,201 +338,25 @@ export const FacultyNoticeHub = () => {
             >
               Refresh Feed
             </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddOutlined />}
-              onClick={handleOpenPublish}
-              sx={{
-                borderRadius: '8px',
-                textTransform: 'none',
-                fontWeight: 700,
-                background: theme.palette.primary.gradient || theme.palette.primary.main,
-                color: '#ffffff',
-              }}
-            >
-              Publish Class Notice
-            </Button>
+            {!isStudent && (
+              <Button
+                variant="contained"
+                startIcon={<AddOutlined />}
+                onClick={handleOpenPublish}
+                sx={{
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  background: theme.palette.primary.gradient || theme.palette.primary.main,
+                  color: '#ffffff',
+                }}
+              >
+                Publish Class Notice
+              </Button>
+            )}
           </Box>
         </Box>
       </Card>
-
-      {/* ── 2. KPI Summary Grid (Faculty Roster Card Style) ───────────────── */}
-      <Grid container spacing={2.5}>
-        {/* 1. Total Notices Card */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: '14px',
-              border: `1px solid ${theme.palette.divider}`,
-              borderTop: `4px solid ${theme.palette.primary.main}`,
-              boxShadow: 'none',
-              bgcolor: theme.palette.background.paper,
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
-                  TOTAL NOTICES
-                </Typography>
-                <Typography
-                  variant="h4"
-                  sx={{
-                    fontWeight: 800,
-                    color: theme.palette.ink ? theme.palette.ink[900] : 'text.primary',
-                    mt: 1,
-                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
-                  }}
-                >
-                  {stats.total}
-                </Typography>
-              </Box>
-              <Avatar sx={{ bgcolor: `${theme.palette.primary.main}15`, color: theme.palette.primary.main }}>
-                <NotificationsOutlined />
-              </Avatar>
-            </Box>
-          </Card>
-        </Grid>
-
-        {/* 2. Urgent Alerts Card */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: '14px',
-              border: `1px solid ${theme.palette.divider}`,
-              borderTop: `4px solid ${theme.palette.signal?.error || '#ef4444'}`,
-              boxShadow: 'none',
-              bgcolor: theme.palette.background.paper,
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.error || '#ef4444' }}
-                >
-                  URGENT ALERTS
-                </Typography>
-                <Typography
-                  variant="h4"
-                  sx={{
-                    fontWeight: 800,
-                    color: theme.palette.signal?.error || '#ef4444',
-                    mt: 1,
-                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
-                  }}
-                >
-                  {stats.urgent}
-                </Typography>
-              </Box>
-              <Avatar
-                sx={{
-                  bgcolor: `${theme.palette.signal?.error || '#ef4444'}15`,
-                  color: theme.palette.signal?.error || '#ef4444',
-                }}
-              >
-                <WarningAmberOutlined />
-              </Avatar>
-            </Box>
-          </Card>
-        </Grid>
-
-        {/* 3. Important Circulars Card */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: '14px',
-              border: `1px solid ${theme.palette.divider}`,
-              borderTop: `4px solid ${theme.palette.warning?.main || '#f59e0b'}`,
-              boxShadow: 'none',
-              bgcolor: theme.palette.background.paper,
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning?.main || '#f59e0b' }}
-                >
-                  IMPORTANT CIRCULARS
-                </Typography>
-                <Typography
-                  variant="h4"
-                  sx={{
-                    fontWeight: 800,
-                    color: theme.palette.warning?.main || '#f59e0b',
-                    mt: 1,
-                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
-                  }}
-                >
-                  {stats.important}
-                </Typography>
-              </Box>
-              <Avatar
-                sx={{
-                  bgcolor: `${theme.palette.warning?.main || '#f59e0b'}15`,
-                  color: theme.palette.warning?.main || '#f59e0b',
-                }}
-              >
-                <InfoOutlined />
-              </Avatar>
-            </Box>
-          </Card>
-        </Grid>
-
-        {/* 4. General Notices Card */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: '14px',
-              border: `1px solid ${theme.palette.divider}`,
-              borderTop: `4px solid ${theme.palette.info?.main || '#3b82f6'}`,
-              boxShadow: 'none',
-              bgcolor: theme.palette.background.paper,
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.info?.main || '#3b82f6' }}
-                >
-                  GENERAL NOTICES
-                </Typography>
-                <Typography
-                  variant="h4"
-                  sx={{
-                    fontWeight: 800,
-                    color: theme.palette.info?.main || '#3b82f6',
-                    mt: 1,
-                    fontFamily: theme.typography.mono?.fontFamily || 'monospace',
-                  }}
-                >
-                  {stats.normal}
-                </Typography>
-              </Box>
-              <Avatar
-                sx={{
-                  bgcolor: `${theme.palette.info?.main || '#3b82f6'}15`,
-                  color: theme.palette.info?.main || '#3b82f6',
-                }}
-              >
-                <NotificationsActiveOutlined />
-              </Avatar>
-            </Box>
-          </Card>
-        </Grid>
-      </Grid>
 
       {/* ── 3. Filters & Notice Feed ─────────────────────────────────────── */}
       <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>

@@ -58,6 +58,7 @@ export const HodStudentsHub = () => {
   const theme = useTheme();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const isDark = theme.palette.mode === 'dark';
   const cleanDeptId = getCleanId(user?.departmentId || user?.department);
 
   // Filter & Pagination States
@@ -461,10 +462,15 @@ export const HodStudentsHub = () => {
       <Card
         sx={{
           p: { xs: 2.5, md: 3.5 },
-          borderRadius: '16px',
-          border: `1px solid ${theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}12 0%, ${theme.palette.primary.main}04 100%)`,
-          boxShadow: 'none',
+          borderRadius: '22px',
+          border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.14) 0%, rgba(184, 134, 62, 0.08) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: isDark
+            ? '0 18px 40px -15px rgba(0,0,0,0.5)'
+            : '0 18px 40px -15px rgba(79, 70, 229, 0.08)',
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
@@ -496,7 +502,7 @@ export const HodStudentsHub = () => {
               variant="outlined"
               startIcon={<RefreshOutlined />}
               onClick={() => refetch()}
-              sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 2 }}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
             >
               Refresh
             </Button>
@@ -509,7 +515,7 @@ export const HodStudentsHub = () => {
                 setImportError(null);
                 setImportModalOpen(true);
               }}
-              sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 600, px: 2 }}
+              sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 600 }}
             >
               Bulk CSV Import
             </Button>
@@ -518,10 +524,12 @@ export const HodStudentsHub = () => {
               startIcon={<AddOutlined />}
               onClick={handleOpen}
               sx={{
-                borderRadius: '10px',
+                borderRadius: '8px',
                 textTransform: 'none',
                 fontWeight: 700,
                 px: 2.5,
+                background: theme.palette.primary.gradient || theme.palette.primary.main,
+                color: '#ffffff',
                 boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
               }}
             >
@@ -534,11 +542,26 @@ export const HodStudentsHub = () => {
       {/* ── 2. KPI Summary Grid ────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.primary.main}`, boxShadow: 'none' }}>
+          <Card
+            sx={{
+              p: 2.5,
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.primary.main,
+              },
+            }}
+          >
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               ENROLLED STUDENTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 0.5 }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.ink[900], mt: 0.5, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
               {isLoading ? <CircularProgress size={22} /> : meta.total}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
@@ -548,11 +571,26 @@ export const HodStudentsHub = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.success.main}`, boxShadow: 'none' }}>
+          <Card
+            sx={{
+              p: 2.5,
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.success.main}`,
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.success.main,
+              },
+            }}
+          >
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               ACTIVE STUDENTS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.success.main, mt: 0.5 }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.success.main, mt: 0.5, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
               {isLoading ? <CircularProgress size={22} /> : studentsList.filter((s) => s.status === 'ACTIVE').length}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
@@ -562,11 +600,26 @@ export const HodStudentsHub = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.info.main}`, boxShadow: 'none' }}>
+          <Card
+            sx={{
+              p: 2.5,
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.info.main}`,
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.info.main,
+              },
+            }}
+          >
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               ASSIGNED ROLL NUMBERS
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 0.5 }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.info.main, mt: 0.5, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
               {isLoading ? <CircularProgress size={22} /> : studentsList.filter((s) => s.rollNumber).length}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>
@@ -576,11 +629,26 @@ export const HodStudentsHub = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 2.5, borderRadius: '14px', border: `1px solid ${theme.palette.divider}`, borderTop: `4px solid ${theme.palette.warning.main}`, boxShadow: 'none' }}>
+          <Card
+            sx={{
+              p: 2.5,
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.warning.main}`,
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
+              transition: 'all 0.25s ease',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.warning.main,
+              },
+            }}
+          >
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em' }}>
               CURRENT PAGE ROSTER
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 0.5 }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.warning.main, mt: 0.5, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
               {isLoading ? <CircularProgress size={22} /> : studentsList.length}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.2 }}>

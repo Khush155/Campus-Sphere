@@ -9,7 +9,7 @@ const ROLES = require('../constants/roles');
 const router = express.Router();
 
 router.use(authMiddleware);
-router.use(roleMiddleware(ROLES.HOD));
+router.use(roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD));
 
 router.post('/', validate(createRequestSchema), requestController.createRequest);
 router.get('/sent', requestController.getSentRequests);

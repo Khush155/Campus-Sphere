@@ -9,6 +9,7 @@ import {
   useTheme,
   Card,
   Chip,
+  Paper,
 } from '@mui/material';
 import {
   AddOutlined,
@@ -33,6 +34,7 @@ export const SetupHub = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { tab } = useParams();
+  const isDark = theme.palette.mode === 'dark';
 
   const [onAddClick, setOnAddClick] = useState(null);
 
@@ -60,7 +62,7 @@ export const SetupHub = () => {
       case 'subjects':
         return 'Add Subject';
       default:
-        return 'Add';
+        return 'Add Item';
     }
   };
 
@@ -81,19 +83,22 @@ export const SetupHub = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
-      {/* ── 1. Hero Header Banner Card ─────────────────────────────────────── */}
+      {/* ── 1. Hero Header Banner Card (Glassmorphic Luxury Command Bar) ─── */}
       <Card
         sx={{
           p: 3.5,
-          borderRadius: '16px',
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0F 0%, ${theme.palette.brass?.[500] || '#b8863e'}08 100%)`,
-          boxShadow: theme.custom?.elevation?.raised || 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(184, 134, 62, 0.06) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: theme.custom?.elevation?.raised || '0 8px 24px rgba(0,0,0,0.03)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 2,
+          gap: 2.5,
         }}
       >
         <Box>
@@ -105,56 +110,61 @@ export const SetupHub = () => {
               sx={{
                 bgcolor: `${theme.palette.primary.main}15`,
                 color: theme.palette.primary.main,
-                fontFamily: theme.typography.mono.fontFamily,
-                fontWeight: 700,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontWeight: 800,
                 fontSize: '0.68rem',
                 letterSpacing: '0.06em',
-                borderRadius: '6px',
+                borderRadius: '8px',
               }}
             />
-            {/* Live Count Badges */}
+
+            {/* Live Counts Badges */}
             <Chip
               label={`${depts?.length || 0} Departments`}
               size="small"
               sx={{
-                bgcolor: theme.palette.background.paper,
+                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
                 border: `1px solid ${theme.palette.divider}`,
-                fontFamily: theme.typography.mono.fontFamily,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                 fontSize: '0.72rem',
-                fontWeight: 600,
+                fontWeight: 700,
+                borderRadius: '6px',
               }}
             />
             <Chip
               label={`${courses?.length || 0} Degree Courses`}
               size="small"
               sx={{
-                bgcolor: theme.palette.background.paper,
+                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
                 border: `1px solid ${theme.palette.divider}`,
-                fontFamily: theme.typography.mono.fontFamily,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                 fontSize: '0.72rem',
-                fontWeight: 600,
+                fontWeight: 700,
+                borderRadius: '6px',
               }}
             />
             <Chip
               label={`${branches?.length || 0} Branches`}
               size="small"
               sx={{
-                bgcolor: theme.palette.background.paper,
+                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
                 border: `1px solid ${theme.palette.divider}`,
-                fontFamily: theme.typography.mono.fontFamily,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                 fontSize: '0.72rem',
-                fontWeight: 600,
+                fontWeight: 700,
+                borderRadius: '6px',
               }}
             />
             <Chip
               label={`${subjects?.length || 0} Curriculum Subjects`}
               size="small"
               sx={{
-                bgcolor: theme.palette.background.paper,
+                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
                 border: `1px solid ${theme.palette.divider}`,
-                fontFamily: theme.typography.mono.fontFamily,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                 fontSize: '0.72rem',
-                fontWeight: 600,
+                fontWeight: 700,
+                borderRadius: '6px',
               }}
             />
           </Box>
@@ -163,24 +173,23 @@ export const SetupHub = () => {
             variant="h4"
             component="h1"
             sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 600,
-              color: theme.palette.ink[900],
+              fontWeight: 800,
+              color: 'text.primary',
+              letterSpacing: '-0.02em',
               lineHeight: 1.15,
               mb: 0.5,
             }}
           >
-            College Configuration
+            College Academic Configuration
           </Typography>
           <Typography
             variant="body2"
             sx={{
-              fontFamily: theme.typography.body2.fontFamily,
               color: theme.palette.text.secondary,
-              maxWidth: 640,
+              maxWidth: 680,
             }}
           >
-            Configure institutional departments, degree courses, academic branches, and curriculum subject allocations.
+            Configure institutional academic departments, degree courses, discipline branches, and curriculum subject allocations.
           </Typography>
         </Box>
 
@@ -190,17 +199,12 @@ export const SetupHub = () => {
             startIcon={<AddOutlined />}
             onClick={() => onAddClick()}
             sx={{
-              background: theme.palette.primary.gradient || theme.palette.primary.main,
-              color: '#ffffff',
-              fontWeight: 700,
+              fontWeight: 800,
               px: 3,
               py: 1.25,
-              borderRadius: '8px',
+              borderRadius: '12px',
               textTransform: 'none',
-              boxShadow: `0 4px 16px ${theme.palette.primary.main}40`,
-              '&:hover': {
-                filter: 'brightness(1.1)',
-              },
+              boxShadow: `0 4px 18px ${theme.palette.primary.main}40`,
             }}
           >
             {getButtonLabel()}
@@ -208,12 +212,13 @@ export const SetupHub = () => {
         )}
       </Card>
 
-      {/* ── 2. Tabs Selector ──────────────────────────────────────────────── */}
-      <Card
+      {/* ── 2. Modern Navigation Tabs Bar ─────────────────────────────────── */}
+      <Paper
+        elevation={0}
         sx={{
           px: 2,
-          py: 0.5,
-          borderRadius: '12px',
+          py: 0.75,
+          borderRadius: '16px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
           bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
         }}
@@ -226,20 +231,22 @@ export const SetupHub = () => {
             minHeight: 48,
             '& .MuiTab-root': {
               fontFamily: theme.typography.body1.fontFamily,
-              fontWeight: 600,
+              fontWeight: 700,
               fontSize: '0.88rem',
               textTransform: 'none',
               minHeight: 48,
               py: 1,
-              px: 2.5,
+              px: 2.75,
               color: theme.palette.text.secondary,
               transition: 'all 0.2s ease',
+              borderRadius: '10px',
               '&:hover': {
                 color: theme.palette.primary.main,
+                bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(79, 70, 229, 0.04)',
               },
               '&.Mui-selected': {
                 color: theme.palette.primary.main,
-                fontWeight: 700,
+                fontWeight: 800,
               },
             },
             '& .MuiTabs-indicator': {
@@ -252,33 +259,33 @@ export const SetupHub = () => {
           <Tab
             icon={<BusinessOutlined sx={{ fontSize: 18 }} />}
             iconPosition="start"
-            label="Departments"
+            label={`Departments (${depts?.length || 0})`}
             value="departments"
             id="departments-tab"
           />
           <Tab
             icon={<SchoolOutlined sx={{ fontSize: 18 }} />}
             iconPosition="start"
-            label="Courses"
+            label={`Courses (${courses?.length || 0})`}
             value="courses"
             id="courses-tab"
           />
           <Tab
             icon={<AccountTreeOutlined sx={{ fontSize: 18 }} />}
             iconPosition="start"
-            label="Branches"
+            label={`Branches (${branches?.length || 0})`}
             value="branches"
             id="branches-tab"
           />
           <Tab
             icon={<MenuBookOutlined sx={{ fontSize: 18 }} />}
             iconPosition="start"
-            label="Subjects"
+            label={`Subjects (${subjects?.length || 0})`}
             value="subjects"
             id="subjects-tab"
           />
         </Tabs>
-      </Card>
+      </Paper>
 
       {/* ── 3. Tab Screen Content ─────────────────────────────────────────── */}
       <Box sx={{ mt: 0.5 }}>{renderTabContent()}</Box>

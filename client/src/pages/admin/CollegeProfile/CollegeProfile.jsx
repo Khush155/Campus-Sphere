@@ -22,8 +22,10 @@ import {
   AccountBalanceOutlined,
   VerifiedUserOutlined,
   SchoolOutlined,
+  LockOutlined,
 } from '@mui/icons-material';
 import { useToast } from '../../../contexts/ToastContext';
+import { usePermissions } from '../../../utils/permissions';
 
 import {
   useCollegeProfileQuery,
@@ -87,7 +89,9 @@ const profileFormSchema = z.object({
 
 export const CollegeProfile = () => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
+  const { isSuperAdmin } = usePermissions();
 
   // Logo file state
   const [selectedFile, setSelectedFile] = useState(null);
@@ -242,19 +246,22 @@ export const CollegeProfile = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, pb: 6 }}>
-      {/* ── 1. Hero Identity Banner Card ───────────────────────────────────── */}
+      {/* ── 1. Hero Identity Banner Card (Glassmorphic Luxury Bar) ────────── */}
       <Card
         sx={{
           p: 3.5,
-          borderRadius: '16px',
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0F 0%, ${theme.palette.brass?.[500] || '#b8863e'}08 100%)`,
-          boxShadow: theme.custom?.elevation?.raised || 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(184, 134, 62, 0.06) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: theme.custom?.elevation?.raised || '0 8px 24px rgba(0,0,0,0.03)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 2,
+          gap: 2.5,
         }}
       >
         <Box>
@@ -266,28 +273,38 @@ export const CollegeProfile = () => {
               sx={{
                 bgcolor: `${theme.palette.primary.main}15`,
                 color: theme.palette.primary.main,
-                fontFamily: theme.typography.mono.fontFamily,
-                fontWeight: 700,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontWeight: 800,
                 fontSize: '0.68rem',
                 letterSpacing: '0.06em',
-                borderRadius: '6px',
+                borderRadius: '8px',
               }}
             />
-            <Chip
-              icon={<VerifiedUserOutlined sx={{ fontSize: '0.8rem !important' }} />}
-              label="Official Profile Active"
-              size="small"
-              color="success"
-              sx={{ fontSize: '0.72rem', fontWeight: 700 }}
-            />
+            {isSuperAdmin ? (
+              <Chip
+                icon={<VerifiedUserOutlined sx={{ fontSize: '0.8rem !important' }} />}
+                label="Official Profile Active"
+                size="small"
+                color="success"
+                sx={{ fontSize: '0.72rem', fontWeight: 700, borderRadius: '6px' }}
+              />
+            ) : (
+              <Chip
+                icon={<LockOutlined sx={{ fontSize: '0.8rem !important' }} />}
+                label="View Only (Super Admin Managed)"
+                size="small"
+                color="info"
+                sx={{ fontSize: '0.72rem', fontWeight: 700, borderRadius: '6px' }}
+              />
+            )}
           </Box>
           <Typography
             variant="h4"
             component="h1"
             sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 600,
-              color: theme.palette.ink[900],
+              fontWeight: 800,
+              color: 'text.primary',
+              letterSpacing: '-0.02em',
               lineHeight: 1.15,
               mb: 0.5,
             }}
@@ -297,9 +314,8 @@ export const CollegeProfile = () => {
           <Typography
             variant="body2"
             sx={{
-              fontFamily: theme.typography.body2.fontFamily,
               color: theme.palette.text.secondary,
-              maxWidth: 640,
+              maxWidth: 680,
             }}
           >
             Manage institution details, branding logos, physical address, and affiliation metadata displayed across documents.
@@ -320,7 +336,7 @@ export const CollegeProfile = () => {
               p: 4,
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: 'none',
-              borderRadius: '16px',
+              borderRadius: '18px',
               bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
               display: 'flex',
               flexDirection: 'column',
@@ -347,6 +363,7 @@ export const CollegeProfile = () => {
                     id="college-name-input"
                     fullWidth
                     size="small"
+                    disabled={!isSuperAdmin}
                     placeholder="e.g. CampusSphere Institute of Technology"
                     {...register('name')}
                     error={!!errors.name}
@@ -362,6 +379,7 @@ export const CollegeProfile = () => {
                     id="code-input"
                     fullWidth
                     size="small"
+                    disabled={!isSuperAdmin}
                     placeholder="e.g. CS-ERP-101"
                     {...register('institutionCode')}
                     error={!!errors.institutionCode}
@@ -377,6 +395,7 @@ export const CollegeProfile = () => {
                     id="affiliation-input"
                     fullWidth
                     size="small"
+                    disabled={!isSuperAdmin}
                     placeholder="e.g. Affiliated to State Technological University"
                     {...register('affiliation')}
                     error={!!errors.affiliation}
@@ -392,6 +411,7 @@ export const CollegeProfile = () => {
                     id="accreditation-input"
                     fullWidth
                     size="small"
+                    disabled={!isSuperAdmin}
                     placeholder="e.g. NAAC Grade A+ | NBA Accredited"
                     {...register('accreditation')}
                     error={!!errors.accreditation}
@@ -408,6 +428,7 @@ export const CollegeProfile = () => {
                     type="number"
                     fullWidth
                     size="small"
+                    disabled={!isSuperAdmin}
                     placeholder="e.g. 1998"
                     {...register('establishmentYear')}
                     error={!!errors.establishmentYear}
@@ -423,6 +444,7 @@ export const CollegeProfile = () => {
                     id="website-input"
                     fullWidth
                     size="small"
+                    disabled={!isSuperAdmin}
                     placeholder="e.g. https://campussphere.edu"
                     {...register('website')}
                     error={!!errors.website}
@@ -440,6 +462,7 @@ export const CollegeProfile = () => {
                     size="small"
                     multiline
                     rows={2.5}
+                    disabled={!isSuperAdmin}
                     placeholder="Enter full campus physical address..."
                     {...register('address')}
                     error={!!errors.address}
@@ -455,6 +478,7 @@ export const CollegeProfile = () => {
                     id="contact-email-input"
                     fullWidth
                     size="small"
+                    disabled={!isSuperAdmin}
                     placeholder="e.g. contact@college.edu"
                     {...register('contactEmail')}
                     error={!!errors.contactEmail}
@@ -470,6 +494,7 @@ export const CollegeProfile = () => {
                     id="contact-phone-input"
                     fullWidth
                     size="small"
+                    disabled={!isSuperAdmin}
                     placeholder="e.g. +91 98765 43210"
                     {...register('contactPhone')}
                     error={!!errors.contactPhone}
@@ -479,26 +504,32 @@ export const CollegeProfile = () => {
               </Grid>
             </Box>
 
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={!isDirty || updateProfileMutation.isPending}
-                startIcon={updateProfileMutation.isPending ? <CircularProgress size={20} color="inherit" /> : <SaveOutlined />}
-                sx={{
-                  background: theme.palette.primary.gradient || theme.palette.primary.main,
-                  color: '#ffffff',
-                  fontWeight: 700,
-                  textTransform: 'none',
-                  borderRadius: '8px',
-                  px: 4,
-                  height: '42px',
-                  boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
-                  '&.Mui-disabled': { bgcolor: 'rgba(28, 46, 69, 0.12)' },
-                }}
-              >
-                Save Details
-              </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+              {!isSuperAdmin ? (
+                <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', fontWeight: 600 }}>
+                  * Institutional identity details and accreditations can only be modified by the Super Administrator.
+                </Typography>
+              ) : (
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={!isDirty || updateProfileMutation.isPending}
+                  startIcon={updateProfileMutation.isPending ? <CircularProgress size={20} color="inherit" /> : <SaveOutlined />}
+                  sx={{
+                    background: theme.palette.primary.gradient || theme.palette.primary.main,
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    borderRadius: '8px',
+                    px: 4,
+                    height: '42px',
+                    boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
+                    '&.Mui-disabled': { bgcolor: 'rgba(28, 46, 69, 0.12)' },
+                  }}
+                >
+                  Save Details
+                </Button>
+              )}
             </Box>
           </Card>
         </Grid>
@@ -511,7 +542,7 @@ export const CollegeProfile = () => {
               p: 4,
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: 'none',
-              borderRadius: '16px',
+              borderRadius: '18px',
               bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
               display: 'flex',
               flexDirection: 'column',
@@ -565,45 +596,53 @@ export const CollegeProfile = () => {
             </Box>
 
             {/* File Inputs & Upload */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Button
-                variant="outlined"
-                component="label"
-                startIcon={<CloudUploadOutlined />}
-                sx={{ textTransform: 'none', fontWeight: 600, py: 1, borderRadius: '8px' }}
-              >
-                Select Logo Image
-                <input
-                  type="file"
-                  hidden
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleFileChange}
-                />
-              </Button>
-
-              {selectedFile && (
+            {!isSuperAdmin ? (
+              <Box sx={{ textAlign: 'center', py: 1 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 600, fontStyle: 'italic' }}>
+                  Institutional seal & branding images can only be uploaded by the Super Administrator.
+                </Typography>
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Button
-                  variant="contained"
-                  onClick={handleUploadLogo}
-                  disabled={uploadingLogo}
-                  startIcon={uploadingLogo ? <CircularProgress size={20} color="inherit" /> : null}
-                  sx={{
-                    background: theme.palette.primary.gradient || theme.palette.primary.main,
-                    color: '#ffffff',
-                    fontWeight: 700,
-                    textTransform: 'none',
-                    borderRadius: '8px',
-                    height: '40px',
-                  }}
+                  variant="outlined"
+                  component="label"
+                  startIcon={<CloudUploadOutlined />}
+                  sx={{ textTransform: 'none', fontWeight: 600, py: 1, borderRadius: '8px' }}
                 >
-                  Upload & Apply Logo
+                  Select Logo Image
+                  <input
+                    type="file"
+                    hidden
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleFileChange}
+                  />
                 </Button>
-              )}
 
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center' }}>
-                Accepted types: JPEG, PNG, WEBP. Max size: 10MB.
-              </Typography>
-            </Box>
+                {selectedFile && (
+                  <Button
+                    variant="contained"
+                    onClick={handleUploadLogo}
+                    disabled={uploadingLogo}
+                    startIcon={uploadingLogo ? <CircularProgress size={20} color="inherit" /> : null}
+                    sx={{
+                      background: theme.palette.primary.gradient || theme.palette.primary.main,
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      textTransform: 'none',
+                      borderRadius: '8px',
+                      height: '40px',
+                    }}
+                  >
+                    Upload & Apply Logo
+                  </Button>
+                )}
+
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center' }}>
+                  Accepted types: JPEG, PNG, WEBP. Max size: 10MB.
+                </Typography>
+              </Box>
+            )}
           </Card>
 
           {/* Live Document Header Crest Preview Card */}

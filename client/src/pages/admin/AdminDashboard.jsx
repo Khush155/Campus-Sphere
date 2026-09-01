@@ -6,8 +6,6 @@ import {
   Card,
   Grid,
   List,
-  ListItemButton,
-  ListItemText,
   CircularProgress,
   Skeleton,
   Tooltip,
@@ -17,6 +15,7 @@ import {
   Alert,
   Avatar,
   Chip,
+  Paper,
 } from '@mui/material';
 import {
   PersonOutline,
@@ -34,6 +33,11 @@ import {
   ShieldOutlined,
   DateRangeOutlined,
   AssessmentOutlined,
+  AccountBalanceWalletOutlined,
+  AutorenewOutlined,
+  SpeedOutlined,
+  HubOutlined,
+  PersonAddOutlined,
 } from '@mui/icons-material';
 import {
   ResponsiveContainer,
@@ -129,7 +133,7 @@ const getAuditIcon = (action, theme) => {
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
 /** Premium KPI Card with smooth hover effects, icon container, and zero-safety */
-const KpiCard = ({ label, value, route, icon, isLoading, isError, onRetry, color }) => {
+const KpiCard = ({ label, value, subLabel, route, icon, isLoading, isError, onRetry, color }) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const accentColor = color || theme.palette.primary.main;
@@ -140,8 +144,8 @@ const KpiCard = ({ label, value, route, icon, isLoading, isError, onRetry, color
       sx={{
         p: 3,
         border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-        borderRadius: '16px',
-        boxShadow: theme.custom?.elevation?.raised || '0 4px 12px rgba(0,0,0,0.04)',
+        borderRadius: '18px',
+        boxShadow: theme.custom?.elevation?.raised || '0 4px 14px rgba(0,0,0,0.03)',
         cursor: isError ? 'default' : 'pointer',
         bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
         display: 'flex',
@@ -149,48 +153,53 @@ const KpiCard = ({ label, value, route, icon, isLoading, isError, onRetry, color
         alignItems: 'center',
         position: 'relative',
         overflow: 'hidden',
-        transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: 'all 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
         '&::before': {
           content: '""',
           position: 'absolute',
           top: 0,
           left: 0,
-          width: '4px',
+          width: '5px',
           height: '100%',
           bgcolor: accentColor,
-          opacity: 0.8,
-          transition: 'width 0.2s ease',
+          opacity: 0.85,
+          transition: 'width 0.25s ease',
         },
-        '&:hover': isError ? {} : {
-          transform: 'translateY(-4px)',
-          boxShadow: theme.custom?.elevation?.overlay || '0 12px 24px rgba(0,0,0,0.08)',
-          borderColor: accentColor,
-          '&::before': {
-            width: '6px',
-            opacity: 1,
-          },
-          '& .kpi-icon-box': {
-            transform: 'scale(1.08) rotate(-4deg)',
-            bgcolor: `${accentColor}18`,
-          },
-        },
+        '&:hover': isError
+          ? {}
+          : {
+              transform: 'translateY(-4px)',
+              boxShadow: theme.custom?.elevation?.overlay || '0 14px 28px rgba(0,0,0,0.08)',
+              borderColor: accentColor,
+              '&::before': {
+                width: '7px',
+                opacity: 1,
+              },
+              '& .kpi-icon-box': {
+                transform: 'scale(1.08) rotate(-4deg)',
+                bgcolor: `${accentColor}18`,
+              },
+            },
       }}
     >
       <Box sx={{ zIndex: 1 }}>
         {isLoading ? (
           <>
-            <Skeleton variant="text" width={60} height={40} sx={{ mb: 0.5 }} />
-            <Skeleton variant="text" width={80} height={16} />
+            <Skeleton variant="text" width={70} height={42} sx={{ mb: 0.5 }} />
+            <Skeleton variant="text" width={100} height={18} />
           </>
         ) : isError ? (
           <Box>
-            <Typography sx={{ fontSize: '0.78rem', color: theme.palette.signal.error, mb: 0.5 }}>
+            <Typography sx={{ fontSize: '0.78rem', color: theme.palette.signal?.error || '#ef4444', mb: 0.5 }}>
               {"Couldn't load"}
             </Typography>
             <Button
               size="small"
               startIcon={<RefreshOutlined sx={{ fontSize: 14 }} />}
-              onClick={(e) => { e.stopPropagation(); onRetry?.(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRetry?.();
+              }}
               sx={{ textTransform: 'none', fontSize: '0.72rem', p: 0, minWidth: 0 }}
             >
               Retry
@@ -200,13 +209,13 @@ const KpiCard = ({ label, value, route, icon, isLoading, isError, onRetry, color
           <>
             <Typography
               sx={{
-                fontFamily: theme.typography.mono.fontFamily,
-                fontSize: '2.25rem',
-                fontWeight: 700,
-                color: theme.palette.ink[900],
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontSize: '2.4rem',
+                fontWeight: 800,
+                color: theme.palette.text.primary,
                 lineHeight: 1,
                 mb: 0.75,
-                letterSpacing: '-0.02em',
+                letterSpacing: '-0.03em',
               }}
             >
               {value ?? 0}
@@ -214,31 +223,39 @@ const KpiCard = ({ label, value, route, icon, isLoading, isError, onRetry, color
             <Typography
               sx={{
                 fontFamily: theme.typography.body2.fontFamily,
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                letterSpacing: '0.08em',
+                fontSize: '0.78rem',
+                fontWeight: 800,
+                letterSpacing: '0.06em',
                 textTransform: 'uppercase',
                 color: theme.palette.text.secondary,
               }}
             >
               {label}
             </Typography>
+            {subLabel && (
+              <Typography
+                variant="caption"
+                sx={{ display: 'block', color: 'text.secondary', mt: 0.5, fontSize: '0.7rem' }}
+              >
+                {subLabel}
+              </Typography>
+            )}
           </>
         )}
       </Box>
       <Box
         className="kpi-icon-box"
         sx={{
-          width: 56,
-          height: 56,
-          borderRadius: '12px',
+          width: 58,
+          height: 58,
+          borderRadius: '14px',
           bgcolor: `${accentColor}10`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: accentColor,
           transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-          '& svg': { fontSize: '1.85rem' },
+          '& svg': { fontSize: '1.9rem' },
         }}
       >
         {icon}
@@ -257,14 +274,14 @@ const CustomChartTooltip = ({ active, payload }) => {
         p: 1.5,
         bgcolor: theme.custom?.surface?.overlay || theme.palette.background.paper,
         border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-        borderRadius: '8px',
+        borderRadius: '10px',
         boxShadow: theme.custom?.elevation?.overlay || theme.shadows[4],
       }}
     >
-      <Typography sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.78rem', color: theme.palette.text.secondary }}>
+      <Typography sx={{ fontFamily: theme.typography.body2.fontFamily, fontSize: '0.8rem', color: theme.palette.text.secondary }}>
         {payload[0].payload.departmentName}
       </Typography>
-      <Typography sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.88rem', fontWeight: 700, color: theme.palette.primary.main, mt: 0.5 }}>
+      <Typography sx={{ fontFamily: theme.typography.mono?.fontFamily || 'monospace', fontSize: '0.95rem', fontWeight: 800, color: theme.palette.primary.main, mt: 0.5 }}>
         {payload[0].value} Student{payload[0].value !== 1 ? 's' : ''}
       </Typography>
     </Box>
@@ -277,6 +294,7 @@ export const AdminDashboard = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isDark = theme.palette.mode === 'dark';
 
   // ── Queries ──
   const {
@@ -323,6 +341,15 @@ export const AdminDashboard = () => {
     return `Good evening, ${firstName}`;
   };
 
+  // ── Student-to-Faculty Ratio ──
+  const studentFacultyRatio = React.useMemo(() => {
+    const students = stats?.totalStudents || 0;
+    const faculty = stats?.totalFaculty || 0;
+    if (faculty === 0) return '—';
+    const ratio = Math.round(students / faculty);
+    return `${ratio} : 1`;
+  }, [stats]);
+
   // ── Active session subtext ──
   const renderSessionSubtext = () => {
     if (loadingSession) {
@@ -341,20 +368,26 @@ export const AdminDashboard = () => {
         </Typography>
       );
     }
-    const semLabel = activeSession.semesterType === 'ODD' ? 'Odd Semester' : 'Even Semester';
+    const semLabel = activeSession.semesterType === 'ODD' ? 'Odd Semester Term' : 'Even Semester Term';
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mt: 0.75, flexWrap: 'wrap' }}>
         <Box
           sx={{
-            width: 8,
-            height: 8,
+            width: 9,
+            height: 9,
             borderRadius: '50%',
-            bgcolor: theme.palette.signal.success,
-            boxShadow: `0 0 8px ${theme.palette.signal.success}`,
+            bgcolor: '#10b981',
+            boxShadow: '0 0 10px #10b981',
+            animation: 'pulse 2s infinite',
+            '@keyframes pulse': {
+              '0%': { transform: 'scale(0.95)', boxShadow: '0 0 0 0 rgba(16, 185, 129, 0.7)' },
+              '70%': { transform: 'scale(1)', boxShadow: '0 0 0 8px rgba(16, 185, 129, 0)' },
+              '100%': { transform: 'scale(0.95)', boxShadow: '0 0 0 0 rgba(16, 185, 129, 0)' },
+            },
           }}
         />
         <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
-          Active Session: <Box component="span" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>{activeSession.academicYear}</Box> · {semLabel}
+          Active Session: <Box component="span" sx={{ fontWeight: 800, color: 'text.primary' }}>{activeSession.academicYear}</Box> · {semLabel}
         </Typography>
       </Box>
     );
@@ -364,6 +397,7 @@ export const AdminDashboard = () => {
   const kpiCards = [
     {
       label: 'Total Students',
+      subLabel: 'Active Enrolled Cohorts',
       value: stats?.totalStudents,
       route: '/admin/users?role=STUDENT',
       icon: <SchoolOutlined />,
@@ -371,6 +405,7 @@ export const AdminDashboard = () => {
     },
     {
       label: 'Faculty Staff',
+      subLabel: 'Instructional Professors',
       value: stats?.totalFaculty,
       route: '/admin/users?role=FACULTY',
       icon: <PersonOutline />,
@@ -378,6 +413,7 @@ export const AdminDashboard = () => {
     },
     {
       label: 'Departments',
+      subLabel: 'Academic Disciplines',
       value: stats?.totalDepartments,
       route: '/admin/college-setup/departments',
       icon: <BusinessOutlined />,
@@ -385,28 +421,32 @@ export const AdminDashboard = () => {
     },
     {
       label: 'Degree Courses',
+      subLabel: 'UG & PG Degree Streams',
       value: stats?.totalCourses,
       route: '/admin/college-setup/courses',
       icon: <MenuBookOutlined />,
-      color: theme.palette.signal.success,
+      color: '#10b981',
     },
   ];
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5, position: 'relative' }}>
-      {/* ── 1. Hero Welcome Header Card ───────────────────────────────────── */}
+      {/* ── 1. Hero Welcome Header Card (Glassmorphic Luxury Command Bar) ── */}
       <Card
         sx={{
           p: 3.5,
-          borderRadius: '16px',
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.secondary.main}08 100%)`,
-          boxShadow: theme.custom?.elevation?.raised || 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(14, 165, 233, 0.06) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.07) 0%, rgba(14, 165, 233, 0.03) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: theme.custom?.elevation?.raised || '0 8px 24px rgba(0,0,0,0.03)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 2,
+          gap: 2.5,
         }}
       >
         <Box>
@@ -418,11 +458,11 @@ export const AdminDashboard = () => {
               sx={{
                 bgcolor: `${theme.palette.primary.main}15`,
                 color: theme.palette.primary.main,
-                fontFamily: theme.typography.mono.fontFamily,
-                fontWeight: 700,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontWeight: 800,
                 fontSize: '0.68rem',
                 letterSpacing: '0.06em',
-                borderRadius: '6px',
+                borderRadius: '8px',
               }}
             />
           </Box>
@@ -430,9 +470,9 @@ export const AdminDashboard = () => {
             variant="h4"
             component="h1"
             sx={{
-              fontFamily: theme.typography.h1.fontFamily,
-              fontWeight: 600,
-              color: theme.palette.ink[900],
+              fontWeight: 800,
+              color: 'text.primary',
+              letterSpacing: '-0.02em',
               lineHeight: 1.15,
               mb: 0.5,
             }}
@@ -442,26 +482,55 @@ export const AdminDashboard = () => {
           {renderSessionSubtext()}
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+          {isSuperAdmin ? (
+            <Button
+              variant="contained"
+              startIcon={<AddOutlined />}
+              onClick={() => navigate('/admin/users?register=true')}
+              sx={{
+                fontWeight: 800,
+                px: 2.75,
+                py: 1.15,
+                borderRadius: '12px',
+                textTransform: 'none',
+                boxShadow: `0 4px 18px ${theme.palette.primary.main}40`,
+              }}
+            >
+              Register User
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              startIcon={<PersonAddOutlined />}
+              onClick={() => navigate('/admin/admissions')}
+              sx={{
+                fontWeight: 800,
+                px: 2.75,
+                py: 1.15,
+                borderRadius: '12px',
+                textTransform: 'none',
+                boxShadow: `0 4px 18px ${theme.palette.primary.main}40`,
+              }}
+            >
+              Student Admissions
+            </Button>
+          )}
+
           <Button
-            variant="contained"
-            startIcon={<AddOutlined />}
-            onClick={() => navigate('/admin/users?register=true')}
+            variant="outlined"
+            startIcon={<DateRangeOutlined />}
+            onClick={() => navigate('/admin/academic-calendar')}
             sx={{
-              bgcolor: theme.palette.primary.main,
-              color: '#ffffff',
               fontWeight: 700,
-              px: 2.5,
-              py: 1,
-              borderRadius: '8px',
+              px: 2.25,
+              py: 1.15,
+              borderRadius: '12px',
               textTransform: 'none',
-              boxShadow: `0 4px 14px ${theme.palette.primary.main}35`,
-              '&:hover': {
-                bgcolor: theme.palette.primary.dark,
-              },
+              borderColor: theme.palette.divider,
             }}
           >
-            Register User
+            Academic Calendar
           </Button>
 
           <Button
@@ -469,48 +538,153 @@ export const AdminDashboard = () => {
             startIcon={<AssessmentOutlined />}
             onClick={() => navigate('/admin/reports')}
             sx={{
-              borderColor: theme.custom?.border?.subtle || theme.palette.divider,
-              color: theme.palette.text.primary,
-              fontWeight: 600,
-              px: 2.5,
-              py: 1,
-              borderRadius: '8px',
+              fontWeight: 700,
+              px: 2.25,
+              py: 1.15,
+              borderRadius: '12px',
               textTransform: 'none',
-              bgcolor: theme.palette.background.paper,
-              '&:hover': {
-                borderColor: theme.palette.primary.main,
-                bgcolor: theme.custom?.interaction?.hoverTint,
-              },
+              borderColor: theme.palette.divider,
             }}
           >
-            Reports Export
+            Export Reports
           </Button>
         </Box>
       </Card>
 
-      {/* ── 2. Insights Strip ─────────────────────────────────────────────── */}
+      {/* ── 2. Executive Institutional Vital Signs Strip ──────────────────── */}
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+            }}
+          >
+            <Avatar sx={{ bgcolor: 'rgba(79, 70, 229, 0.1)', color: 'primary.main', width: 40, height: 40, borderRadius: '10px' }}>
+              <SpeedOutlined fontSize="small" />
+            </Avatar>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.68rem' }}>
+                Student / Faculty Ratio
+              </Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
+                {studentFacultyRatio}
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+            }}
+          >
+            <Avatar sx={{ bgcolor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', width: 40, height: 40, borderRadius: '10px' }}>
+              <HubOutlined fontSize="small" />
+            </Avatar>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.68rem' }}>
+                Avg Cohort per Dept
+              </Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
+                {stats?.totalDepartments ? Math.round((stats?.totalStudents || 0) / stats.totalDepartments) : 0} Students
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+            }}
+          >
+            <Avatar sx={{ bgcolor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', width: 40, height: 40, borderRadius: '10px' }}>
+              <AccountBalanceWalletOutlined fontSize="small" />
+            </Avatar>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.68rem' }}>
+                Fee Clearance
+              </Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
+                Active Management
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+            }}
+          >
+            <Avatar sx={{ bgcolor: 'rgba(6, 182, 212, 0.1)', color: '#06b6d4', width: 40, height: 40, borderRadius: '10px' }}>
+              <ShieldOutlined fontSize="small" />
+            </Avatar>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.68rem' }}>
+                Audit Stream
+              </Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
+                Active &amp; Immutable
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      {/* ── 3. Insights Strip ─────────────────────────────────────────────── */}
       <Card
         sx={{
           p: 2.5,
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
           bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
-          borderRadius: '16px',
+          borderRadius: '18px',
         }}
       >
         {loadingInsights ? (
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
-            <Skeleton variant="circular" width={8} height={8} />
-            <Skeleton variant="text" width={240} height={18} />
+            <Skeleton variant="circular" width={10} height={10} />
+            <Skeleton variant="text" width={260} height={20} />
           </Box>
         ) : errorInsights ? (
-          <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+          <Alert severity="warning" sx={{ borderRadius: '10px' }}>
             {"Couldn't load institutional insights."}
           </Alert>
         ) : !insights || insights.length === 0 ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <CheckCircleOutlineOutlined sx={{ color: theme.palette.signal.success, fontSize: 22 }} />
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
-              {"Everything's set up — all systems operational with no pending items."}
+            <CheckCircleOutlineOutlined sx={{ color: '#10b981', fontSize: 24 }} />
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
+              {"All institutional systems operational — zero critical policy or configuration items pending."}
             </Typography>
           </Box>
         ) : (
@@ -526,7 +700,7 @@ export const AdminDashboard = () => {
                     : theme.palette.primary.main,
                 }}
               />
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
                 Institutional Operational Insights ({insights.length})
               </Typography>
             </Box>
@@ -546,7 +720,7 @@ export const AdminDashboard = () => {
                       justifyContent: 'space-between',
                       gap: 2,
                       p: 1.5,
-                      borderRadius: '8px',
+                      borderRadius: '10px',
                       bgcolor: isWarning
                         ? 'rgba(184, 134, 62, 0.06)'
                         : `${theme.palette.primary.main}08`,
@@ -557,7 +731,7 @@ export const AdminDashboard = () => {
                       <InsightIcon sx={{ fontSize: 18, color: accentColor, flexShrink: 0 }} />
                       <Typography
                         variant="body2"
-                        sx={{ color: theme.palette.ink[900], fontWeight: 500 }}
+                        sx={{ color: 'text.primary', fontWeight: 600 }}
                       >
                         {insight.message}
                       </Typography>
@@ -573,7 +747,7 @@ export const AdminDashboard = () => {
                         fontWeight: 700,
                         textTransform: 'none',
                         flexShrink: 0,
-                        borderRadius: '6px',
+                        borderRadius: '8px',
                         '&:hover': {
                           bgcolor: `${accentColor}12`,
                           borderColor: accentColor,
@@ -590,12 +764,13 @@ export const AdminDashboard = () => {
         )}
       </Card>
 
-      {/* ── 3. KPI Cards Grid ─────────────────────────────────────────────── */}
+      {/* ── 4. KPI Cards Grid ─────────────────────────────────────────────── */}
       <Grid container spacing={3}>
         {kpiCards.map((kpi) => (
           <Grid item xs={12} sm={6} md={3} key={kpi.label}>
             <KpiCard
               label={kpi.label}
+              subLabel={kpi.subLabel}
               value={kpi.value}
               route={kpi.route}
               icon={kpi.icon}
@@ -608,34 +783,39 @@ export const AdminDashboard = () => {
         ))}
       </Grid>
 
-      {/* ── 4. Analytics Chart + Quick Actions ────────────────────────────── */}
+      {/* ── 5. Analytics Chart + Expanded 6-Tile Quick Navigation Matrix ─── */}
       <Grid container spacing={3}>
         {/* Left: Department Student Distribution */}
-        <Grid item xs={12} md={8}>
+        <Grid item xs={12} lg={7}>
           <Card
             sx={{
               p: 3,
               border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-              borderRadius: '16px',
+              borderRadius: '20px',
               boxShadow: theme.custom?.elevation?.raised || 'none',
-              height: '360px',
+              height: '420px',
               display: 'flex',
               flexDirection: 'column',
               bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
             }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5 }}>
-              <Typography
-                variant="h6"
-                sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, color: theme.palette.ink[900] }}
-              >
-                Students Distribution by Department
-              </Typography>
+              <Box>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}
+                >
+                  Student Enrollment by Department
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Live cohort distribution across academic departments
+                </Typography>
+              </Box>
               <Button
                 size="small"
                 onClick={() => navigate('/admin/college-setup/departments')}
                 endIcon={<ArrowForwardOutlined sx={{ fontSize: 14 }} />}
-                sx={{ textTransform: 'none', fontWeight: 600, color: theme.palette.primary.main }}
+                sx={{ textTransform: 'none', fontWeight: 800, color: theme.palette.primary.main }}
               >
                 Manage Setup
               </Button>
@@ -644,11 +824,11 @@ export const AdminDashboard = () => {
             <Box sx={{ flexGrow: 1, minHeight: 0 }}>
               {loadingDistribution ? (
                 <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-                  <CircularProgress size={28} sx={{ color: theme.palette.primary.main }} />
+                  <CircularProgress size={30} sx={{ color: theme.palette.primary.main }} />
                 </Box>
               ) : errorDistribution ? (
                 <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-                  <Typography sx={{ color: theme.palette.signal.error, fontSize: '0.85rem' }}>
+                  <Typography sx={{ color: theme.palette.signal?.error || '#ef4444', fontSize: '0.85rem' }}>
                     {"Couldn't load distribution data."}
                   </Typography>
                 </Box>
@@ -663,10 +843,10 @@ export const AdminDashboard = () => {
                     gap: 1.5,
                   }}
                 >
-                  <SchoolOutlined sx={{ fontSize: 42, color: theme.palette.text.secondary, opacity: 0.5 }} />
+                  <SchoolOutlined sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5 }} />
                   <Typography
                     sx={{
-                      color: theme.palette.text.secondary,
+                      color: 'text.secondary',
                       fontSize: '0.85rem',
                       textAlign: 'center',
                       maxWidth: 340,
@@ -678,7 +858,7 @@ export const AdminDashboard = () => {
                     size="small"
                     variant="outlined"
                     onClick={() => navigate('/admin/users?register=true')}
-                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                    sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px' }}
                   >
                     Register First Student
                   </Button>
@@ -688,7 +868,7 @@ export const AdminDashboard = () => {
                   <BarChart
                     data={distribution}
                     layout="vertical"
-                    margin={{ left: 10, right: 20, top: 0, bottom: 0 }}
+                    margin={{ left: 10, right: 25, top: 10, bottom: 10 }}
                   >
                     <XAxis type="number" hide />
                     <YAxis
@@ -699,21 +879,20 @@ export const AdminDashboard = () => {
                       tick={{
                         fill: theme.palette.text.secondary,
                         fontSize: 12,
-                        fontFamily: theme.typography.body2.fontFamily,
-                        fontWeight: 500,
+                        fontWeight: 600,
                       }}
-                      width={130}
+                      width={140}
                     />
                     <ChartTooltip
                       cursor={{ fill: `${theme.palette.primary.main}0D` }}
                       content={<CustomChartTooltip />}
                     />
-                    <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={18}>
+                    <Bar dataKey="count" radius={[0, 8, 8, 0]} barSize={22}>
                       {distribution.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
                           fill={theme.palette.primary.main}
-                          fillOpacity={Math.max(0.4, 1 - index * 0.15)}
+                          fillOpacity={Math.max(0.45, 1 - index * 0.12)}
                         />
                       ))}
                     </Bar>
@@ -724,15 +903,15 @@ export const AdminDashboard = () => {
           </Card>
         </Grid>
 
-        {/* Right: Quick Action Cards */}
-        <Grid item xs={12} md={4}>
+        {/* Right: Expanded 6-Tile Quick Navigation Matrix */}
+        <Grid item xs={12} lg={5}>
           <Card
             sx={{
               p: 3,
               border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-              borderRadius: '16px',
+              borderRadius: '20px',
               boxShadow: theme.custom?.elevation?.raised || 'none',
-              height: '360px',
+              height: '420px',
               display: 'flex',
               flexDirection: 'column',
               bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
@@ -740,101 +919,117 @@ export const AdminDashboard = () => {
           >
             <Typography
               variant="h6"
-              sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, color: theme.palette.ink[900], mb: 2.5 }}
+              sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}
             >
-              Quick Management Actions
+              Institutional Operations Hub
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 2 }}>
+              High-priority management workflows and administrative desks
             </Typography>
 
-            <List sx={{ p: 0, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Grid container spacing={1.5} sx={{ flexGrow: 1, overflowY: 'auto' }}>
               {[
                 {
-                  label: 'Register User',
-                  desc: 'Create Student, Faculty, or HOD',
-                  route: '/admin/users?register=true',
-                  icon: <PersonOutline sx={{ fontSize: 20 }} />,
+                  label: 'User Roster',
+                  desc: 'Students, Faculty & HODs',
+                  route: '/admin/users',
+                  icon: <PersonOutline sx={{ fontSize: 22 }} />,
                   accent: theme.palette.primary.main,
                 },
                 {
-                  label: 'Manage Curriculum',
-                  desc: 'Add Courses, Branches, & Subjects',
-                  route: '/admin/college-setup/subjects',
-                  icon: <MenuBookOutlined sx={{ fontSize: 20 }} />,
+                  label: 'Curriculum',
+                  desc: 'Depts, Branches & Subjects',
+                  route: '/admin/college-setup/departments',
+                  icon: <MenuBookOutlined sx={{ fontSize: 22 }} />,
                   accent: theme.palette.secondary.main,
                 },
                 {
-                  label: 'Publish Announcement',
-                  desc: 'Dispatch notice to campus audience',
+                  label: 'Fee Clearance',
+                  desc: 'Dues & Official Receipts',
+                  route: '/admin/fee-clearance',
+                  icon: <AccountBalanceWalletOutlined sx={{ fontSize: 22 }} />,
+                  accent: '#10b981',
+                },
+                {
+                  label: 'Bulk Promotions',
+                  desc: 'Batch term advancements',
+                  route: '/admin/bulk-promotion',
+                  icon: <AutorenewOutlined sx={{ fontSize: 22 }} />,
+                  accent: '#f59e0b',
+                },
+                {
+                  label: 'Audit Trail',
+                  desc: 'Security & Role Logs',
+                  route: '/admin/audit-logs',
+                  icon: <HistoryOutlined sx={{ fontSize: 22 }} />,
+                  accent: '#06b6d4',
+                },
+                {
+                  label: 'Notice Board',
+                  desc: 'Dispatch broadcasts',
                   route: '/admin/notices',
-                  icon: <CampaignOutlined sx={{ fontSize: 20 }} />,
-                  accent: theme.palette.brass?.[500] || '#b8863e',
+                  icon: <CampaignOutlined sx={{ fontSize: 22 }} />,
+                  accent: '#ec4899',
                 },
               ].map((action) => (
-                <ListItemButton
-                  key={action.label}
-                  onClick={() => navigate(action.route)}
-                  sx={{
-                    p: 1.75,
-                    borderRadius: '12px',
-                    border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-                    bgcolor: theme.palette.background.paper,
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      bgcolor: `${action.accent}0A`,
-                      borderColor: action.accent,
-                      transform: 'translateX(4px)',
-                      '& .action-arrow': {
-                        transform: 'translateX(3px)',
-                        color: action.accent,
-                      },
-                    },
-                  }}
-                >
-                  <Box
+                <Grid item xs={12} sm={6} key={action.label}>
+                  <Paper
+                    elevation={0}
+                    onClick={() => navigate(action.route)}
                     sx={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '10px',
-                      bgcolor: `${action.accent}12`,
-                      color: action.accent,
+                      p: 1.75,
+                      borderRadius: '14px',
+                      border: `1px solid ${theme.palette.divider}`,
+                      bgcolor: isDark ? 'rgba(255,255,255,0.02)' : '#fafafa',
+                      cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      mr: 1.75,
-                      flexShrink: 0,
+                      gap: 1.5,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        bgcolor: `${action.accent}10`,
+                        borderColor: action.accent,
+                      },
                     }}
                   >
-                    {action.icon}
-                  </Box>
-                  <ListItemText
-                    primary={action.label}
-                    secondary={action.desc}
-                    primaryTypographyProps={{
-                      fontFamily: theme.typography.body1.fontFamily,
-                      fontSize: '0.88rem',
-                      fontWeight: 700,
-                      color: theme.palette.ink[900],
-                    }}
-                    secondaryTypographyProps={{
-                      fontFamily: theme.typography.body2.fontFamily,
-                      fontSize: '0.72rem',
-                      color: theme.palette.text.secondary,
-                      mt: 0.25,
-                    }}
-                  />
-                  <ArrowForwardOutlined className="action-arrow" sx={{ fontSize: 16, color: theme.palette.text.secondary, transition: 'all 0.2s ease' }} />
-                </ListItemButton>
+                    <Box
+                      sx={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: '10px',
+                        bgcolor: `${action.accent}15`,
+                        color: action.accent,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {action.icon}
+                    </Box>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2, fontSize: '0.85rem' }}>
+                        {action.label}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem', display: 'block', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {action.desc}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                </Grid>
               ))}
-            </List>
+            </Grid>
           </Card>
         </Grid>
       </Grid>
 
-      {/* ── 5. Activity Timeline / Recent Announcements ────────────────────── */}
+      {/* ── 6. Activity Timeline / Recent Announcements ────────────────────── */}
       <Card
         sx={{
           p: 3,
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          borderRadius: '16px',
+          borderRadius: '20px',
           boxShadow: theme.custom?.elevation?.raised || 'none',
           bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
         }}
@@ -843,23 +1038,24 @@ export const AdminDashboard = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Avatar
               sx={{
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
+                borderRadius: '12px',
                 bgcolor: `${theme.palette.primary.main}15`,
                 color: theme.palette.primary.main,
               }}
             >
-              {isSuperAdmin ? <HistoryOutlined sx={{ fontSize: 20 }} /> : <CampaignOutlined sx={{ fontSize: 20 }} />}
+              {isSuperAdmin ? <HistoryOutlined sx={{ fontSize: 22 }} /> : <CampaignOutlined sx={{ fontSize: 22 }} />}
             </Avatar>
             <Box>
               <Typography
                 variant="h6"
-                sx={{ fontFamily: theme.typography.body2.fontFamily, fontWeight: 700, color: theme.palette.ink[900] }}
+                sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}
               >
-                {isSuperAdmin ? 'Institutional Activity Timeline' : 'Recent Announcements'}
+                {isSuperAdmin ? 'Institutional Activity & Security Audit Timeline' : 'Recent Announcements'}
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: '0.75rem' }}>
-                {isSuperAdmin ? 'Real-time audit log stream across system accounts and configuration' : 'Latest notices dispatched across departments'}
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: '0.78rem' }}>
+                {isSuperAdmin ? 'Real-time audit log stream across system accounts, roles, and institutional parameters' : 'Latest notices dispatched across departments'}
               </Typography>
             </Box>
           </Box>
@@ -869,9 +1065,9 @@ export const AdminDashboard = () => {
               size="small"
               onClick={() => navigate('/admin/audit-logs')}
               endIcon={<ArrowForwardOutlined sx={{ fontSize: 14 }} />}
-              sx={{ textTransform: 'none', fontWeight: 600, color: theme.palette.primary.main }}
+              sx={{ textTransform: 'none', fontWeight: 800, color: theme.palette.primary.main }}
             >
-              View All Logs
+              View Full Audit Register
             </Button>
           )}
         </Box>
@@ -883,18 +1079,18 @@ export const AdminDashboard = () => {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {[...Array(4)].map((_, i) => (
                 <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Skeleton variant="text" width="65%" height={20} />
-                  <Skeleton variant="text" width="10%" height={20} />
+                  <Skeleton variant="text" width="65%" height={22} />
+                  <Skeleton variant="text" width="10%" height={22} />
                 </Box>
               ))}
             </Box>
           ) : errorAudits ? (
-            <Typography sx={{ color: theme.palette.signal.error, fontSize: '0.85rem', textAlign: 'center', py: 3 }}>
+            <Typography sx={{ color: theme.palette.signal?.error || '#ef4444', fontSize: '0.85rem', textAlign: 'center', py: 3 }}>
               {"Couldn't load recent activity stream."}
             </Typography>
           ) : !auditLogs?.logs || auditLogs.logs.length === 0 ? (
             <Typography sx={{ color: theme.palette.text.secondary, fontSize: '0.85rem', py: 3, textAlign: 'center' }}>
-              No activity recorded yet — actions performed in the system will automatically log here.
+              No activity recorded yet — administrative operations will automatically stream here.
             </Typography>
           ) : (
             <List sx={{ p: 0, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -903,12 +1099,12 @@ export const AdminDashboard = () => {
                   key={log._id || idx}
                   sx={{
                     p: 1.75,
-                    borderRadius: '10px',
-                    bgcolor: theme.palette.background.paper,
-                    border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+                    borderRadius: '12px',
+                    bgcolor: isDark ? 'rgba(255,255,255,0.02)' : '#fafafa',
+                    border: `1px solid ${theme.palette.divider}`,
                     transition: 'all 0.15s ease',
                     '&:hover': {
-                      bgcolor: theme.custom?.interaction?.hoverTint || 'rgba(0,0,0,0.02)',
+                      bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(79, 70, 229, 0.04)',
                     },
                   }}
                 >
@@ -916,10 +1112,10 @@ export const AdminDashboard = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Box
                         sx={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: '8px',
-                          bgcolor: `${theme.palette.primary.main}10`,
+                          width: 34,
+                          height: 34,
+                          borderRadius: '10px',
+                          bgcolor: `${theme.palette.primary.main}12`,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -931,17 +1127,16 @@ export const AdminDashboard = () => {
                       <Box>
                         <Typography
                           sx={{
-                            fontFamily: theme.typography.body1.fontFamily,
-                            fontSize: '0.88rem',
-                            color: theme.palette.text.primary,
-                            fontWeight: 600,
+                            fontSize: '0.9rem',
+                            color: 'text.primary',
+                            fontWeight: 700,
                           }}
                         >
                           {humanizeAuditAction(log)}
                         </Typography>
                         <Typography
                           sx={{
-                            fontFamily: theme.typography.mono.fontFamily,
+                            fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                             fontSize: '0.68rem',
                             color: theme.palette.text.secondary,
                             textTransform: 'uppercase',
@@ -956,11 +1151,11 @@ export const AdminDashboard = () => {
                     <Tooltip title={new Date(log.timestamp).toLocaleString()} arrow>
                       <Typography
                         sx={{
-                          fontFamily: theme.typography.mono.fontFamily,
-                          fontSize: '0.72rem',
+                          fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                          fontSize: '0.75rem',
                           color: theme.palette.text.secondary,
                           whiteSpace: 'nowrap',
-                          fontWeight: 500,
+                          fontWeight: 600,
                         }}
                       >
                         {getRelativeTime(log.timestamp)}
@@ -980,7 +1175,7 @@ export const AdminDashboard = () => {
               ))}
             </Box>
           ) : errorNotices ? (
-            <Typography sx={{ color: theme.palette.signal.error, fontSize: '0.85rem', textAlign: 'center', py: 3 }}>
+            <Typography sx={{ color: theme.palette.signal?.error || '#ef4444', fontSize: '0.85rem', textAlign: 'center', py: 3 }}>
               {"Couldn't load recent announcements."}
             </Typography>
           ) : !recentNotices || recentNotices.length === 0 ? (
@@ -994,27 +1189,25 @@ export const AdminDashboard = () => {
                   key={notice.id || idx}
                   sx={{
                     p: 2,
-                    borderRadius: '10px',
-                    bgcolor: theme.palette.background.paper,
-                    border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+                    borderRadius: '12px',
+                    bgcolor: isDark ? 'rgba(255,255,255,0.02)' : '#fafafa',
+                    border: `1px solid ${theme.palette.divider}`,
                   }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
                     <Box>
                       <Typography
                         sx={{
-                          fontFamily: theme.typography.body1.fontFamily,
-                          fontSize: '0.9rem',
-                          color: theme.palette.text.primary,
-                          fontWeight: 600,
+                          fontSize: '0.92rem',
+                          color: 'text.primary',
+                          fontWeight: 700,
                         }}
                       >
                         {notice.title}
                       </Typography>
                       <Typography
+                        variant="body2"
                         sx={{
-                          fontFamily: theme.typography.body2.fontFamily,
-                          fontSize: '0.8rem',
                           color: theme.palette.text.secondary,
                           mt: 0.5,
                         }}
@@ -1025,10 +1218,11 @@ export const AdminDashboard = () => {
                     <Tooltip title={new Date(notice.publishedAt).toLocaleString()} arrow>
                       <Typography
                         sx={{
-                          fontFamily: theme.typography.mono.fontFamily,
+                          fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                           fontSize: '0.72rem',
                           color: theme.palette.text.secondary,
                           whiteSpace: 'nowrap',
+                          fontWeight: 600,
                         }}
                       >
                         {getRelativeTime(notice.publishedAt)}

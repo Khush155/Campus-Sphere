@@ -1,4 +1,6 @@
 
+const Opportunity = require('../models/Opportunity');
+
 // These are highly exclusive, seasonal flagship events that rarely appear on standard public APIs.
 // We curate them here so students never miss out on top-tier opportunities.
 const FLAGSHIP_EVENTS = [
@@ -59,7 +61,7 @@ const FLAGSHIP_EVENTS = [
   }
 ];
 
-exports.getExternalOpportunities = async (req, res) => {
+const getExternalOpportunities = async (req, res) => {
   try {
     // Fetch from all available free APIs concurrently
     const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' };
@@ -200,19 +202,50 @@ exports.getExternalOpportunities = async (req, res) => {
 
     const uniqueOpportunities = Array.from(uniqueMap.values());
 
+    // Fetch custom opportunities saved in the database
+    let dbOpportunities = [];
+    try {
+      const query = {};
+      if (req.user && req.user.departmentId) {
+        query.$or = [
+          { departmentId: req.user.departmentId },
+          { departmentId: null },
+          { departmentId: { $exists: false } },
+        ];
+      }
+      const rawDbOpps = await Opportunity.find(query).sort({ createdAt: -1 }).populate('postedBy', 'name email');
+      dbOpportunities = rawDbOpps.map((o) => ({
+        id: o._id.toString(),
+        _id: o._id.toString(),
+        title: o.title,
+        organization: o.organization,
+        type: o.type,
+        location: o.location,
+        deadline: o.deadline,
+        url: o.url,
+        featured: o.featured,
+        source: o.source || 'Department Faculty Desk',
+        postedBy: o.postedBy?.name || 'Department Head',
+        createdAt: o.createdAt,
+        isCustom: true,
+      }));
+    } catch (_dbErr) {
+      // Non-blocking
+    }
+
     // Shuffle the API array to naturally mix the results
     let shuffledData = uniqueOpportunities.sort(() => Math.random() - 0.5);
 
-    // Unshift the Premium Curated Flagship events to the very top!
-    shuffledData = [...FLAGSHIP_EVENTS, ...shuffledData];
+    // Unshift the database opportunities + Premium Curated Flagship events to the very top!
+    shuffledData = [...dbOpportunities, ...FLAGSHIP_EVENTS, ...shuffledData];
 
     res.status(200).json({
       success: true,
       meta: {
-        totalFound: aggregatedData.length,
-        totalUnique: uniqueOpportunities.length
+        totalFound: aggregatedData.length + dbOpportunities.length,
+        totalUnique: uniqueOpportunities.length + dbOpportunities.length,
       },
-      data: shuffledData
+      data: shuffledData,
     });
 
   } catch (error) {
@@ -220,7 +253,75 @@ exports.getExternalOpportunities = async (req, res) => {
     console.error('Error fetching live opportunities:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch external opportunities'
+      message: 'Failed to fetch external opportunities',
     });
   }
+};
+
+/**
+ * Controller to create a new departmental opportunity (HOD / Admin).
+ */
+const createOpportunity = async (req, res) => {
+  const { title, organization, type, location, deadline, url, featured, source } = req.body;
+  if (!title || !organization || !type || !deadline || !url) {
+    return res.status(400).json({
+      success: false,
+      message: 'Title, organization, type, deadline, and application URL are required.',
+    });
+  }
+
+  const opp = await Opportunity.create({
+    title,
+    organization,
+    type,
+    location: location || 'Remote / Hybrid',
+    deadline: new Date(deadline),
+    url,
+    featured: Boolean(featured),
+    source: source || 'Department Faculty Desk',
+    departmentId: req.user.departmentId || null,
+    postedBy: req.user.id || req.user._id,
+  });
+
+  return res.status(201).json({
+    success: true,
+    message: 'Opportunity posted successfully',
+    data: {
+      id: opp._id.toString(),
+      _id: opp._id.toString(),
+      title: opp.title,
+      organization: opp.organization,
+      type: opp.type,
+      location: opp.location,
+      deadline: opp.deadline,
+      url: opp.url,
+      featured: opp.featured,
+      source: opp.source,
+      isCustom: true,
+    },
+  });
+};
+
+/**
+ * Controller to delete a departmental opportunity.
+ */
+const deleteOpportunity = async (req, res) => {
+  const { id } = req.params;
+  const opp = await Opportunity.findById(id);
+  if (!opp) {
+    return res.status(404).json({ success: false, message: 'Opportunity not found' });
+  }
+
+  if (req.user.role === 'HOD' && opp.departmentId && String(opp.departmentId) !== String(req.user.departmentId)) {
+    return res.status(403).json({ success: false, message: 'Forbidden to delete opportunities outside your department' });
+  }
+
+  await Opportunity.findByIdAndDelete(id);
+  return res.status(200).json({ success: true, message: 'Opportunity removed successfully' });
+};
+
+module.exports = {
+  getExternalOpportunities,
+  createOpportunity,
+  deleteOpportunity,
 };

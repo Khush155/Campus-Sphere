@@ -87,6 +87,12 @@ const deleteDepartment = async (id) => {
   if (subjectExists) {
     throw new AppError('Cannot delete department. Active subjects are linked to it.', 400, ERROR_CODES.VALIDATION_ERROR);
   }
+  const branchExists = await Branch.findOne({
+    $or: [{ hostingDepartmentId: id }, { departmentId: id }],
+  });
+  if (branchExists) {
+    throw new AppError('Cannot delete department. Branches are hosted under it.', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
 
   const dept = await Department.findByIdAndDelete(id);
   if (!dept) {
@@ -193,6 +199,14 @@ const createBranch = async (branchData) => {
     throw new AppError('Parent Course not found.', 404, ERROR_CODES.NOT_FOUND);
   }
 
+  // 1.1 Verify hosting Department exists if supplied
+  if (hostingDepartmentId) {
+    const parentDept = await Department.findById(hostingDepartmentId);
+    if (!parentDept) {
+      throw new AppError('Hosting Department not found.', 404, ERROR_CODES.NOT_FOUND);
+    }
+  }
+
   // 2. Check compound unique index (courseId + code)
   const duplicate = await Branch.findOne({ courseId, code: code.toUpperCase() });
   if (duplicate) {
@@ -246,6 +260,14 @@ const updateBranch = async (id, updateData) => {
     const parentCourse = await Course.findById(updateData.courseId);
     if (!parentCourse) {
       throw new AppError('Parent Course not found.', 404, ERROR_CODES.NOT_FOUND);
+    }
+  }
+
+  // Verify hosting department if modified
+  if (updateData.hostingDepartmentId && updateData.hostingDepartmentId !== (branch.hostingDepartmentId?.toString() || null)) {
+    const parentDept = await Department.findById(updateData.hostingDepartmentId);
+    if (!parentDept) {
+      throw new AppError('Hosting Department not found.', 404, ERROR_CODES.NOT_FOUND);
     }
   }
 
@@ -356,7 +378,9 @@ const getAllSubjects = async (queryOptions = {}) => {
   }
   // Default sort for curriculum subjects: semester ASC → sequenceNo ASC
   const sort = queryOptions.sort || { semester: 1, sequenceNo: 1 };
-  return await paginate(Subject, filter, {
+  const FacultyAssignment = require('../models/FacultyAssignment');
+
+  const result = await paginate(Subject, filter, {
     ...queryOptions,
     sort,
     populate: [
@@ -370,6 +394,18 @@ const getAllSubjects = async (queryOptions = {}) => {
       'facultyId',
     ],
   });
+
+  const subjectsList = Array.isArray(result) ? result : (result.data || []);
+  for (const sub of subjectsList) {
+    if (!sub.facultyId) {
+      const activeAssign = await FacultyAssignment.findOne({ subjectId: sub._id, status: 'ACTIVE' }).populate('facultyId', 'name email');
+      if (activeAssign && activeAssign.facultyId) {
+        sub.facultyId = activeAssign.facultyId;
+      }
+    }
+  }
+
+  return result;
 };
 
 const getSubjectById = async (id) => {
@@ -388,7 +424,7 @@ const updateSubject = async (id, updateData) => {
 
   const branchId = updateData.branchId || subject.branchId;
   const semester = updateData.semester !== undefined ? updateData.semester : subject.semester;
-  const code = updateData.code ? updateData.code.toUpperCase() : subject.code;
+  const sequenceNo = updateData.sequenceNo !== undefined ? updateData.sequenceNo : subject.sequenceNo;
 
   // Verify department reference if changing
   if (updateData.departmentId && updateData.departmentId !== subject.departmentId.toString()) {
@@ -403,15 +439,16 @@ const updateSubject = async (id, updateData) => {
     await assertSubjectSemestersValid(branchId, semester);
   }
 
-  // Check duplicate compound unique constraint
-  if (updateData.code || updateData.branchId) {
+  // Check duplicate compound unique constraint (branchId + semester + sequenceNo)
+  if (updateData.sequenceNo !== undefined || updateData.branchId || updateData.semester !== undefined) {
     const duplicate = await Subject.findOne({
       _id: { $ne: id },
       branchId,
-      code,
+      semester,
+      sequenceNo,
     });
     if (duplicate) {
-      throw new AppError('Subject code already registered under this branch.', 400, ERROR_CODES.DUPLICATE_ENTRY);
+      throw new AppError('Subject sequence number already exists under this branch & semester.', 400, ERROR_CODES.DUPLICATE_ENTRY);
     }
   }
 
@@ -440,10 +477,12 @@ const deleteSubject = async (id) => {
 };
 
 const createBulkSubjects = async (departmentId, subjectsArray) => {
-  // 1. Verify parent Department exists
-  const parentDept = await Department.findById(departmentId);
-  if (!parentDept) {
-    throw new AppError('Department reference not found.', 404, ERROR_CODES.NOT_FOUND);
+  // If departmentId is provided (e.g. called by HOD), verify it exists
+  if (departmentId) {
+    const parentDept = await Department.findById(departmentId);
+    if (!parentDept) {
+      throw new AppError('Department reference not found.', 404, ERROR_CODES.NOT_FOUND);
+    }
   }
 
   const results = {
@@ -457,22 +496,31 @@ const createBulkSubjects = async (departmentId, subjectsArray) => {
   for (let i = 0; i < subjectsArray.length; i++) {
     const subjectData = subjectsArray[i];
     try {
-      subjectData.departmentId = departmentId;
-      
+      const targetDeptId = departmentId || subjectData.departmentId;
+      if (!targetDeptId) {
+        throw new AppError('Department reference is required for each subject.', 400, ERROR_CODES.VALIDATION_ERROR);
+      }
+
       await assertSubjectSemestersValid(subjectData.branchId, subjectData.semester);
 
-      const duplicate = await Subject.findOne({ branchId: subjectData.branchId, code: subjectData.code.toUpperCase() });
+      const sequenceNo = subjectData.sequenceNo !== undefined ? subjectData.sequenceNo : i + 1;
+
+      const duplicate = await Subject.findOne({
+        branchId: subjectData.branchId,
+        semester: subjectData.semester,
+        sequenceNo,
+      });
       if (duplicate) {
-        throw new AppError(`Subject code ${subjectData.code} already registered under this branch.`, 400, ERROR_CODES.DUPLICATE_ENTRY);
+        throw new AppError(`Subject sequence ${sequenceNo} already exists under this branch & semester.`, 400, ERROR_CODES.DUPLICATE_ENTRY);
       }
 
       const subject = await Subject.create({
         name: subjectData.name,
-        code: subjectData.code.toUpperCase(),
+        sequenceNo,
         credits: subjectData.credits,
         type: subjectData.type,
         branchId: subjectData.branchId,
-        departmentId: subjectData.departmentId,
+        departmentId: targetDeptId,
         semester: subjectData.semester,
       });
 
@@ -480,11 +528,11 @@ const createBulkSubjects = async (departmentId, subjectsArray) => {
       results.successful++;
     } catch (err) {
       results.failed++;
-      results.errors.push(`Item ${i + 1} (${subjectData.code || 'Unknown'}): ${err.message}`);
+      results.errors.push(`Item ${i + 1} (${subjectData.name || 'Unknown'}): ${err.message}`);
     }
   }
 
-  logger.info(`[Bulk Subject Import] Dept: ${departmentId} | Success: ${results.successful}, Failed: ${results.failed}`);
+  logger.info(`[Bulk Subject Import] Dept: ${departmentId || 'Multi-Dept'} | Success: ${results.successful}, Failed: ${results.failed}`);
   return { results, createdSubjects };
 };
 

@@ -110,6 +110,9 @@ export const CommandPalette = ({ open, onClose }) => {
         { id: 'nav-faculty-assign', type: 'NAV', text: 'Faculty Allocations Desk', icon: <NavigationOutlined />, path: '/admin/faculty-assignments' },
         { id: 'nav-idcards', type: 'NAV', text: 'ID Cards Printing Studio', icon: <NavigationOutlined />, path: '/admin/id-cards' },
         { id: 'nav-feeclearance', type: 'NAV', text: 'Fee Dues & Clearance Desk', icon: <NavigationOutlined />, path: '/admin/fee-clearance' },
+        { id: 'nav-placements', type: 'NAV', text: 'Corporate Placements & Drives', icon: <NavigationOutlined />, path: '/admin/placements' },
+        { id: 'nav-admin-leaves', type: 'NAV', text: 'Leave Management Oversight', icon: <NavigationOutlined />, path: '/admin/leave-management' },
+        { id: 'nav-admin-complaints', type: 'NAV', text: 'Campus Maintenance & Complaints', icon: <NavigationOutlined />, path: '/admin/complaints' },
         { id: 'nav-notices', type: 'NAV', text: 'Notice Board Broadcasts', icon: <NavigationOutlined />, path: '/admin/notices' },
         { id: 'nav-calendar', type: 'NAV', text: 'Academic Calendar', icon: <NavigationOutlined />, path: '/admin/academic-calendar' },
         { id: 'nav-promotion', type: 'NAV', text: 'Bulk Semester Promotion Engine', icon: <NavigationOutlined />, path: '/admin/bulk-promotion' },
@@ -132,11 +135,15 @@ export const CommandPalette = ({ open, onClose }) => {
         { id: 'nav-hod-tt', type: 'NAV', text: 'Class Timetable Builder', icon: <NavigationOutlined />, path: '/hod/timetable' },
         { id: 'nav-hod-att', type: 'NAV', text: 'Attendance & Detention Audit Hub', icon: <NavigationOutlined />, path: '/hod/attendance' },
         { id: 'nav-hod-exam', type: 'NAV', text: 'Examinations & Marks Entry Lock', icon: <NavigationOutlined />, path: '/hod/examinations' },
-        { id: 'nav-hod-leave', type: 'NAV', text: 'Faculty Leave Approvals Desk', icon: <NavigationOutlined />, path: '/hod/leave-management' },
+        { id: 'nav-hod-placements', type: 'NAV', text: 'Department Placements Hub', icon: <NavigationOutlined />, path: '/hod/placements' },
+        { id: 'nav-hod-opportunities', type: 'NAV', text: 'Global Opportunities & Hackathons', icon: <NavigationOutlined />, path: '/hod/opportunities' },
+        { id: 'nav-hod-leave', type: 'NAV', text: 'Faculty & Student Leave Approvals', icon: <NavigationOutlined />, path: '/hod/leave-management' },
         { id: 'nav-hod-notice', type: 'NAV', text: 'Department Notices & Broadcasts', icon: <NavigationOutlined />, path: '/hod/notices' },
         { id: 'nav-hod-reports', type: 'NAV', text: 'Department Performance Reports', icon: <NavigationOutlined />, path: '/hod/reports' },
         { id: 'nav-hod-complaints', type: 'NAV', text: 'Department Complaints Desk', icon: <NavigationOutlined />, path: '/hod/complaints' },
         { id: 'nav-hod-meetings', type: 'NAV', text: 'Schedule Department Meetings', icon: <NavigationOutlined />, path: '/hod/meetings' },
+        { id: 'nav-hod-documents', type: 'NAV', text: 'Student Documents Verification', icon: <NavigationOutlined />, path: '/hod/documents' },
+        { id: 'nav-hod-feedback', type: 'NAV', text: 'Faculty Student Appraisals', icon: <NavigationOutlined />, path: '/hod/feedback' },
       ];
     }
 
@@ -160,13 +167,21 @@ export const CommandPalette = ({ open, onClose }) => {
     // Default for Student role
     return [
       { id: 'nav-stu-dash', type: 'NAV', text: 'Go to Student Dashboard', icon: <NavigationOutlined />, path: '/' },
+      { id: 'nav-stu-profile', type: 'NAV', text: 'My Student Profile & ID Card', icon: <NavigationOutlined />, path: '/student/profile' },
+      { id: 'nav-stu-academics', type: 'NAV', text: 'My Enrolled Subjects & Curriculum', icon: <NavigationOutlined />, path: '/student/academics' },
       { id: 'nav-stu-att', type: 'NAV', text: 'My Class Attendance', icon: <NavigationOutlined />, path: '/student/attendance' },
       { id: 'nav-stu-asg', type: 'NAV', text: 'My Course Assignments', icon: <NavigationOutlined />, path: '/student/assignments' },
-      { id: 'nav-stu-res', type: 'NAV', text: 'Exam Results & Marks Sheet', icon: <NavigationOutlined />, path: '/student/results' },
+      { id: 'nav-stu-res', type: 'NAV', text: 'Exam Results & Marks Breakdown', icon: <NavigationOutlined />, path: '/student/examinations' },
+      { id: 'nav-stu-hallticket', type: 'NAV', text: 'Examination Hall Ticket (Admit Card)', icon: <NavigationOutlined />, path: '/student/hall-ticket' },
       { id: 'nav-stu-tt', type: 'NAV', text: 'My Class Timetable', icon: <NavigationOutlined />, path: '/student/timetable' },
-      { id: 'nav-stu-mat', type: 'NAV', text: 'Study Materials & Lecture Notes', icon: <NavigationOutlined />, path: '/student/materials' },
-      { id: 'nav-stu-notices', type: 'NAV', text: 'College Notices & Bulletins', icon: <NavigationOutlined />, path: '/student/notices' },
+      { id: 'nav-stu-mat', type: 'NAV', text: 'Digital Library & Study Materials', icon: <NavigationOutlined />, path: '/student/library' },
       { id: 'nav-stu-fees', type: 'NAV', text: 'Fee Receipts & Dues Clearance', icon: <NavigationOutlined />, path: '/student/fees' },
+      { id: 'nav-stu-placements', type: 'NAV', text: 'Placement Drives & Hackathons', icon: <NavigationOutlined />, path: '/student/placements' },
+      { id: 'nav-stu-leaves', type: 'NAV', text: 'Submit Student Leave Request', icon: <NavigationOutlined />, path: '/student/leave' },
+      { id: 'nav-stu-documents', type: 'NAV', text: 'Official Document & Certificate Requests', icon: <NavigationOutlined />, path: '/student/documents' },
+      { id: 'nav-stu-complaints', type: 'NAV', text: 'Grievance & Maintenance Helpdesk', icon: <NavigationOutlined />, path: '/student/complaints' },
+      { id: 'nav-stu-feedback', type: 'NAV', text: 'Submit Faculty Teaching Feedback', icon: <NavigationOutlined />, path: '/student/feedback' },
+      { id: 'nav-stu-notices', type: 'NAV', text: 'College Notices & Bulletins', icon: <NavigationOutlined />, path: '/student/notices' },
     ];
   }, [user]);
 
@@ -188,7 +203,7 @@ export const CommandPalette = ({ open, onClose }) => {
     return subjectsData.map((s) => ({
       id: `subject-${s._id}`,
       type: 'RECORD_SUBJECT',
-      text: `${s.name} (${s.code})`,
+      text: `${s.name}${s.code ? ` (${s.code})` : ''}`,
       icon: <BookOutlined />,
       path: user?.role === 'FACULTY' ? '/materials' : '/admin/college-setup/subjects',
     }));

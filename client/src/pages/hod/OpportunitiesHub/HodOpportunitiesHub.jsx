@@ -20,6 +20,8 @@ import {
   MenuItem,
   FormControlLabel,
   Switch,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   OpenInNew,
@@ -30,8 +32,13 @@ import {
   AddOutlined,
   RefreshOutlined,
   EmojiEventsOutlined,
+  DeleteOutline,
 } from '@mui/icons-material';
-import { useOpportunitiesQuery } from '../../../queries/opportunityQueries';
+import {
+  useOpportunitiesQuery,
+  useCreateOpportunityMutation,
+  useDeleteOpportunityMutation,
+} from '../../../queries/opportunityQueries';
 import EmptyState from '../../../components/common/EmptyState';
 import { useToast } from '../../../contexts/ToastContext';
 
@@ -43,22 +50,25 @@ const OPPORTUNITY_TYPES = [
 
 const KpiCard = ({ title, value, subtitle, accentColor, icon }) => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   return (
     <Card
       sx={{
         p: 2.5,
-        borderRadius: '14px',
-        border: `1px solid ${theme.palette.divider}`,
+        borderRadius: '18px',
+        border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
         borderTop: `4px solid ${accentColor}`,
-        boxShadow: 'none',
+        bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+        boxShadow: theme.custom?.elevation?.raised || 'none',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        transition: 'transform 0.2s, box-shadow 0.2s',
+        transition: 'all 0.25s ease',
         '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: '0 6px 20px rgba(0,0,0,0.04)',
+          transform: 'translateY(-4px)',
+          boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+          borderColor: accentColor,
         },
       }}
     >
@@ -68,7 +78,7 @@ const KpiCard = ({ title, value, subtitle, accentColor, icon }) => {
         </Typography>
         {icon && <Box sx={{ color: accentColor, opacity: 0.8 }}>{icon}</Box>}
       </Box>
-      <Typography variant="h3" sx={{ fontWeight: 900, color: accentColor, mt: 1, fontFamily: 'monospace', lineHeight: 1.1 }}>
+      <Typography variant="h3" sx={{ fontWeight: 900, color: accentColor, mt: 1, fontFamily: theme.typography.mono?.fontFamily || 'monospace', lineHeight: 1.1 }}>
         {value}
       </Typography>
       {subtitle && (
@@ -85,11 +95,11 @@ export const HodOpportunitiesHub = () => {
   const { showToast } = useToast();
 
   const { data: rawOpportunities, isLoading, isError, refetch } = useOpportunitiesQuery();
+  const createOpportunityMutation = useCreateOpportunityMutation();
+  const deleteOpportunityMutation = useDeleteOpportunityMutation();
+
   const [tabIndex, setTabIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Local Custom Opportunities State
-  const [customOpps, setCustomOpps] = useState([]);
   const [openPostModal, setOpenPostModal] = useState(false);
   const [postForm, setPostForm] = useState({
     title: '',
@@ -102,9 +112,8 @@ export const HodOpportunitiesHub = () => {
   });
 
   const allOpportunities = useMemo(() => {
-    const apiData = Array.isArray(rawOpportunities) ? rawOpportunities : [];
-    return [...customOpps, ...apiData];
-  }, [rawOpportunities, customOpps]);
+    return Array.isArray(rawOpportunities) ? rawOpportunities : [];
+  }, [rawOpportunities]);
 
   const handleTabChange = (event, newValue) => {
     setTabIndex(newValue);
@@ -148,29 +157,47 @@ export const HodOpportunitiesHub = () => {
       return;
     }
 
-    const newOpp = {
-      id: `custom-${Date.now()}`,
+    const payload = {
       title: postForm.title,
       organization: postForm.organization,
       type: postForm.type,
-      location: postForm.location || 'Remote',
+      location: postForm.location || 'Remote / Hybrid',
       deadline: postForm.deadline || new Date(Date.now() + 14 * 86400000).toISOString(),
       url: postForm.url,
       featured: postForm.featured,
       source: 'Department Faculty Desk',
     };
 
-    setCustomOpps([newOpp, ...customOpps]);
-    showToast(`Posted opportunity "${newOpp.title}" for department students!`);
-    setOpenPostModal(false);
-    setPostForm({
-      title: '',
-      organization: '',
-      type: 'INTERNSHIP',
-      location: 'Remote / Hybrid',
-      deadline: '',
-      url: '',
-      featured: false,
+    createOpportunityMutation.mutate(payload, {
+      onSuccess: (data) => {
+        showToast(`Posted opportunity "${data.title}" for department students!`);
+        setOpenPostModal(false);
+        setPostForm({
+          title: '',
+          organization: '',
+          type: 'INTERNSHIP',
+          location: 'Remote / Hybrid',
+          deadline: '',
+          url: '',
+          featured: false,
+        });
+        refetch();
+      },
+      onError: (err) => {
+        showToast(err.response?.data?.message || 'Failed to post opportunity', { severity: 'error' });
+      },
+    });
+  };
+
+  const handleDeleteOpportunity = (oppId) => {
+    deleteOpportunityMutation.mutate(oppId, {
+      onSuccess: () => {
+        showToast('Opportunity removed successfully.');
+        refetch();
+      },
+      onError: (err) => {
+        showToast(err.response?.data?.message || 'Failed to remove opportunity', { severity: 'error' });
+      },
     });
   };
 
@@ -200,16 +227,23 @@ export const HodOpportunitiesHub = () => {
     }
   };
 
+  const isDark = theme.palette.mode === 'dark';
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
       {/* ── 1. Hero Identity Banner ────────────────────────────────────────── */}
       <Card
         sx={{
-          p: 3.5,
-          borderRadius: '16px',
+          p: { xs: 2.5, md: 3.5 },
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
-          boxShadow: 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.14) 0%, rgba(184, 134, 62, 0.08) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: isDark
+            ? '0 18px 40px -15px rgba(0,0,0,0.5)'
+            : '0 18px 40px -15px rgba(79, 70, 229, 0.08)',
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
@@ -223,13 +257,13 @@ export const HodOpportunitiesHub = () => {
                   bgcolor: `${theme.palette.primary.main}15`,
                   color: theme.palette.primary.main,
                   fontWeight: 800,
-                  fontFamily: theme.typography.mono.fontFamily,
+                  fontFamily: theme.typography.mono?.fontFamily || 'monospace',
                   letterSpacing: '0.05em',
                   fontSize: '0.7rem',
                 }}
               />
             </Box>
-            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
+            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1?.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
               Global Opportunities & Internships
             </Typography>
             <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
@@ -407,7 +441,7 @@ export const HodOpportunitiesHub = () => {
                     </Typography>
                   </CardContent>
 
-                  <Box sx={{ p: 3, pt: 0 }}>
+                  <Box sx={{ p: 3, pt: 0, display: 'flex', gap: 1 }}>
                     <Button
                       variant="contained"
                       fullWidth
@@ -425,6 +459,23 @@ export const HodOpportunitiesHub = () => {
                     >
                       View & Apply Link
                     </Button>
+                    {opp.isCustom && (
+                      <Tooltip title="Delete Opportunity">
+                        <IconButton
+                          color="error"
+                          onClick={() => handleDeleteOpportunity(opp.id || opp._id)}
+                          sx={{
+                            border: `1px solid ${theme.palette.error.main}30`,
+                            bgcolor: `${theme.palette.error.main}08`,
+                            borderRadius: '8px',
+                            p: 0.8,
+                            '&:hover': { bgcolor: `${theme.palette.error.main}20` },
+                          }}
+                        >
+                          <DeleteOutline sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </Box>
                 </Card>
               </Grid>

@@ -58,12 +58,19 @@ const registerUser = async (userData, actor) => {
   }
 
   // 2. Create the user
+  let finalDepartmentId = departmentId || null;
+  if (!finalDepartmentId && branchId) {
+    const Branch = require('../models/Branch');
+    const branchDoc = await Branch.findById(branchId).select('hostingDepartmentId departmentId');
+    finalDepartmentId = branchDoc?.hostingDepartmentId || branchDoc?.departmentId || null;
+  }
+
   const newUser = await User.create({
     name,
     email,
     password,
     role,
-    departmentId: departmentId || null,
+    departmentId: finalDepartmentId,
     courseId: courseId || null,
     branchId: branchId || null,
     semester: role === 'STUDENT' ? (semester || 1) : null,

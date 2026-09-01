@@ -9,9 +9,20 @@ const ROLES = require('../constants/roles');
 const router = express.Router();
 router.use(authMiddleware);
 
-router.get('/analytics', roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD), feedbackController.getFeedbackAnalytics);
+router.get(
+  '/student-status',
+  roleMiddleware(ROLES.STUDENT),
+  feedbackController.getStudentFeedbackStatus
+);
 
-router.route('/')
+router.get(
+  '/analytics',
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
+  feedbackController.getFeedbackAnalytics
+);
+
+router
+  .route('/')
   .get(feedbackController.getAllFeedback)
   .post(
     roleMiddleware(ROLES.FACULTY, ROLES.STUDENT),

@@ -14,6 +14,13 @@ const placementDriveSchema = new mongoose.Schema({
   selectionProcess: { type: String, trim: true }, // e.g., "Aptitude → Technical → HR"
   driveType: { type: String, enum: ['PLACEMENT', 'INTERNSHIP'], default: 'PLACEMENT' },
   departmentIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Department' }],
+  eligibleBranches: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }],
+  eligibleStanding: {
+    type: String,
+    enum: ['FINAL_YEAR', 'PRE_FINAL_YEAR', 'ALL_YEARS'],
+    default: 'FINAL_YEAR',
+  },
+  graduatingBatchYear: { type: Number },
   status: { type: String, enum: ['UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED'], default: 'UPCOMING' },
 }, { timestamps: true });
 

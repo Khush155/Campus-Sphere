@@ -135,34 +135,30 @@ const revokeAssignment = async ({ assignmentId, revokedBy, departmentId, revoked
 };
 
 const listAssignmentsByDept = async (departmentId, queryOptions = {}) => {
-  // To list assignments by department, we can find all subjects in the department 
-  // and then get assignments for those subjects.
-  // Alternatively, we can find assignments where facultyId belongs to the department.
-  // The most standard way is to return the populated assignments.
-  // But paginate utility doesn't support complex joins out of the box.
-  
-  // Let's filter by finding faculty in the department first, or subjects in the department.
-  // Assuming assignments are for subjects in the HOD's department.
-  const subjectsInDept = await Subject.find({ departmentId }).select('_id');
-  const subjectIds = subjectsInDept.map(s => s._id);
+  const subjectsQuery = departmentId ? { departmentId } : {};
+  const subjectsInDept = await Subject.find(subjectsQuery).select('_id');
+  const subjectIds = subjectsInDept.map((s) => s._id);
 
   const filter = {
     subjectId: { $in: subjectIds },
   };
-  
+
   if (queryOptions.status) {
     filter.status = queryOptions.status;
   }
-  
+
   // Allow filtering by branch and semester which are properties of Subject.
-  // We'll have to find subjects matching branch/semester first.
   if (queryOptions.branchId || queryOptions.semester) {
-    const subjectFilter = { departmentId };
-    if (queryOptions.branchId) {subjectFilter.branchId = queryOptions.branchId;}
-    if (queryOptions.semester) {subjectFilter.semester = queryOptions.semester;}
-    
+    const subjectFilter = departmentId ? { departmentId } : {};
+    if (queryOptions.branchId) {
+      subjectFilter.branchId = queryOptions.branchId;
+    }
+    if (queryOptions.semester) {
+      subjectFilter.semester = queryOptions.semester;
+    }
+
     const filteredSubjects = await Subject.find(subjectFilter).select('_id');
-    filter.subjectId = { $in: filteredSubjects.map(s => s._id) };
+    filter.subjectId = { $in: filteredSubjects.map((s) => s._id) };
   }
 
   return await paginate(FacultyAssignment, filter, {

@@ -9,7 +9,6 @@ import {
   TextField,
   MenuItem,
   Avatar,
-  Divider,
   CircularProgress,
   useTheme,
   Table,
@@ -23,17 +22,17 @@ import {
   BadgeOutlined,
   SearchOutlined,
   PrintOutlined,
-  QrCode2Outlined,
-  SchoolOutlined,
 } from '@mui/icons-material';
 import { useUsersQuery } from '../../../queries/userQueries';
 import { useDepartmentsQuery } from '../../../queries/collegeQueries';
 import { useCollegeProfileQuery } from '../../../queries/collegeProfileQueries';
 import { useToast } from '../../../contexts/ToastContext';
 import EmptyState from '../../../components/common/EmptyState';
+import CollegiateIdCard from '../../../components/common/CollegiateIdCard';
 
 export const IdCardsHub = () => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const { showToast } = useToast();
 
   // Filter States
@@ -47,7 +46,7 @@ export const IdCardsHub = () => {
   // Queries
   const { data: usersData, isLoading: loadingUsers } = useUsersQuery({
     role: roleFilter || undefined,
-    limit: 100,
+    limit: 1000,
   });
   const { data: depts } = useDepartmentsQuery();
   const { data: profile } = useCollegeProfileQuery();
@@ -85,64 +84,112 @@ export const IdCardsHub = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
-      {/* ── 1. Hero Identity Header Card ───────────────────────────────────── */}
+      {/* ── 1. Hero Identity Header Card (Glassmorphic Luxury Bar) ────────── */}
       <Card
         sx={{
           p: 3.5,
-          borderRadius: '16px',
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
-          boxShadow: 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(184, 134, 62, 0.06) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: theme.custom?.elevation?.raised || '0 8px 24px rgba(0,0,0,0.03)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 2.5,
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-          <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-              <Chip
-                icon={<BadgeOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
-                label="CAMPUS IDENTITY & ID CARD GENERATOR"
-                size="small"
-                sx={{
-                  bgcolor: `${theme.palette.primary.main}15`,
-                  color: theme.palette.primary.main,
-                  fontWeight: 800,
-                  fontFamily: theme.typography.mono.fontFamily,
-                  letterSpacing: '0.05em',
-                  fontSize: '0.7rem',
-                }}
-              />
-            </Box>
-            <Typography variant="h4" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900] }}>
-              Student & Staff ID Card Studio
-            </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
-              Generate digital identity passes and print official physical ID cards with institution crest seals and roll number barcodes.
-            </Typography>
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1, flexWrap: 'wrap' }}>
+            <Chip
+              icon={<BadgeOutlined sx={{ fontSize: '0.9rem !important', color: `${theme.palette.primary.main} !important` }} />}
+              label="CAMPUS IDENTITY & ID CARD GENERATOR"
+              size="small"
+              sx={{
+                bgcolor: `${theme.palette.primary.main}15`,
+                color: theme.palette.primary.main,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontWeight: 800,
+                fontSize: '0.68rem',
+                letterSpacing: '0.06em',
+                borderRadius: '8px',
+              }}
+            />
+            <Chip
+              label={`${filteredUsers.length} Users Selected`}
+              size="small"
+              sx={{
+                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
+                border: `1px solid ${theme.palette.divider}`,
+                fontFamily: theme.typography.mono?.fontFamily || 'monospace',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                borderRadius: '6px',
+              }}
+            />
           </Box>
-
-          <Button
-            variant="contained"
-            startIcon={<PrintOutlined />}
-            onClick={handlePrintBatch}
+          <Typography
+            variant="h4"
+            component="h1"
             sx={{
-              background: theme.palette.primary.gradient || theme.palette.primary.main,
-              color: '#ffffff',
-              fontWeight: 700,
-              borderRadius: '8px',
-              px: 3,
-              py: 1,
+              fontWeight: 800,
+              color: 'text.primary',
+              letterSpacing: '-0.02em',
+              lineHeight: 1.15,
+              mb: 0.5,
             }}
           >
-            Print ID Cards Batch ({filteredUsers.length})
-          </Button>
+            Student &amp; Staff ID Card Studio
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              color: theme.palette.text.secondary,
+              maxWidth: 680,
+            }}
+          >
+            Generate digital identity passes and print official physical ID cards with institution crest seals and roll number barcodes.
+          </Typography>
         </Box>
+
+        <Button
+          variant="contained"
+          startIcon={<PrintOutlined />}
+          onClick={handlePrintBatch}
+          sx={{
+            background: theme.palette.primary.gradient || theme.palette.primary.main,
+            color: '#ffffff',
+            fontWeight: 800,
+            px: 2.75,
+            height: '42px',
+            borderRadius: '10px',
+            textTransform: 'none',
+            boxShadow: `0 4px 18px ${theme.palette.primary.main}40`,
+          }}
+        >
+          Print ID Cards Batch ({filteredUsers.length})
+        </Button>
       </Card>
 
       {/* ── 2. Split Screen Layout (Filters + Live Preview + List Table) ──── */}
       <Grid container spacing={3.5} alignItems="stretch">
         {/* Left Column: Filter Controls & Directory Table */}
-        <Grid item xs={12} lg={7} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <Card sx={{ p: 3, borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Grid item xs={12} lg={7} sx={{ display: 'flex', flexDirection: 'column' }}>
+          <Card
+            sx={{
+              p: 3.5,
+              borderRadius: '18px',
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: 'none',
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
             <Grid container spacing={2} sx={{ mb: 2.5 }} alignItems="center">
               <Grid item xs={12} sm={4}>
                 <TextField
@@ -197,38 +244,56 @@ export const IdCardsHub = () => {
             </Grid>
 
             {loadingUsers ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, py: 8 }}>
                 <CircularProgress size={32} />
               </Box>
             ) : filteredUsers.length === 0 ? (
-              <EmptyState
-                type="users"
-                title="No Identity Records Found"
-                description="No users match the active role or department filter criteria."
-                actionText="Reset Filters"
-                onAction={() => {
-                  setSearch('');
-                  setDeptFilter('');
-                }}
-              />
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, py: 4 }}>
+                <EmptyState
+                  type="users"
+                  title="No Identity Records Found"
+                  description="No users match the active role or department filter criteria."
+                  actionText="Reset Filters"
+                  onAction={() => {
+                    setSearch('');
+                    setDeptFilter('');
+                  }}
+                />
+              </Box>
             ) : (
-              <TableContainer sx={{ maxHeight: 420 }}>
+              <TableContainer
+                sx={{
+                  flex: '1 1 0',
+                  minHeight: 0,
+                  overflowY: 'auto',
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: '12px',
+                  bgcolor: theme.palette.background.paper,
+                  '&::-webkit-scrollbar': { width: '6px' },
+                  '&::-webkit-scrollbar-thumb': {
+                    bgcolor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)',
+                    borderRadius: '3px',
+                  },
+                }}
+              >
                 <Table size="small" stickyHeader>
-                  <TableHead sx={{ bgcolor: theme.custom?.surface?.sunken || 'rgba(0,0,0,0.02)' }}>
+                  <TableHead>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 700 }}>IDENTITY RECORD</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>ROLL NO / EMAIL</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>DEPT / COURSE</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>PREVIEW</TableCell>
+                      <TableCell sx={{ fontWeight: 800, bgcolor: isDark ? '#1e293b' : '#f1f5f9', zIndex: 2 }}>IDENTITY RECORD</TableCell>
+                      <TableCell sx={{ fontWeight: 800, bgcolor: isDark ? '#1e293b' : '#f1f5f9', zIndex: 2 }}>ROLL NO / EMAIL</TableCell>
+                      <TableCell sx={{ fontWeight: 800, bgcolor: isDark ? '#1e293b' : '#f1f5f9', zIndex: 2 }}>DEPT / COURSE</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 800, bgcolor: isDark ? '#1e293b' : '#f1f5f9', zIndex: 2 }}>PREVIEW</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {filteredUsers.map((u) => {
-                      const isSelected = activeUser && (activeUser.id === u.id || activeUser._id === u._id);
+                      const activeId = activeUser?._id ? String(activeUser._id) : (activeUser?.id ? String(activeUser.id) : null);
+                      const uId = u._id ? String(u._id) : (u.id ? String(u.id) : null);
+                      const isSelected = Boolean(activeId && uId && activeId === uId);
 
                       return (
                         <TableRow
-                          key={u.id || u._id}
+                          key={uId || u.email}
                           hover
                           selected={isSelected}
                           onClick={() => setSelectedUser(u)}
@@ -236,16 +301,16 @@ export const IdCardsHub = () => {
                         >
                           <TableCell sx={{ fontWeight: 600 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                              <Avatar sx={{ width: 28, height: 28, bgcolor: `${theme.palette.primary.main}18`, color: theme.palette.primary.main, fontSize: '0.75rem', fontWeight: 700 }}>
+                              <Avatar sx={{ width: 30, height: 30, bgcolor: `${theme.palette.primary.main}18`, color: theme.palette.primary.main, fontSize: '0.78rem', fontWeight: 700 }}>
                                 {u.name?.charAt(0) || 'U'}
                               </Avatar>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.ink[900] }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                                 {u.name}
                               </Typography>
                             </Box>
                           </TableCell>
 
-                          <TableCell sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.78rem', color: 'text.secondary' }}>
+                          <TableCell sx={{ fontFamily: theme.typography.mono?.fontFamily || 'monospace', fontSize: '0.78rem', color: 'text.secondary' }}>
                             {u.rollNumber ? (
                               <Chip
                                 label={u.rollNumber}
@@ -279,6 +344,33 @@ export const IdCardsHub = () => {
                 </Table>
               </TableContainer>
             )}
+
+            {/* Left Card Bottom Action / Status Strip */}
+            <Box
+              sx={{
+                pt: 2,
+                mt: 1.5,
+                borderTop: `1px solid ${theme.palette.divider}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 1,
+              }}
+            >
+              <Typography variant="caption" color="text.secondary" sx={{ fontFamily: theme.typography.mono?.fontFamily || 'monospace', fontWeight: 600 }}>
+                Showing {filteredUsers.length} identity records • Click row to preview
+              </Typography>
+              {activeUser && (
+                <Chip
+                  label={`Viewing: ${activeUser.name}`}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  sx={{ fontWeight: 700, fontSize: '0.68rem', borderRadius: '6px' }}
+                />
+              )}
+            </Box>
           </Card>
         </Grid>
 
@@ -287,7 +379,7 @@ export const IdCardsHub = () => {
           <Card
             sx={{
               p: 3.5,
-              borderRadius: '16px',
+              borderRadius: '18px',
               border: `2px double ${theme.palette.brass?.[500] || '#b8863e'}60`,
               bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
               boxShadow: 'none',
@@ -303,132 +395,21 @@ export const IdCardsHub = () => {
               </Typography>
 
               {activeUser ? (
-                <Box
-                  id="printable-id-card-preview"
-                  sx={{
-                    width: '100%',
-                    maxWidth: 320,
-                    mx: 'auto',
-                    borderRadius: '16px',
-                    border: `1px solid ${theme.palette.divider}`,
-                    background: `linear-gradient(180deg, ${theme.palette.primary.main}12 0%, ${theme.palette.background.paper} 40%)`,
-                    p: 3,
-                    textAlign: 'center',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
-                    position: 'relative',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {/* Top Branding Header */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1.5 }}>
-                    <SchoolOutlined sx={{ fontSize: 24, color: theme.palette.primary.main }} />
-                    <Typography variant="subtitle2" sx={{ fontFamily: theme.typography.h1.fontFamily, fontWeight: 800, color: theme.palette.ink[900], fontSize: '0.9rem', letterSpacing: '0.02em' }}>
-                      {profile?.name || 'CAMPUS SPHERE ACADEMY'}
-                    </Typography>
-                  </Box>
-
-                  <Chip
-                    label={activeUser.role || 'STUDENT'}
-                    size="small"
-                    sx={{
-                      bgcolor: theme.palette.primary.main,
-                      color: '#ffffff',
-                      fontWeight: 800,
-                      fontFamily: theme.typography.mono.fontFamily,
-                      fontSize: '0.62rem',
-                      height: 18,
-                      mb: 2,
-                    }}
+                <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', py: 1 }}>
+                  <CollegiateIdCard
+                    id="printable-id-card-preview"
+                    name={activeUser.name}
+                    rollNumber={activeUser.rollNumber}
+                    role={activeUser.role || 'STUDENT'}
+                    department={activeUser.department || activeUser.departmentId?.name || 'General Department'}
+                    course={activeUser.course || activeUser.courseId?.code || 'B.Tech'}
+                    branch={activeUser.branch || activeUser.branchId?.code || 'General'}
+                    semester={activeUser.semester || 1}
+                    email={activeUser.email}
+                    collegeName={profile?.name || 'CAMPUS SPHERE UNIVERSITY'}
+                    collegeLogo={profile?.logoUrl}
+                    photoUrl={activeUser.profilePicUrl}
                   />
-
-                  {/* Student Photo Placeholder */}
-                  <Box
-                    sx={{
-                      width: 80,
-                      height: 80,
-                      borderRadius: '50%',
-                      bgcolor: `${theme.palette.primary.main}18`,
-                      color: theme.palette.primary.main,
-                      mx: 'auto',
-                      mb: 2,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: `3px solid ${theme.palette.background.paper}`,
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    }}
-                  >
-                    <Typography variant="h4" sx={{ fontWeight: 800 }}>
-                      {activeUser.name?.charAt(0) || 'U'}
-                    </Typography>
-                  </Box>
-
-                  {/* Name & Roll Number */}
-                  <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900], fontSize: '1.05rem', mb: 0.5 }}>
-                    {activeUser.name}
-                  </Typography>
-
-                  {activeUser.rollNumber && (
-                    <Chip
-                      label={`ROLL NO: ${activeUser.rollNumber}`}
-                      size="small"
-                      sx={{
-                        fontWeight: 800,
-                        fontFamily: theme.typography.mono.fontFamily,
-                        fontSize: '0.72rem',
-                        bgcolor: `${theme.palette.brass?.[500] || '#b8863e'}18`,
-                        color: theme.palette.brass?.[500] || '#b8863e',
-                        mb: 1.5,
-                      }}
-                    />
-                  )}
-
-                  <Divider sx={{ my: 1.5 }} />
-
-                  {/* Details Grid */}
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, textAlign: 'left', px: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                        Department:
-                      </Typography>
-                      <Typography variant="caption" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
-                        {activeUser.department || 'General'}
-                      </Typography>
-                    </Box>
-
-                    {activeUser.role === 'STUDENT' && (
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                          Branch:
-                        </Typography>
-                        <Typography variant="caption" sx={{ fontWeight: 700, color: theme.palette.ink[900] }}>
-                          {activeUser.branch || 'General'}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                        Roll Number:
-                      </Typography>
-                      <Typography variant="caption" sx={{ fontFamily: theme.typography.mono.fontFamily, fontSize: '0.75rem', fontWeight: 800, color: theme.palette.primary.main }}>
-                        {activeUser.rollNumber || 'UNASSIGNED'}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  {/* QR Code Barcode Mockup Footer */}
-                  <Box sx={{ mt: 2.5, pt: 1.5, borderTop: `1px dashed ${theme.palette.divider}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                    <QrCode2Outlined sx={{ fontSize: 28, color: theme.palette.text.secondary }} />
-                    <Box sx={{ textAlign: 'left' }}>
-                      <Typography variant="caption" sx={{ display: 'block', fontFamily: theme.typography.mono.fontFamily, fontSize: '0.6rem', color: theme.palette.text.disabled }}>
-                        OFFICIAL CAMPUS SPHERE PASS
-                      </Typography>
-                      <Typography variant="caption" sx={{ display: 'block', fontFamily: theme.typography.mono.fontFamily, fontSize: '0.58rem', fontWeight: 700, color: theme.palette.ink[900] }}>
-                        VERIFIED INSTITUTIONAL RECORD
-                      </Typography>
-                    </Box>
-                  </Box>
                 </Box>
               ) : (
                 <EmptyState

@@ -11,22 +11,29 @@ import {
   TextField,
   MenuItem,
   Divider,
+  Avatar,
   useTheme,
 } from '@mui/material';
 import {
   EventNoteOutlined as LeaveIcon,
   AddOutlined as AddIcon,
+  CheckCircleOutlineOutlined as ApprovedIcon,
+  HourglassEmptyOutlined as PendingIcon,
+  CancelOutlined as RejectedIcon,
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { useStudentSession } from '../../contexts/StudentSessionContext';
 import { useLeaveQuery, useCreateLeaveMutation } from '../../queries/hodQueries';
 import { useToast } from '../../contexts/ToastContext';
+import EmptyState from '../../components/common/EmptyState';
 
 export const StudentLeavePage = () => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { isArchivedView, selectedSemester } = useStudentSession();
 
   const [openModal, setOpenModal] = useState(false);
   const [leaveType, setLeaveType] = useState('CASUAL');
@@ -74,16 +81,29 @@ export const StudentLeavePage = () => {
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3.5, flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em', mb: 0.5 }}>
-            Student Leave Applications Desk
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em' }}>
+              Student Leave Applications Desk
+            </Typography>
+            {isArchivedView && (
+              <Chip
+                label={`SEMESTER ${selectedSemester} ARCHIVED`}
+                color="warning"
+                size="small"
+                sx={{ fontWeight: 800 }}
+              />
+            )}
+          </Box>
           <Typography variant="body1" color="text.secondary">
-            Submit leave requests to your Head of Department (HOD) and track approval status.
+            {isArchivedView
+              ? `Browsing historical leave records for Semester ${selectedSemester}. New leave submissions are restricted.`
+              : 'Submit leave requests to your Head of Department (HOD) and track approval status.'}
           </Typography>
         </Box>
 
         <Button
           variant="contained"
+          disabled={isArchivedView}
           startIcon={<AddIcon />}
           onClick={() => setOpenModal(true)}
           sx={{
@@ -95,23 +115,162 @@ export const StudentLeavePage = () => {
             boxShadow: '0 8px 20px rgba(79, 70, 229, 0.25)',
           }}
         >
-          Apply for Leave
+          {isArchivedView ? 'Leave Restricted (Archived)' : 'Apply for Leave'}
         </Button>
       </Box>
+
+      {/* Roster-Style 4-Color Top-Bordered KPI Grid */}
+      <Grid container spacing={2.5} sx={{ mb: 3.5 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #4f46e5',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Total Leaves
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(79, 70, 229, 0.12)', color: '#4f46e5', width: 40, height: 40, borderRadius: '10px' }}>
+                <LeaveIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {myLeaves.length}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Submitted applications
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #10b981',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Approved Leaves
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', width: 40, height: 40, borderRadius: '10px' }}>
+                <ApprovedIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'success.main', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {myLeaves.filter((l) => l.status === 'APPROVED').length}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                HOD granted requests
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #f59e0b',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Pending Approval
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', width: 40, height: 40, borderRadius: '10px' }}>
+                <PendingIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'warning.main', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {myLeaves.filter((l) => l.status === 'PENDING').length}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Under department review
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: '14px',
+              border: `1px solid ${theme.palette.divider}`,
+              borderTop: '4px solid #06b6d4',
+              bgcolor: isDark ? 'background.paper' : '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                Closed / Rejected
+              </Typography>
+              <Avatar sx={{ bgcolor: 'rgba(6, 182, 212, 0.12)', color: '#06b6d4', width: 40, height: 40, borderRadius: '10px' }}>
+                <RejectedIcon fontSize="small" />
+              </Avatar>
+            </Box>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>
+                {myLeaves.filter((l) => l.status === 'REJECTED').length}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Closed applications
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
 
       {/* Leave Request List */}
       <Grid container spacing={3}>
         {isLoading ? (
           <Grid item xs={12}>
-            <Paper sx={{ p: 4, textAlign: 'center' }}>Loading leave records...</Paper>
+            <Paper sx={{ p: 4, textAlign: 'center', borderRadius: '14px' }}>Loading leave records...</Paper>
           </Grid>
         ) : myLeaves.length === 0 ? (
           <Grid item xs={12}>
-            <Paper elevation={0} sx={{ p: 6, textAlign: 'center', borderRadius: '24px', border: `1px solid ${theme.palette.divider}` }}>
-              <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 700 }}>
-                No leave applications submitted yet.
-              </Typography>
-            </Paper>
+            <EmptyState
+              type="leave"
+              title="No Leave Applications Found"
+              description="You have not submitted any leave applications yet. Click 'Apply for Leave' to submit a new request."
+            />
           </Grid>
         ) : (
           myLeaves.map((leave) => (

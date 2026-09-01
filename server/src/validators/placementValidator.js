@@ -14,7 +14,10 @@ const createPlacementDriveSchema = z.object({
   jobDescription: z.string().optional(),
   selectionProcess: z.string().optional(),
   driveType: z.enum(['PLACEMENT', 'INTERNSHIP']).optional(),
-  departmentIds: z.array(z.string().regex(objectIdRegex, 'Invalid department ID')).min(1)
+  departmentIds: z.array(z.string().regex(objectIdRegex, 'Invalid department ID')).min(1),
+  eligibleBranches: z.array(z.string().regex(objectIdRegex, 'Invalid branch ID')).optional(),
+  eligibleStanding: z.enum(['FINAL_YEAR', 'PRE_FINAL_YEAR', 'ALL_YEARS']).optional(),
+  graduatingBatchYear: z.coerce.number().min(2000).max(2100).optional(),
 });
 
 module.exports = {

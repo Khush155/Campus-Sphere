@@ -11,38 +11,38 @@ router.use(authMiddleware);
 
 router.post(
   '/',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   validate(createMeetingSchema),
   meetingController.createMeeting
 );
 
 router.get(
   '/',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD, ROLES.FACULTY, ROLES.STUDENT),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY, ROLES.STUDENT),
   meetingController.getMeetings
 );
 
 router.patch(
   '/:id/minutes',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   meetingController.addMinutes
 );
 
 router.patch(
   '/:id/rsvp',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD, ROLES.FACULTY, ROLES.STUDENT),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY, ROLES.STUDENT),
   meetingController.updateRSVP
 );
 
 router.post(
   '/:id/action-items',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   meetingController.addActionItem
 );
 
 router.patch(
   '/:id/status',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   meetingController.updateMeetingStatus
 );
 

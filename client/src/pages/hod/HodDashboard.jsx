@@ -38,25 +38,29 @@ export const HodDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const isDark = theme.palette.mode === 'dark';
+
+  const deptId = user?.departmentId?._id || user?.departmentId || user?.department?._id || user?.department;
+
   // Queries
   const { data: facultyData, isLoading: loadingFaculty, refetch: refetchFaculty } = useUsersQuery({
     role: 'FACULTY',
-    department: user?.departmentId,
+    department: deptId,
     limit: 1,
   });
   const { data: studentData, isLoading: loadingStudents, refetch: refetchStudents } = useUsersQuery({
     role: 'STUDENT',
-    department: user?.departmentId,
+    department: deptId,
     limit: 1,
   });
   const { data: subjectData, isLoading: loadingSubjects, refetch: refetchSubjects } = useSubjectsQuery({
-    department: user?.departmentId,
+    department: deptId,
   });
   const { data: depts } = useDepartmentsQuery();
   const { data: activeSession } = useActiveSessionQuery();
   const { data: recentNotices, isLoading: loadingNotices } = useRecentNoticesQuery();
 
-  const deptInfo = depts?.find((d) => String(d._id) === String(user?.departmentId));
+  const deptInfo = depts?.find((d) => String(d._id) === String(deptId));
 
   const totalFaculty = facultyData?.meta?.total ?? facultyData?.data?.length ?? 0;
   const totalStudents = studentData?.meta?.total ?? studentData?.data?.length ?? 0;
@@ -73,11 +77,16 @@ export const HodDashboard = () => {
       {/* ── 1. Hero Identity Header ────────────────────────────────────────── */}
       <Card
         sx={{
-          p: 3.5,
-          borderRadius: '16px',
+          p: { xs: 2.5, sm: 3.5 },
+          borderRadius: '22px',
           border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}0D 0%, ${theme.palette.brass?.[500] || '#b8863e'}0A 100%)`,
-          boxShadow: 'none',
+          background: isDark
+            ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.14) 0%, rgba(184, 134, 62, 0.08) 100%)'
+            : 'linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(184, 134, 62, 0.04) 100%)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: isDark
+            ? '0 18px 40px -15px rgba(0,0,0,0.5)'
+            : '0 18px 40px -15px rgba(79, 70, 229, 0.08)',
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
@@ -150,14 +159,16 @@ export const HodDashboard = () => {
             onClick={() => navigate('/hod/faculty')}
             sx={{
               p: 3,
-              borderRadius: '14px',
-              border: `1px solid ${theme.palette.divider}`,
-              boxShadow: 'none',
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.primary.main}`,
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
               cursor: 'pointer',
-              transition: 'transform 0.2s, box-shadow 0.2s',
+              transition: 'all 0.25s ease',
               '&:hover': {
-                transform: 'translateY(-3px)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
                 borderColor: theme.palette.primary.main,
               },
             }}
@@ -184,23 +195,25 @@ export const HodDashboard = () => {
             onClick={() => navigate('/hod/students')}
             sx={{
               p: 3,
-              borderRadius: '14px',
-              border: `1px solid ${theme.palette.divider}`,
-              boxShadow: 'none',
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.success || '#10b981'}`,
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
               cursor: 'pointer',
-              transition: 'transform 0.2s, box-shadow 0.2s',
+              transition: 'all 0.25s ease',
               '&:hover': {
-                transform: 'translateY(-3px)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
-                borderColor: theme.palette.primary.main,
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.signal?.success || '#10b981',
               },
             }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal.success }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.success || '#10b981' }}>
                 ENROLLED STUDENTS
               </Typography>
-              <Avatar sx={{ bgcolor: `${theme.palette.signal.success}15`, color: theme.palette.signal.success, width: 40, height: 40 }}>
+              <Avatar sx={{ bgcolor: `${theme.palette.signal?.success || '#10b981'}15`, color: theme.palette.signal?.success || '#10b981', width: 40, height: 40 }}>
                 <PeopleOutlined />
               </Avatar>
             </Box>
@@ -218,23 +231,25 @@ export const HodDashboard = () => {
             onClick={() => navigate('/hod/subjects')}
             sx={{
               p: 3,
-              borderRadius: '14px',
-              border: `1px solid ${theme.palette.divider}`,
-              boxShadow: 'none',
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.brass?.[500] || '#b8863e'}`,
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
               cursor: 'pointer',
-              transition: 'transform 0.2s, box-shadow 0.2s',
+              transition: 'all 0.25s ease',
               '&:hover': {
-                transform: 'translateY(-3px)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
-                borderColor: theme.palette.primary.main,
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.brass?.[500] || '#b8863e',
               },
             }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.warning.main }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.brass?.[500] || '#b8863e' }}>
                 CURRICULUM SUBJECTS
               </Typography>
-              <Avatar sx={{ bgcolor: `${theme.palette.warning.main}15`, color: theme.palette.warning.main, width: 40, height: 40 }}>
+              <Avatar sx={{ bgcolor: `${theme.palette.brass?.[500] || '#b8863e'}15`, color: theme.palette.brass?.[500] || '#b8863e', width: 40, height: 40 }}>
                 <MenuBookOutlined />
               </Avatar>
             </Box>
@@ -252,23 +267,25 @@ export const HodDashboard = () => {
             onClick={() => navigate('/hod/timetable')}
             sx={{
               p: 3,
-              borderRadius: '14px',
-              border: `1px solid ${theme.palette.divider}`,
-              boxShadow: 'none',
+              borderRadius: '18px',
+              border: `1px solid ${theme.custom?.border?.subtle || theme.palette.divider}`,
+              borderTop: `4px solid ${theme.palette.signal?.info || '#3b82f6'}`,
+              bgcolor: theme.custom?.surface?.raised || theme.palette.background.paper,
+              boxShadow: theme.custom?.elevation?.raised || 'none',
               cursor: 'pointer',
-              transition: 'transform 0.2s, box-shadow 0.2s',
+              transition: 'all 0.25s ease',
               '&:hover': {
-                transform: 'translateY(-3px)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
-                borderColor: theme.palette.primary.main,
+                transform: 'translateY(-4px)',
+                boxShadow: isDark ? '0 12px 28px rgba(0,0,0,0.3)' : '0 12px 28px rgba(0,0,0,0.06)',
+                borderColor: theme.palette.signal?.info || '#3b82f6',
               },
             }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.brass?.[500] || '#b8863e' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '0.05em', color: theme.palette.signal?.info || '#3b82f6' }}>
                 SCHEDULE STATUS
               </Typography>
-              <Avatar sx={{ bgcolor: `${theme.palette.brass?.[500] || '#b8863e'}15`, color: theme.palette.brass?.[500] || '#b8863e', width: 40, height: 40 }}>
+              <Avatar sx={{ bgcolor: `${theme.palette.signal?.info || '#3b82f6'}15`, color: theme.palette.signal?.info || '#3b82f6', width: 40, height: 40 }}>
                 <CalendarMonthOutlined />
               </Avatar>
             </Box>

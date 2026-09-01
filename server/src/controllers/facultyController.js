@@ -295,7 +295,7 @@ const getFacultyDashboard = asyncHandler(async (req, res, _next) => {
   const totalClassesCount = uniqueGroups.size;
 
   const Attendance = require('../models/Attendance');
-  const attendanceRecords = await Attendance.find(faculty ? { facultyId: faculty._id } : {});
+  const attendanceRecords = await Attendance.find({ facultyId: req.user.id });
   const totalAtt = attendanceRecords.length;
   const presentAtt = attendanceRecords.filter((r) => ['PRESENT', 'MEDICAL_LEAVE', 'DUTY_LEAVE'].includes(r.status)).length;
   const avgAttendance = totalAtt > 0 ? Math.round((presentAtt / totalAtt) * 100) : 0;
@@ -325,13 +325,52 @@ const getFacultyDashboard = asyncHandler(async (req, res, _next) => {
     });
   }
 
-  const recentNotices = [
-    { id: 'not-1', type: 'ACADEMIC', title: 'Midterm Grade Submission Deadline', date: 'Due in 2 days', urgency: 'high' },
-    { id: 'not-2', type: 'ADMIN', title: 'Department Faculty Meeting', date: 'Tomorrow, 3:00 PM', urgency: 'medium' }
-  ];
-  const upcomingEvents = [
-    { id: 'eve-1', title: 'Campus Placement Prep Seminar', date: '14 July, 10:00 AM' }
-  ];
+  const Notice = require('../models/Notice');
+  const userDeptId = req.user.departmentId || (faculty ? faculty.departmentId?._id || faculty.departmentId : null);
+  const dbNotices = await Notice.find({
+    status: 'PUBLISHED',
+    $or: [
+      { targetAudience: { $in: ['ALL', 'FACULTY'] } },
+      { targetAudience: { $exists: false } },
+    ],
+    ...(userDeptId
+      ? {
+          $or: [
+            { departmentId: userDeptId },
+            { departmentId: null },
+            { isGlobal: true },
+          ],
+        }
+      : {}),
+  })
+    .sort({ createdAt: -1 })
+    .limit(4);
+
+  const recentNotices = dbNotices.map((n) => ({
+    id: n._id.toString(),
+    type: n.category || 'ACADEMIC',
+    title: n.title,
+    date: new Date(n.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+    urgency: n.priority === 'URGENT' ? 'high' : n.priority === 'IMPORTANT' ? 'medium' : 'normal',
+  }));
+
+  const Meeting = require('../models/Meeting');
+  const dbMeetings = await Meeting.find({
+    status: { $ne: 'CANCELLED' },
+    date: { $gte: new Date(Date.now() - 24 * 3600 * 1000) },
+    $or: [
+      { departmentId: userDeptId },
+      { 'attendees.userId': req.user.id },
+    ],
+  })
+    .sort({ date: 1 })
+    .limit(3);
+
+  const upcomingEvents = dbMeetings.map((m) => ({
+    id: m._id.toString(),
+    title: m.title,
+    date: `${new Date(m.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, ${m.time || '10:00 AM'}`,
+  }));
 
   const weekdaysMap = {
     MONDAY: 'Monday',
@@ -405,8 +444,6 @@ const getFacultyDashboard = asyncHandler(async (req, res, _next) => {
  * @access  Private/Faculty
  */
 const getFacultyAnalytics = asyncHandler(async (req, res, _next) => {
-  const faculty = await Faculty.findOne({ userId: req.user.id });
-
   const FacultyAssignment = require('../models/FacultyAssignment');
   const activeAssignments = await FacultyAssignment.find({
     facultyId: req.user.id,
@@ -415,7 +452,7 @@ const getFacultyAnalytics = asyncHandler(async (req, res, _next) => {
   const subjectIds = activeAssignments.map(a => a.subjectId).filter(Boolean);
 
   const Attendance = require('../models/Attendance');
-  const attendanceRecords = faculty ? await Attendance.find({ facultyId: faculty._id }).populate('subjectId') : [];
+  const attendanceRecords = await Attendance.find({ facultyId: req.user.id }).populate('subjectId');
 
   const monthlyTrendMap = {
     'Jan': { present: 0, total: 0, baseVal: 85 },
@@ -486,7 +523,7 @@ const getFacultyAnalytics = asyncHandler(async (req, res, _next) => {
     const passRate = totalResultCount > 0 ? Math.round((passCount / totalResultCount) * 100) : 90;
 
     performance.push({
-      name: `${sub.name} (${sub.code})`,
+      name: sub.code ? `${sub.name} (${sub.code})` : sub.name,
       attendance: attRate,
       passingRate: passRate
     });

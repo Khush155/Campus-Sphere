@@ -47,6 +47,21 @@ export const MarkAttendanceModal = ({ open, onClose, deptId, onSuccess }) => {
     return studentsResponse.data || (Array.isArray(studentsResponse) ? studentsResponse : []);
   }, [studentsResponse]);
 
+  const selectedSubject = useMemo(() => {
+    return subjects.find((s) => String(s._id || s.id) === String(formData.subjectId));
+  }, [subjects, formData.subjectId]);
+
+  const filteredStudents = useMemo(() => {
+    if (!selectedSubject) return students;
+    const targetBranchId = String(selectedSubject.branchId?._id || selectedSubject.branchId || '');
+    return students.filter((s) => {
+      const studentBranchId = String(s.branchId?._id || s.branchId || '');
+      const matchBranch = !targetBranchId || !studentBranchId || studentBranchId === targetBranchId;
+      const matchSem = !selectedSubject.semester || !s.semester || Number(s.semester) === Number(selectedSubject.semester);
+      return matchBranch && matchSem;
+    });
+  }, [students, selectedSubject]);
+
   const bulkMarkMutation = useBulkMarkAttendanceMutation();
 
   const handleStatusChange = (studentId, status) => {
@@ -55,7 +70,7 @@ export const MarkAttendanceModal = ({ open, onClose, deptId, onSuccess }) => {
 
   const handleMarkAll = (status) => {
     const next = {};
-    students.forEach((s) => {
+    filteredStudents.forEach((s) => {
       next[s._id || s.id] = status;
     });
     setStudentStatuses(next);
@@ -68,7 +83,7 @@ export const MarkAttendanceModal = ({ open, onClose, deptId, onSuccess }) => {
       return;
     }
 
-    const records = students.map((s) => {
+    const records = filteredStudents.map((s) => {
       const id = s._id || s.id;
       return {
         studentId: id,
@@ -154,7 +169,7 @@ export const MarkAttendanceModal = ({ open, onClose, deptId, onSuccess }) => {
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 1 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-              Student Roster ({students.length} Enrolled)
+              Student Roster ({filteredStudents.length} Enrolled{selectedSubject?.semester ? ` in Sem ${selectedSubject.semester}` : ''})
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button size="small" variant="outlined" color="success" onClick={() => handleMarkAll('PRESENT')}>
@@ -170,13 +185,15 @@ export const MarkAttendanceModal = ({ open, onClose, deptId, onSuccess }) => {
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
               <CircularProgress size={28} />
             </Box>
-          ) : students.length === 0 ? (
+          ) : filteredStudents.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-              No students found in department roster.
+              {formData.subjectId
+                ? "No students enrolled matching this subject's semester and branch."
+                : 'No students found in department roster.'}
             </Typography>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, maxHeight: 380, overflowY: 'auto', pr: 1 }}>
-              {students.map((s) => {
+              {filteredStudents.map((s) => {
                 const sId = s._id || s.id;
                 const status = studentStatuses[sId] || 'PRESENT';
 

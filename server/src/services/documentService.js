@@ -9,9 +9,21 @@ const paginate = require('../utils/paginate');
 const createDocumentRequest = async (docData, actor) => {
   const { documentType, purpose, addressedTo, urgency } = docData;
 
+  let departmentId = actor.departmentId;
+  if (!departmentId && actor.branchId) {
+    const Branch = require('../models/Branch');
+    const branch = await Branch.findById(actor.branchId).select('hostingDepartmentId departmentId');
+    departmentId = branch?.hostingDepartmentId || branch?.departmentId;
+  }
+  if (!departmentId) {
+    const Department = require('../models/Department');
+    const firstDept = await Department.findOne().select('_id');
+    departmentId = firstDept?._id;
+  }
+
   const doc = await DocumentRequest.create({
     studentId: actor.id,
-    departmentId: actor.departmentId,
+    departmentId,
     documentType,
     purpose,
     addressedTo: addressedTo || null,
@@ -106,8 +118,24 @@ const updateDocumentStatus = async (id, statusData, actor, req) => {
     targetModel: 'DocumentRequest',
     before,
     after: { status, rejectionReason, documentRef },
-    req
+    req,
   });
+
+  // Notify student
+  try {
+    const { createNotification } = require('./notificationService');
+    await createNotification({
+      recipientId: doc.studentId,
+      title: `📄 Document Request ${status.replace(/_/g, ' ')}: ${doc.documentType.replace(/_/g, ' ')}`,
+      message: `Your request for ${doc.documentType.replace(/_/g, ' ')} has been marked as ${status.replace(/_/g, ' ').toLowerCase()}.${rejectionReason ? ` Reason: ${rejectionReason}` : ''}`,
+      category: 'DOCUMENT',
+      link: '/student/documents',
+      senderId: actor.id,
+      metadata: { documentId: doc._id, status },
+    });
+  } catch (err) {
+    // Non-blocking
+  }
 
   return doc;
 };

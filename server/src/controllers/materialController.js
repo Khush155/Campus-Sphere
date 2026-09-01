@@ -4,6 +4,7 @@ const AppError = require('../utils/AppError');
 const ERROR_CODES = require('../constants/errorCodes');
 const { successResponse } = require('../utils/apiResponse');
 const asyncHandler = require('../middlewares/asyncHandler');
+const ROLES = require('../constants/roles');
 
 /**
  * @desc    Upload / create new Course Material
@@ -56,15 +57,28 @@ const createMaterial = asyncHandler(async (req, res, next) => {
  * @route   GET /api/v1/materials
  * @access  Private/Faculty/Student/Admin
  */
+
 const getMaterials = asyncHandler(async (req, res, _next) => {
-  const { subjectId, group } = req.query;
+  const { subjectId } = req.query;
   const filter = {};
 
   if (subjectId) {
     filter.subjectId = subjectId;
   }
-  if (group && group !== 'ALL') {
-    filter.group = group;
+
+  if (req.user.role === ROLES.STUDENT) {
+    // For students, always enforce their own semester and group.
+    // Include materials targeted to their specific group OR to 'ALL'.
+    if (req.user.semester) {
+      filter.semester = req.user.semester;
+    }
+    filter.group = { $in: [req.user.group, 'ALL'] };
+  } else {
+    // For faculty/admin, honour optional group query param
+    const { group } = req.query;
+    if (group && group !== 'ALL') {
+      filter.group = group;
+    }
   }
 
   const materials = await Material.find(filter)
@@ -74,6 +88,7 @@ const getMaterials = asyncHandler(async (req, res, _next) => {
 
   return successResponse(res, 200, 'Course materials retrieved successfully', materials);
 });
+
 
 /**
  * @desc    Delete a Course Material

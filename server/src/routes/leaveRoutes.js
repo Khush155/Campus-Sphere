@@ -19,13 +19,13 @@ router.post(
 
 router.get(
   '/',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD, ROLES.FACULTY, ROLES.STUDENT),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY, ROLES.STUDENT),
   leaveController.getLeaveRequests
 );
 
 router.patch(
   '/:id/status',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.HOD),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD),
   leaveController.updateLeaveStatus
 );
 

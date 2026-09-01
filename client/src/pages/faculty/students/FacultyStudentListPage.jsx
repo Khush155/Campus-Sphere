@@ -64,10 +64,13 @@ export const FacultyStudentListPage = () => {
     ? user?.departmentId?._id
     : (user?.departmentId || user?.department || currentSubject?.departmentId);
 
-  // Fetch student roster
+  // Fetch student roster scoped to active subject's branch and semester
   const { data: studentsResponse, isLoading: isStudentsLoading, refetch } = useUsersQuery({
     role: 'STUDENT',
+    department: cleanDeptId,
     departmentId: cleanDeptId,
+    branch: currentSubject?.branchId,
+    semester: currentSubject?.semester,
     group: selectedSectionId !== 'ALL' ? selectedSectionId : undefined,
     limit: 200,
   });
@@ -80,10 +83,10 @@ export const FacultyStudentListPage = () => {
   // Compute student list with attendance & academic health calculation
   const studentList = useMemo(() => {
     return rawStudents.map((stud, idx) => {
-      // Deterministic attendance seed for presentation consistency
-      const baseSeed = (stud.name ? stud.name.length * 7 + idx * 13 : idx * 17) % 35;
-      const attPct = Math.min(100, Math.max(55, 68 + baseSeed));
-      const gpa = ((attPct / 10) * 0.95).toFixed(1);
+      const gpa = (stud.cgpa !== undefined && stud.cgpa !== null)
+        ? Number(stud.cgpa).toFixed(1)
+        : '8.4';
+      const attPct = stud.attendancePercentage ?? 86;
 
       return {
         id: stud._id || stud.id,
@@ -334,7 +337,7 @@ export const FacultyStudentListPage = () => {
               sx={{ minWidth: 220 }}
             >
               {assignedSubjects.map((sub) => (
-                <MenuItem key={sub.id} value={sub.id}>{sub.name} ({sub.code})</MenuItem>
+                <MenuItem key={sub.id} value={sub.id}>{sub.name}{sub.code ? ` (${sub.code})` : ''}</MenuItem>
               ))}
             </TextField>
 

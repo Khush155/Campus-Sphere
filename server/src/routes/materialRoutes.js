@@ -14,14 +14,14 @@ router
   .route('/')
   .get(materialController.getMaterials)
   .post(
-    roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.FACULTY),
+    roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY),
     upload.single('file'),
     materialController.createMaterial
   );
 
 router.delete(
   '/:id',
-  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.FACULTY),
+  roleMiddleware(ROLES.SUPER_ADMIN, ROLES.COLLEGE_ADMIN, ROLES.HOD, ROLES.FACULTY),
   materialController.deleteMaterial
 );
 
