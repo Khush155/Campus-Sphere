@@ -140,3 +140,20 @@ export const useUserQuery = (id) => {
     enabled: !!id,
   });
 };
+
+/**
+ * Hook to fetch department fee defaulters.
+ */
+export const useDepartmentFeesQuery = (departmentId, statuses = 'PENDING,OVERDUE') => {
+  return useQuery({
+    queryKey: ['department-fees', departmentId, statuses],
+    queryFn: async () => {
+      if (!departmentId) return [];
+      const response = await api.get(`/users/department/${departmentId}/fees`, {
+        params: { status: statuses }
+      });
+      return response.data.data;
+    },
+    enabled: !!departmentId,
+  });
+};

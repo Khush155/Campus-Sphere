@@ -12,6 +12,12 @@ import {
   Chip,
   Paper,
   Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import {
   PeopleOutlined,
@@ -26,8 +32,9 @@ import {
   SchoolOutlined,
   RefreshOutlined,
   GroupsOutlined,
+  MoneyOffOutlined,
 } from '@mui/icons-material';
-import { useUsersQuery } from '../../queries/userQueries';
+import { useUsersQuery, useDepartmentFeesQuery } from '../../queries/userQueries';
 import { useSubjectsQuery, useDepartmentsQuery } from '../../queries/collegeQueries';
 import { useRecentNoticesQuery } from '../../queries/dashboardQueries';
 import { useActiveSessionQuery } from '../../queries/academicSessionQueries';
@@ -59,6 +66,7 @@ export const HodDashboard = () => {
   const { data: depts } = useDepartmentsQuery();
   const { data: activeSession } = useActiveSessionQuery();
   const { data: recentNotices, isLoading: loadingNotices } = useRecentNoticesQuery();
+  const { data: feeDefaulters, isLoading: loadingFees, refetch: refetchFees } = useDepartmentFeesQuery(deptId, 'PENDING,OVERDUE');
 
   const deptInfo = depts?.find((d) => String(d._id) === String(deptId));
 
@@ -70,6 +78,7 @@ export const HodDashboard = () => {
     refetchFaculty();
     refetchStudents();
     refetchSubjects();
+    refetchFees();
   };
 
   return (
@@ -541,6 +550,71 @@ export const HodDashboard = () => {
           </Card>
         </Grid>
       </Grid>
+
+      {/* ── 5. Fee Defaulters & Clearance Status ──── */}
+      <Card sx={{ borderRadius: '16px', border: `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
+        <Box sx={{ p: 3, borderBottom: `1px solid ${theme.palette.divider}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <MoneyOffOutlined sx={{ color: theme.palette.error.main }} />
+            <Typography variant="h6" sx={{ fontWeight: 800, color: theme.palette.ink[900] }}>
+              Student Fee Defaulters (Action Required)
+            </Typography>
+          </Box>
+          <Chip label="Pending & Overdue" size="small" color="error" variant="outlined" sx={{ fontWeight: 800 }} />
+        </Box>
+        <Box sx={{ p: 0, overflowX: 'auto' }}>
+          <TableContainer sx={{ maxHeight: 350 }}>
+            <Table stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>STUDENT</TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>COURSE/BRANCH</TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>OUTSTANDING DUES</TableCell>
+                  <TableCell sx={{ fontWeight: 800, bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>STATUS</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {loadingFees ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 4 }}><CircularProgress size={24} /></TableCell>
+                  </TableRow>
+                ) : !feeDefaulters || feeDefaulters.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>No fee defaulters found in this department.</TableCell>
+                  </TableRow>
+                ) : (
+                  feeDefaulters.map((student) => {
+                    const totalDues = (student.feeDues?.tuition || 0) + (student.feeDues?.hostel || 0) + (student.feeDues?.library || 0) + (student.feeDues?.lab || 0);
+                    return (
+                      <TableRow key={student.id} hover>
+                        <TableCell>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{student.name}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: theme.typography.mono.fontFamily }}>{student.rollNumber || student.email}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">{student.course}</Typography>
+                          <Typography variant="caption" color="text.secondary">{student.branch}</Typography>
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 800, color: 'error.main', fontFamily: theme.typography.mono.fontFamily }}>
+                          ₹ {totalDues.toLocaleString('en-IN')}
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={student.feeStatus} 
+                            size="small" 
+                            color={student.feeStatus === 'OVERDUE' ? 'error' : 'warning'} 
+                            sx={{ fontWeight: 800 }} 
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      </Card>
     </Box>
   );
 };
