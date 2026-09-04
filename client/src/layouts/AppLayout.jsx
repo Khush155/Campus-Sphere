@@ -201,6 +201,7 @@ export const AppLayout = () => {
         { text: 'Faculty Allocations', icon: <AssignmentIndIcon />, path: '/admin/faculty-assignments', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'ID Cards Studio', icon: <BadgeIcon />, path: '/admin/id-cards', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Fee Dues Clearance', icon: <AccountBalanceWalletIcon />, path: '/admin/fee-clearance', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
+        { text: 'Fee Management', icon: <AccountBalanceWalletIcon />, path: '/admin/fee-management', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Placements & Drives', icon: <WorkIcon />, path: '/admin/placements', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Leave Oversight', icon: <EventNoteIcon />, path: '/admin/leave-management', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },
         { text: 'Maintenance & Complaints', icon: <ReportProblemIcon />, path: '/admin/complaints', roles: ['SUPER_ADMIN', 'COLLEGE_ADMIN'] },

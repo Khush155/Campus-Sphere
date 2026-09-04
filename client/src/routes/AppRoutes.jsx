@@ -55,6 +55,7 @@ import { FacultyAssignments } from '../pages/admin/FacultyAssignments/FacultyAss
 import { IdCardsHub } from '../pages/admin/IdCards/IdCardsHub';
 import { AdmissionsHub } from '../pages/admin/Admissions/AdmissionsHub';
 import { FeeClearanceHub } from '../pages/admin/FeeClearance/FeeClearanceHub';
+import { FeeManagementPage } from '../pages/admin/FeeManagement/FeeManagementPage';
 
 import StudentDashboard from '../pages/student/StudentDashboard';
 import StudentAttendancePage from '../pages/student/StudentAttendancePage';
@@ -275,6 +276,16 @@ export const AppRoutes = () => {
             <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
               <AdminSetupGuard>
                 <FeeClearanceHub />
+              </AdminSetupGuard>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="admin/fee-management"
+          element={
+            <RoleRoute allowedRoles={['SUPER_ADMIN', 'COLLEGE_ADMIN']}>
+              <AdminSetupGuard>
+                <FeeManagementPage />
               </AdminSetupGuard>
             </RoleRoute>
           }

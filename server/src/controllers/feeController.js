@@ -17,8 +17,14 @@ const payStudentFee = asyncHandler(async (req, res) => {
   return successResponse(res, 200, 'Fee payment processed successfully', receipt);
 });
 
+const generateBulkFees = asyncHandler(async (req, res) => {
+  const result = await feeService.generateBulkFees(req.body, req.user);
+  return successResponse(res, 200, 'Bulk fees generated successfully', result);
+});
+
 module.exports = {
   getStudentReceipts,
   getReceiptById,
   payStudentFee,
+  generateBulkFees,
 };

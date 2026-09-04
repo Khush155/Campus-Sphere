@@ -195,8 +195,79 @@ const payStudentFee = async (actor) => {
   return buildReceiptForStudent(updatedUser);
 };
 
+const generateBulkFees = async (criteria, actor) => {
+  const { departmentId, branchId, semester } = criteria;
+  const filter = { role: ROLES.STUDENT, status: 'ACTIVE' };
+
+  if (departmentId) filter.departmentId = departmentId;
+  if (branchId) filter.branchId = branchId;
+  if (semester) filter.semester = semester;
+
+  const users = await User.find(filter);
+  if (users.length === 0) {
+    throw new AppError('No active students found matching the criteria.', 404, ERROR_CODES.NOT_FOUND);
+  }
+
+  const baseTuition = 45000;
+  const baseLab = 8500;
+  const baseLibrary = 3000;
+  const baseHostel = 6500;
+
+  // We could use updateMany, but iterating allows us to trigger notifications
+  // or pre-save hooks if necessary. Given the scale, updateMany might be safer, 
+  // but let's do bulk write for performance while keeping the logic.
+  
+  const bulkOps = users.map(user => {
+    return {
+      updateOne: {
+        filter: { _id: user._id },
+        update: {
+          $set: {
+            feeStatus: 'PENDING',
+            feeDues: {
+              tuition: baseTuition,
+              lab: baseLab,
+              library: baseLibrary,
+              hostel: baseHostel,
+            },
+          },
+        },
+      },
+    };
+  });
+
+  await User.bulkWrite(bulkOps);
+
+  try {
+    const { createNotification } = require('./notificationService');
+    // We notify the first 50 to avoid spamming the DB in one go for thousands, 
+    // or we can insert notifications in bulk. Let's do bulk notifications.
+    const notifications = users.map(user => ({
+      recipientId: user._id,
+      title: '📢 Semester Fee Dues Generated',
+      message: `Your semester fees (₹63,000) have been generated. Please clear them via the fees portal to generate your hall ticket.`,
+      category: 'FEE_PAYMENT',
+      link: '/student/fees',
+      senderId: actor.id,
+    }));
+    
+    // Import Notification model directly to do a bulk insert
+    const Notification = require('../models/Notification');
+    await Notification.insertMany(notifications, { ordered: false });
+  } catch (err) {
+    // Non-blocking notification error
+  }
+
+  return {
+    matchedCount: users.length,
+    modifiedCount: users.length,
+    message: `Successfully generated fees for ${users.length} student(s).`,
+  };
+};
+
 module.exports = {
   getStudentReceipts,
   getReceiptById,
   payStudentFee,
+  generateBulkFees,
 };

@@ -159,6 +159,20 @@ const updateMyProfile = async (req, res, _next) => {
   return successResponse(res, 200, 'Profile updated successfully', updatedUser);
 };
 
+const getDepartmentFees = async (req, res, _next) => {
+  const { departmentId } = req.params;
+  const { getDepartmentFeesQuerySchema } = require('../validators/userValidator');
+  const validatedQuery = getDepartmentFeesQuerySchema.parse(req.query);
+
+  // Security check: If role is HOD, ensure they are requesting for their own department
+  if (req.user.role === 'HOD' && String(req.user.departmentId) !== String(departmentId)) {
+    throw new AppError('Access denied. You can only view fee defaulters for your own department.', 403, ERROR_CODES.FORBIDDEN);
+  }
+
+  const result = await userService.getDepartmentFeesList(departmentId, validatedQuery.status);
+  return successResponse(res, 200, 'Department fees fetched successfully', result);
+};
+
 module.exports = {
   getUsers,
   getUser,
@@ -170,4 +184,5 @@ module.exports = {
   importStudents,
   getMyProfile,
   updateMyProfile,
+  getDepartmentFees,
 };

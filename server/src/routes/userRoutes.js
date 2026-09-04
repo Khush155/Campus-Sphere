@@ -78,6 +78,8 @@ router.get('/insights', adminGuard, asyncHandler(userController.getInsights));
 
 router.get('/:id', adminAndHodGuard, asyncHandler(userController.getUser));
 
+router.get('/department/:departmentId/fees', adminAndHodGuard, asyncHandler(userController.getDepartmentFees));
+
 /**
  * @openapi
  * /api/v1/users/{id}:
