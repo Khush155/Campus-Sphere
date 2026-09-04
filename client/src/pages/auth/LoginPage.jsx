@@ -219,8 +219,8 @@ export const LoginPage = () => {
         sx={{
           flex: { xs: '0 0 auto', sm: '0 0 40%' },
           width: { xs: '100%', sm: '40%' },
-          bgcolor: theme.palette.ink[900],
-          color: theme.palette.parchment[50],
+          bgcolor: theme.palette.mode === 'dark' ? theme.palette.background.default : theme.palette.ink[900],
+          color: theme.palette.mode === 'dark' ? '#F8FAFC' : theme.palette.parchment[50],
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
@@ -239,8 +239,8 @@ export const LoginPage = () => {
             left: { xs: '10%', sm: '-10%' },
             width: '120%',
             height: '80%',
-            opacity: 0.08,
-            color: theme.palette.brass[300],
+            opacity: theme.palette.mode === 'dark' ? 0.25 : 0.08,
+            color: theme.palette.mode === 'dark' ? theme.palette.brass[400] : theme.palette.brass[300],
             transform: `translate3d(${parallaxOffset.x}px, ${parallaxOffset.y}px, 0)`,
             transition: prefersReducedMotion ? 'none' : 'transform 0.15s ease-out',
             pointerEvents: 'none',
@@ -333,7 +333,7 @@ export const LoginPage = () => {
         sx={{
           flex: { xs: '1 1 auto', sm: '0 0 60%' },
           width: { xs: '100%', sm: '60%' },
-          bgcolor: theme.palette.parchment[50],
+          bgcolor: theme.palette.mode === 'dark' ? theme.palette.background.paper : theme.palette.parchment[50],
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
@@ -413,8 +413,8 @@ export const LoginPage = () => {
                     color: theme.palette.ink[900],
                   },
                   '& input::placeholder': {
-                    color: '#000000',
-                    opacity: 0.8,
+                    color: theme.palette.mode === 'dark' ? theme.palette.text.secondary : '#000000',
+                    opacity: theme.palette.mode === 'dark' ? 0.5 : 0.8,
                   },
                   '& fieldset': {
                     borderColor: 'rgba(28, 46, 69, 0.15)',
@@ -546,8 +546,8 @@ export const LoginPage = () => {
                     color: theme.palette.ink[900],
                   },
                   '& input::placeholder': {
-                    color: '#000000',
-                    opacity: 0.8,
+                    color: theme.palette.mode === 'dark' ? theme.palette.text.secondary : '#000000',
+                    opacity: theme.palette.mode === 'dark' ? 0.5 : 0.8,
                   },
                   '& fieldset': {
                     borderColor: 'rgba(28, 46, 69, 0.15)',
