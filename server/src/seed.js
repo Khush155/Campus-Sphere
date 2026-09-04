@@ -165,8 +165,12 @@ const seedDatabase = async () => {
     const subjects = [];
 
     // Helper to generate subject
+    let seqTracker = {};
     const addSubject = async (name, code, credits, type, branch, dept, semester) => {
-      const sub = await Subject.create({ name, code, credits, type, branchId: branch._id, departmentId: dept._id, semester });
+      const key = `${branch._id}_${semester}`;
+      seqTracker[key] = (seqTracker[key] || 0) + 1;
+      const sequenceNo = seqTracker[key];
+      const sub = await Subject.create({ name, code, sequenceNo, credits, type, branchId: branch._id, departmentId: dept._id, semester });
       subjects.push(sub);
       return sub;
     };
