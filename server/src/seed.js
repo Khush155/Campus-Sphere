@@ -4,6 +4,7 @@ const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
 const path = require('path');
 
@@ -165,7 +166,7 @@ const seedDatabase = async () => {
     const subjects = [];
 
     // Helper to generate subject
-    let seqTracker = {};
+    const seqTracker = {};
     const addSubject = async (name, code, credits, type, branch, dept, semester) => {
       const key = `${branch._id}_${semester}`;
       seqTracker[key] = (seqTracker[key] || 0) + 1;
@@ -243,7 +244,7 @@ const seedDatabase = async () => {
           studentBatch.push({
             name,
             email,
-            password: 'password123',
+            password: await bcrypt.hash('password123', 10),
             role: ROLES.STUDENT,
             departmentId: dept._id,
             courseId: courseObj._id,
