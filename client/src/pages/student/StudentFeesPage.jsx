@@ -16,10 +16,8 @@ import {
   Avatar,
   Button,
   Skeleton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Alert,
+  AlertTitle,
   useTheme,
 } from '@mui/material';
 import {
@@ -28,6 +26,7 @@ import {
   DownloadOutlined as DownloadIcon,
   VisibilityOutlined as ViewIcon,
   PrintOutlined as PrintIcon,
+  WarningAmber as WarningIcon,
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,6 +36,7 @@ import {
   useStudentFeeReceiptsQuery,
   usePayStudentFeeMutation,
 } from '../../queries/studentQueries';
+import MockPaymentGateway from '../../components/MockPaymentGateway';
 
 export const StudentFeesPage = () => {
   const theme = useTheme();
@@ -99,6 +99,17 @@ export const StudentFeesPage = () => {
 
   return (
     <Container maxWidth="xl" sx={{ py: 3.5 }}>
+      {feeStatus !== 'CLEARED' && (
+        <Alert 
+          severity="error" 
+          icon={<WarningIcon fontSize="inherit" />}
+          sx={{ mb: 4, borderRadius: '12px', border: `1px solid ${theme.palette.error.main}` }}
+        >
+          <AlertTitle sx={{ fontWeight: 800 }}>HALL TICKET GENERATION WITHHELD</AlertTitle>
+          Your institutional fee dues are pending. Per the dual-lock gating rule, your Hall Ticket generation has been suspended until all dues are cleared.
+        </Alert>
+      )}
+
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3.5, flexWrap: 'wrap', gap: 2 }}>
         <Box>
@@ -336,7 +347,7 @@ export const StudentFeesPage = () => {
                 feeItems.map((item) => (
                   <TableRow key={item.head} hover>
                     <TableCell sx={{ fontWeight: 800, color: 'text.primary' }}>{item.head}</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>{item.amount}</TableCell>
+                    <TableCell sx={{ fontWeight: 700, fontFamily: theme.typography.mono?.fontFamily || 'monospace' }}>{item.amount}</TableCell>
                     <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>{item.date}</TableCell>
                     <TableCell>
                       <Chip label={item.status} color={item.statusColor} size="small" sx={{ fontWeight: 800 }} />
@@ -462,75 +473,22 @@ export const StudentFeesPage = () => {
       </Paper>
 
       {/* Payment Checkout Modal */}
-      <Dialog
+      <MockPaymentGateway
         open={openPayModal}
         onClose={() => setOpenPayModal(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: '24px', p: 1 } }}
-      >
-        <DialogTitle sx={{ fontWeight: 800 }}>
-          Institutional Online Fee Payment Gateway
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 2 }}>
-            Simulated secure checkout for Course <strong>{studentMeta?.course || 'B.Tech'}</strong> (Sem {studentMeta?.semester || 6}).
-          </Typography>
-
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: '16px', bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', mb: 3 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, display: 'block', mb: 1 }}>
-              OUTSTANDING FEE HEAD BREAKDOWN
-            </Typography>
-            {baseFeeStructure.map((item) => {
-              const due = Number(feeDues[item.key] || 0);
-              if (due === 0) return null;
-              return (
-                <Box key={item.key} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{item.head}</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 800, color: 'error.main' }}>
-                    ₹ {due.toLocaleString('en-IN')}
-                  </Typography>
-                </Box>
-              );
-            })}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 1.5, mt: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>TOTAL PAYABLE AMOUNT</Typography>
-              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'primary.main' }}>
-                ₹ {totalDues.toLocaleString('en-IN')}
-              </Typography>
-            </Box>
-          </Paper>
-
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>
-            PAYMENT METHOD SIMULATION
-          </Typography>
-          <Chip label="ONLINE ERP GATEWAY (INSTANT CLEARANCE)" color="primary" sx={{ fontWeight: 800, mt: 1 }} />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setOpenPayModal(false)} sx={{ fontWeight: 700 }}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="success"
-            disabled={payMutation.isPending}
-            onClick={() => {
-              payMutation.mutate(undefined, {
-                onSuccess: () => {
-                  showToast('Fee payment of ₹' + totalDues.toLocaleString('en-IN') + ' completed successfully!');
-                  setOpenPayModal(false);
-                },
-                onError: (err) => {
-                  showToast(err.response?.data?.message || err.message || 'Payment failed', { severity: 'error' });
-                },
-              });
-            }}
-            sx={{ borderRadius: '12px', fontWeight: 800, px: 3 }}
-          >
-            {payMutation.isPending ? 'Processing Payment...' : `Confirm & Pay ₹ ${totalDues.toLocaleString('en-IN')}`}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        totalDues={totalDues}
+        onPaymentSuccess={() => {
+          payMutation.mutate(undefined, {
+            onSuccess: () => {
+              showToast('Fee payment of ₹' + totalDues.toLocaleString('en-IN') + ' completed successfully!');
+              setOpenPayModal(false);
+            },
+            onError: (err) => {
+              showToast(err.response?.data?.message || err.message || 'Payment failed', { severity: 'error' });
+            },
+          });
+        }}
+      />
     </Container>
   );
 };

@@ -773,6 +773,50 @@ const updateMyProfile = async (userId, data) => {
   return updatedUser;
 };
 
+/**
+ * Fetch students for a department matching the fee status.
+ * Enforces Invariant 7A for department boundaries.
+ */
+const getDepartmentFeesList = async (departmentId, statuses) => {
+  if (!mongoose.Types.ObjectId.isValid(departmentId)) {
+    throw new AppError('Invalid department ID', 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
+  // Enforce Invariant 7A: Find all branches hosted by this department
+  const hostedBranches = await Branch.find({
+    $or: [{ hostingDepartmentId: departmentId }, { departmentId: departmentId }]
+  }).select('_id');
+  const hostedBranchIds = hostedBranches.map(b => b._id);
+
+  const filter = {
+    role: 'STUDENT',
+    status: 'ACTIVE',
+    feeStatus: { $in: statuses },
+    $or: [
+      { departmentId: departmentId },
+      { branchId: { $in: hostedBranchIds } }
+    ]
+  };
+
+  const users = await User.find(filter)
+    .select('name rollNumber email feeStatus feeDues noDuesIssuedAt createdAt')
+    .populate('courseId', 'name code')
+    .populate('branchId', 'name code')
+    .sort({ 'feeDues.tuition': -1, 'feeDues.hostel': -1, createdAt: -1 });
+
+  return users.map(u => ({
+    id: u._id,
+    name: u.name,
+    email: u.email,
+    rollNumber: u.rollNumber || null,
+    course: u.courseId ? u.courseId.name : null,
+    branch: u.branchId ? u.branchId.name : null,
+    feeStatus: u.feeStatus,
+    feeDues: u.feeDues || { tuition: 0, hostel: 0, library: 0, lab: 0 },
+    noDuesIssuedAt: u.noDuesIssuedAt || null,
+  }));
+};
+
 module.exports = {
   getUsersList,
   getUserDetails,
@@ -785,4 +829,5 @@ module.exports = {
   importStudents,
   getMyProfile,
   updateMyProfile,
+  getDepartmentFeesList,
 };

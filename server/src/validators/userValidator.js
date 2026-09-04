@@ -84,6 +84,23 @@ const updateUserSchema = z.object({
   }
 });
 
+const getDepartmentFeesQuerySchema = z.object({
+  status: z
+    .string()
+    .optional()
+    .transform((val) => {
+      if (!val) {
+        return ['PENDING', 'OVERDUE']; // Default if none provided
+      }
+      return val.split(',').map((s) => s.trim().toUpperCase());
+    })
+    .refine(
+      (statuses) => statuses.every((s) => ['CLEARED', 'PENDING', 'OVERDUE'].includes(s)),
+      { message: 'Invalid status. Allowed values are CLEARED, PENDING, OVERDUE' }
+    ),
+});
+
 module.exports = {
   updateUserSchema,
+  getDepartmentFeesQuerySchema,
 };
